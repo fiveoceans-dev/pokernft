@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 35 35" style="enable-background:new 0 0 35 35;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:url(#SVGID_1_);}
+	.st1{fill:none;stroke:#FFFFFF;stroke-miterlimit:10;stroke-dasharray:5;}
+	.st2{fill:none;stroke:#E07070;stroke-width:3;stroke-miterlimit:10;stroke-dasharray:6;}
+	.st3{fill:none;stroke:#FFFFFF;stroke-miterlimit:10;}
+	.st4{font-family:'MyriadPro-Regular';}
+	.st5{font-size:6.9062px;}
+</style>
+<g>
+	<g>
+		
+			<radialGradient id="SVGID_1_" cx="-939.0469" cy="521.2616" r="8.378362e-02" gradientTransform="matrix(100.4879 269.0433 269.0541 -100.4919 -45875.168 305027.5312)" gradientUnits="userSpaceOnUse">
+			<stop  offset="0" style="stop-color:#1B1BB5"/>
+			<stop  offset="1" style="stop-color:#0C0C4F"/>
+		</radialGradient>
+		<path class="st0" d="M0.1,19.2C1,28.8,9.5,35.9,19.2,34.9s16.7-9.5,15.7-19.1S25.5-0.9,15.8,0.1S-0.8,9.7,0.1,19.2z"/>
+	</g>
+</g>
+<circle class="st1" cx="17.5" cy="17.5" r="13.1"/>
+<circle class="st2" cx="17.5" cy="17.5" r="15.7"/>
+<text transform="matrix(1 0 0 1 5.7036 20.0234)" class="st3 st4 st5">$POKER</text>
+</svg>
