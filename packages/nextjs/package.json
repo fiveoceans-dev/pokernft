@@ -12,7 +12,7 @@
     "test": "vitest",
     "coverage": "vitest run --coverage",
     "postinstall": "shx cp -n .env.example .env",
-    "vercel": "vercel"
+    "vercel": "vercel --prod"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.3",
