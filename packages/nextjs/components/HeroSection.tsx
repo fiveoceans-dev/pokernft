@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 
 const slides = [
-  { id: 0, title: "Featured NFT 1", image: "/nft.png" },
-  { id: 1, title: "Featured NFT 2", image: "/nft-art.png" },
-  { id: 2, title: "Featured NFT 3", image: "/poker.png" },
+  { id: 0, title: "Featured NFT 1", image: "carousel/pokernfts1.jpg" },
+  { id: 1, title: "Featured NFT 2", image: "carousel/pokernfts2.jpg" },
+  { id: 2, title: "Featured NFT 3", image: "carousel/pokernfts3.jpg" },
 ];
 
 /**
