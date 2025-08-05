@@ -13,9 +13,7 @@ export default function HomePage() {
       <HeroSection />
       <MostPopularSection />
       <TournamentsTableSection />
-      <MarketplaceSection />
       <StayTunedSection />
-      <Footer />
     </main>
   );
 }
