@@ -40,7 +40,6 @@ export default function HeroSection() {
             alt={s.title}
             className="w-full h-full object-cover"
           />
-
         </div>
       ))}
 
@@ -50,12 +49,20 @@ export default function HeroSection() {
         <h1 className="text-3xl md:text-5xl font-bold mb-4">
           {slides[index].title}
         </h1>
-        <a
-          href="/#mint"
-          className="px-6 py-3 bg-yellow-400 text-[#0c1a3a] font-semibold rounded-lg shadow hover:bg-yellow-300 transition-colors"
-        >
-          Buy NFT
-        </a>
+        <div className="flex gap-4">
+          <a
+            href="/play"
+            className="px-6 py-3 bg-[#8a45fc] text-white font-semibold rounded-lg shadow hover:bg-[#6e2ae4] transition-colors"
+          >
+            Play
+          </a>
+          <a
+            href="/#mint"
+            className="px-6 py-3 bg-yellow-400 text-[#0c1a3a] font-semibold rounded-lg shadow hover:bg-yellow-300 transition-colors"
+          >
+            Buy NFT
+          </a>
+        </div>
       </div>
 
       <button
@@ -88,4 +95,3 @@ export default function HeroSection() {
     </section>
   );
 }
-
