@@ -2,7 +2,7 @@ import { PopularNftCard, type PopularNftCardProps } from "./ui/PopularNftCard";
 
 type PopularNftItem = PopularNftCardProps & { id: number };
 
-const items: PopularNftItem[] = Array.from({ length: 5 }).map((_, i) => ({
+const items: PopularNftItem[] = Array.from({ length: 14 }).map((_, i) => ({
   id: i,
   title: `PUNK${1000 + i}`,
   image: "/nft.png",
@@ -17,18 +17,20 @@ const items: PopularNftItem[] = Array.from({ length: 5 }).map((_, i) => ({
 }));
 
 /**
- * Grid of popular NFTs similar to Rarible's latest drops.
+ * Horizontally scrollable grid of trending NFTs.
  */
-export default function MostPopularSection() {
+export default function TrendingSection() {
   return (
     <section className="py-12 px-4 sm:px-6 md:px-12">
       <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-8">
-        Most Popular
+        Trending
       </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6 justify-items-center">
-        {items.map((item) => (
-          <PopularNftCard key={item.id} {...item} />
-        ))}
+      <div className="overflow-x-auto pb-2">
+        <div className="grid grid-cols-7 gap-4 md:gap-6 w-max">
+          {items.map((item) => (
+            <PopularNftCard key={item.id} {...item} />
+          ))}
+        </div>
       </div>
     </section>
   );

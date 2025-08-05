@@ -26,15 +26,9 @@ export const PopularNftCard: FC<PopularNftCardProps> = ({
   maxRegistered,
   prize,
 }) => (
-  <div className="w-48 sm:w-64 bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-    <div className="relative w-48 h-48 sm:w-64 sm:h-64 overflow-hidden">
-      <Image
-        src={image}
-        alt={title}
-        width={256}
-        height={256}
-        className="w-full h-full object-cover"
-      />
+  <div className="w-40 sm:w-48 md:w-64 min-w-[10rem] bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="relative w-full aspect-square overflow-hidden">
+      <Image src={image} alt={title} fill className="object-cover" />
     </div>
     <div className="px-2 pb-2 space-y-1" />
     <div className="px-2 flex justify-between text-xs text-gray-600 font-medium">

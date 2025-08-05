@@ -134,7 +134,6 @@ const columns: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: "sold", label: "Sold", numeric: true },
   { key: "prizes", label: "Prizes" },
   { key: "date", label: "Date" },
-  { key: "supply", label: "Supply", numeric: true },
 ];
 
 export default function TournamentsTableSection() {
@@ -178,7 +177,10 @@ export default function TournamentsTableSection() {
             <thead className="bg-gray-900 text-gray-400 uppercase text-[10px] sm:text-xs">
               <tr>
                 {columns.map((col) => (
-                  <th key={col.key} className="px-2 py-2 text-left relative">
+                  <th
+                    key={col.key}
+                    className={`px-2 py-1 relative ${col.numeric ? "text-center" : "text-left"}`}
+                  >
                     <button
                       className="flex items-center gap-1"
                       onClick={() => toggleColumn(col.key)}
@@ -208,28 +210,29 @@ export default function TournamentsTableSection() {
             <tbody className="bg-black divide-y divide-gray-800">
               {sorted.map((t) => (
                 <tr key={t.id} className="hover:bg-gray-900 transition">
-                  <td className="px-2 py-2">
+                  <td className="px-2 py-1">
                     <img
                       src={t.nft}
                       alt={t.name}
                       className="w-12 h-12 object-cover rounded"
                     />
                   </td>
-                  <td className="px-2 py-2">{t.name}</td>
-                  <td className="px-2 py-2 flex items-center gap-2">
+                  <td className="px-2 py-1">{t.name}</td>
+                  <td className="px-2 py-1 flex items-center gap-2">
                     <img
                       src={t.creatorAvatar}
                       alt={t.creator}
-                      className="w-6 h-6 rounded-full"
+                      className="w-6 h-6 rounded-full object-cover"
                     />
                     <span>{t.creator}</span>
                   </td>
-                  <td className="px-2 py-2">{t.game}</td>
-                  <td className="px-2 py-2 text-green-400">{t.buyIn}</td>
-                  <td className="px-2 py-2 text-orange-400">{t.sold}</td>
-                  <td className="px-2 py-2">{t.prizes}</td>
-                  <td className="px-2 py-2">{t.date}</td>
-                  <td className="px-2 py-2">{t.supply}</td>
+                  <td className="px-2 py-1">{t.game}</td>
+                  <td className="px-2 py-1 text-green-400 text-center">
+                    {t.buyIn}
+                  </td>
+                  <td className="px-2 py-1 text-orange-400 text-center">{`${t.sold}/${t.supply}`}</td>
+                  <td className="px-2 py-1">{t.prizes}</td>
+                  <td className="px-2 py-1">{t.date}</td>
                 </tr>
               ))}
             </tbody>
