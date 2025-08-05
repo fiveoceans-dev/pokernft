@@ -2,7 +2,7 @@
 <html>
 
 <head>
-  <title>Poker NFT</title>
+  <title>Poker NFTs</title>
   <style>
     .card {
       width: 300px;
@@ -27,90 +27,8 @@
 
 <body>
 
-  <div class="card" id="card">
-    <svg viewBox="0 0 300 420">
-      <!-- Background -->
-      <rect width="300" height="420" rx="20" fill="#2e45f3" />
-
-      <!-- Pokemon Name & HP -->
-      <text x="20" y="40" font-size="16" font-weight="bold">PokerNFT x Murakami</text>
-      <text x="200" y="40">
-        <tspan>
-          <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
-          August 1st
-        </tspan>
-      </text>
-      <!-- Art -->
-      <image href="public/nft-art.png" x="20" y="60" width="260" height="160" rx="10" />
-
-      <!-- Rarity & Power Icons -->
-      <g transform="translate(50, 240)">
-        <!-- Power -->
-        <circle cx="-10" cy="15" r="12" fill="#234562" stroke="#222" stroke-width="2" />
-        <text x="-22" y="0" class="icon-label" font-size="10">Bank</text>
-        <text x="-20" y="20" class="icon-label">80</text>
-
-        <!-- Rarity -->
-        <circle cx="60" cy="15" r="12" fill="#23f562" stroke="#222" stroke-width="2" />
-        <text x="47" y="0" class="icon-label" font-size="10">Artist</text>
-        <text x="50" y="20" class="icon-label">10</text>
-
-        <circle cx="130" cy="15" r="12" fill="#23a562" stroke="#222" stroke-width="2" />
-        <text x="112" y="0" class="icon-label" font-size="10">Protocol</text>
-        <text x="120" y="20" class="icon-label">10</text>
-
-        <!-- Protocol -->
-        <circle cx="210" cy="15" r="12" fill="#a34262" stroke="#222" stroke-width="2" />
-        <text x="195" y="0" class="icon-label" font-size="10">Airdrop</text>
-        <text x="200" y="20" class="icon-label">50</text>
-      </g>
-
-      <!-- Abilities -->
-      <g transform="translate(20, 290)">
-        <text font-weight="bold" font-size="16">Provenance</text>
-        <text y="20" font-size="12">Limited edition Murakami poker flower art</text>
-      </g>
-
-      <g transform="translate(20, 340)">
-        <text font-weight="bold" font-size="16">Details</text>
-        <text y="20" font-size="12">No Limit Texas Hold'em. August 1st, 6 PM EST</text>
-        <text y="40" font-size="12">You can get 90% refund in case of no show</text>
-      </g>
 
 
-      <text x="20" y="400" font-size="10">Tornament size: 1/9999</text>
-
-      <!-- Reflection Gradient Layer -->
-      <defs>
-        <linearGradient id="mouseGradient" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="white" stop-opacity="0.0" />
-          <stop offset="50%" stop-color="white" stop-opacity="0.15" />
-          <stop offset="100%" stop-color="white" stop-opacity="0.0" />
-        </linearGradient>
-      </defs>
-      <rect class="reflection" x="0" y="0" width="300" height="420" fill="url(#mouseGradient)" />
-
-
-    </svg>
-  </div>
-
-  <script>
-    const card = document.getElementById('card');
-    const gradient = document.getElementById('mouseGradient');
-
-    card.addEventListener('mousemove', (e) => {
-      const rect = card.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
-
-      // Update gradient direction
-      const grad = card.querySelector('#mouseGradient');
-      grad.setAttribute('x1', x);
-      grad.setAttribute('y1', y);
-      grad.setAttribute('x2', 1 - x);
-      grad.setAttribute('y2', 1 - y);
-    });
-  </script>
 
 </body>
 
