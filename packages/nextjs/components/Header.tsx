@@ -25,7 +25,6 @@ export const menuLinks: HeaderMenuLink[] = [
   { label: "How it Works", href: "/#how" },
   { label: "Top Tournaments", href: "/#tournaments" },
   { label: "Marketplace", href: "/#marketplace" },
-  { label: "Play", href: "/play" },
 ];
 
 export const HeaderMenuLinks = () => {
@@ -112,8 +111,8 @@ export const Header = () => {
   ]);
 
   return (
-    <div className=" lg:static top-0 navbar min-h-0 flex-shrink-0 justify-between z-20 px-0 sm:px-2 flex-wrap gap-2">
-      <div className="navbar-start w-auto lg:w-1/2 -mr-2">
+    <div className=" lg:static top-0 navbar min-h-0 flex-shrink-0 justify-between items-center z-20 px-0 sm:px-2 flex-wrap gap-2">
+      <div className="navbar-start w-auto lg:w-1/2 -mr-2 items-center">
         <div className="lg:hidden dropdown" ref={burgerMenuRef}>
           <label
             tabIndex={0}
@@ -158,7 +157,7 @@ export const Header = () => {
           <HeaderMenuLinks />
         </ul>
       </div>
-      <div className="navbar-end flex-grow mr-2 gap-4">
+      <div className="navbar-end flex-grow mr-2 gap-4 items-center">
         {status === "connected" && !isDeployed ? (
           <span className="bg-[#8a45fc] text-[9px] p-1 text-white">
             Wallet Not Deployed
