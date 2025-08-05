@@ -1,12 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 const slides = [
-  { id: 0, title: "Featured NFT 1", image: "carousel/pokernfts1.png" },
-  { id: 1, title: "Featured NFT 2", image: "carousel/pokernfts2.png" },
-  { id: 2, title: "Featured NFT 3", image: "carousel/pokernfts3.png" },
-  { id: 3, title: "Featured NFT 3", image: "carousel/pokernfts4.png" },
+  { id: 0, title: "Featured NFT 1", image: "/carousel/pokernfts1.png" },
+  { id: 1, title: "Featured NFT 2", image: "/carousel/pokernfts2.png" },
+  { id: 2, title: "Featured NFT 3", image: "/carousel/pokernfts3.png" },
+  { id: 3, title: "Featured NFT 3", image: "/carousel/pokernfts4.png" },
 ];
 
 /**
@@ -35,10 +36,12 @@ export default function HeroSection() {
             i === index ? "opacity-100" : "opacity-0"
           }`}
         >
-          <img
+          <Image
             src={s.image}
             alt={s.title}
-            className="w-full h-full object-cover"
+            fill
+            priority={i === index}
+            className="object-cover"
           />
         </div>
       ))}

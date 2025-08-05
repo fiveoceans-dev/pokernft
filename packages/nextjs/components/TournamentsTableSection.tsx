@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 type Tournament = {
@@ -70,9 +71,11 @@ export default function TournamentsTableSection() {
             {filtered.map((t) => (
               <tr key={t.id} className="border-b border-white/5">
                 <td className="px-4 py-3 flex items-center gap-3">
-                  <img
+                  <Image
                     src={t.nft}
                     alt={t.name}
+                    width={48}
+                    height={48}
                     className="w-12 h-12 rounded-md object-cover"
                   />
                   <span>{t.name}</span>
