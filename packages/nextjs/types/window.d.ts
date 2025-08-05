@@ -13,5 +13,9 @@ declare global {
       ) => Promise<ChainInfoWithoutEndpoints>;
     };
     ethereum?: any; // Kept for backward compatibility with Ethereum wallets
+    starknet?: {
+      enable: (opts?: { showModal: boolean }) => Promise<void>;
+      account: { address: string };
+    };
   }
 }
