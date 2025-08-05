@@ -3,6 +3,7 @@
 import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
 import PlayerSeat from "./PlayerSeat";
+import type { Player } from "../game/types";
 
 /* ─── absolute positions (0 = top, 4 = bottom-center) ─── */
 const seatLayout = [
@@ -24,7 +25,7 @@ export default function Table() {
 
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
-    const player = players[idx];
+    const address = players[idx];
     const style = {
       left: seatLayout[idx].x,
       top: seatLayout[idx].y,
@@ -32,7 +33,7 @@ export default function Table() {
     } as React.CSSProperties;
 
     /* ── empty seat → button ─────────────────────────────── */
-    if (!player) {
+    if (!address) {
       return (
         <button
           key={idx}
@@ -50,6 +51,13 @@ export default function Table() {
     }
 
     /* ── occupied seat ───────────────────────────────────── */
+    const player: Player = {
+      name: address,
+      chips: 0,
+      hand: null,
+      folded: false,
+      currentBet: 0,
+    };
     const isDealer = idx === 0;
     const isActive = false; // turn logic TBD
     const reveal = idx === 4; // local player

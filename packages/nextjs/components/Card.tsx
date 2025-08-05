@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 // src/components/Card.tsx
 import Image from "next/image";
 import clsx from "clsx";
@@ -7,13 +6,21 @@ import cardStarknet from "../assets/svg-cards/card-starknet.svg";
 // import cardPokerBoots from '../assets/svg-cards/card-pokerboots.svg';
 
 /* ─────────── import all face SVGs at build-time ───────────
-   Vite’s eager glob returns an object whose values are the URLs
-   of the processed files (just like a normal `import ... from`).
+   Using Webpack's `require.context` so this works in a Next.js environment.
 */
-const faceSvgs = import.meta.glob("../assets/svg-cards/*_of_*.svg", {
-  eager: true,
-  import: "default",
-}) as Record<string, string>;
+function importAll(r: any) {
+  const images: Record<string, string> = {};
+  r.keys().forEach((key: string) => {
+    images[`../assets/svg-cards/${key.replace("./", "")}`] = r(key)
+      .default as string;
+  });
+  return images;
+}
+
+const faceSvgs = importAll(
+  // import all files matching "*_of_*.svg" in the svg-cards folder
+  (require as any).context("../assets/svg-cards", false, /_of_.*\.svg$/),
+);
 
 /* Helper: convert rank/suit symbols → filename stem */
 const rankMap: Record<string, string> = {
