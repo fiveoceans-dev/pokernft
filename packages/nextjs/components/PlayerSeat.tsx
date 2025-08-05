@@ -40,8 +40,8 @@ export default function PlayerSeat({
         </span>
       )}
 
-      {/* Pocket cards */}
-      <div className="flex gap-2">
+      {/* Pocket cards positioned above the seat */}
+      <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex gap-2">
         <Card card={hole1} hidden={!revealCards} size="lg" />
         <Card card={hole2} hidden={!revealCards} size="lg" />
       </div>
@@ -63,3 +63,4 @@ export default function PlayerSeat({
     </div>
   );
 }
+
