@@ -1,14 +1,22 @@
-import TournamentCard from "./ui/TournamentCard";
+import {
+  PopularNftCard,
+  type PopularNftCardProps,
+} from "./ui/PopularNftCard";
 
-const items = Array.from({ length: 8 }).map((_, i) => ({
+type PopularNftItem = PopularNftCardProps & { id: number };
+
+const items: PopularNftItem[] = Array.from({ length: 7 }).map((_, i) => ({
   id: i,
-  title: `Popular NFT ${i + 1}`,
+  title: `PUNK${1000 + i}`,
   image: "/nft.png",
-  creatorAvatar: "/logo.svg",
-  creatorName: `Creator ${i + 1}`,
-  date: `Aug ${10 + i}, 8:00 PM`,
-  price: 0.1 * (i + 1),
-  registered: 20 + i * 5,
+  buyIn: `$${20 + i}`,
+  status: "Minting",
+  gameType: "No-Limit Texas Hold'em",
+  dateTime: `[2025.08.${12 + i} 21:00 GMT]`,
+  tournamentType: "Tournament",
+  registered: 9999 - i,
+  maxRegistered: 10000,
+  prize: "$200,000",
 }));
 
 /**
@@ -20,9 +28,9 @@ export default function MostPopularSection() {
       <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-8">
         Most Popular
       </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 justify-items-center">
+      <div className="grid grid-cols-7 gap-6 justify-items-center">
         {items.map((item) => (
-          <TournamentCard key={item.id} {...item} />
+          <PopularNftCard key={item.id} {...item} />
         ))}
       </div>
     </section>
