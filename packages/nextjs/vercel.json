@@ -1,6 +1,5 @@
 {
   "installCommand": "yarn install",
   "buildCommand": "yarn build",
-  "outputDirectory": ".next",
-  "nodeVersion": "20.x"
+  "outputDirectory": ".next"
 }
