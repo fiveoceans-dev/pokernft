@@ -221,9 +221,9 @@ const ColorField = ({
 /* -------------------- SVG Preview -------------------- */
 const SvgPreview = (p: Record<string, string>) => (
   <svg
-    width="520"
-    height="720"
-    viewBox="0 0 520 720"
+    width="360"
+    height="640"
+    viewBox="0 0 360 640"
     className="shadow-2xl rounded-2xl"
     style={{ background: p.bgColor, border: `10px solid ${p.borderColor}` }}
   >
@@ -267,36 +267,36 @@ const SvgPreview = (p: Record<string, string>) => (
       </defs>
     )}
     {p.bgStyle === "dots" && (
-      <rect width="520" height="720" fill="url(#dots)" />
+      <rect width="360" height="640" fill="url(#dots)" />
     )}
     {p.bgStyle === "crosses" && (
-      <rect width="520" height="720" fill="url(#cross)" />
+      <rect width="360" height="640" fill="url(#cross)" />
     )}
     {p.bgStyle === "hearts" && (
-      <rect width="520" height="720" fill="url(#hearts)" />
+      <rect width="360" height="640" fill="url(#hearts)" />
     )}
 
     {/* artwork 50 % height + rounded, fat inner border */}
 
     <image
       href={nftPlaceholder.src}
-      x="40"
-      y="70"
-      width="440"
-      height="300"
+      x="30"
+      y="80"
+      width="300"
+      height="360"
       preserveAspectRatio="xMidYMid slice"
     />
     <rect
-      x="40"
-      y="70"
-      width="440"
-      height="300"
+      x="30"
+      y="80"
+      width="300"
+      height="360"
       fill="none"
       stroke={p.imgBorderColor}
       strokeWidth="8"
     />
     {/* title (max two rows) */}
-    <foreignObject x="40" y="0" width="440" height="64">
+    <foreignObject x="30" y="0" width="300" height="64">
       <div
         {...{ xmlns: "http://www.w3.org/1999/xhtml" }}
         style={{
@@ -316,7 +316,7 @@ const SvgPreview = (p: Record<string, string>) => (
     {/* price & creator */}
     <text
       x="50%"
-      y="400"
+      y="470"
       fill={p.textColor}
       color={p.textColor}
       fontFamily="sans-serif"
@@ -327,8 +327,8 @@ const SvgPreview = (p: Record<string, string>) => (
       ${p.price}
     </text>
     <text
-      x="40"
-      y="420"
+      x="30"
+      y="490"
       fill={p.textColor}
       fontFamily="sans-serif"
       fontSize="18"
@@ -347,7 +347,7 @@ const SvgPreview = (p: Record<string, string>) => (
       -- DESCRIPTION --
     </text>
     {/* description block (same transparent bg as details) */}
-    <foreignObject x="60" y="450" width="416" height="100">
+    <foreignObject x="40" y="520" width="280" height="80">
       <text
         {...{ xmlns: "http://www.w3.org/1999/xhtml" }}
         style={{
@@ -364,17 +364,17 @@ const SvgPreview = (p: Record<string, string>) => (
 
     {/* details header + bg */}
     <rect
-      x="40"
-      y="425"
-      width="440"
-      height="264"
+      x="30"
+      y="510"
+      width="300"
+      height="120"
       rx="12"
       fill="#FFFFFF"
       opacity="0.1"
     />
     <text
       x="30%"
-      y="570"
+      y="610"
       fill={p.textColor}
       fontFamily="sans-serif"
       fontSize="18"
@@ -387,11 +387,11 @@ const SvgPreview = (p: Record<string, string>) => (
     {["Game", "Entries", "Supply", "Refund", "Date"].map((lbl, i) => (
       <text
         key={lbl}
-        x="60"
-        y={590 + i * 22}
+        x="40"
+        y={630 + i * 20}
         fill={p.textColor}
         fontFamily="sans-serif"
-        fontSize="18"
+        fontSize="14"
       >
         {lbl}:
       </text>
@@ -400,30 +400,14 @@ const SvgPreview = (p: Record<string, string>) => (
     {[p.game, p.type, p.supply, p.refund, p.date].map((lbl, i) => (
       <text
         key={lbl}
-        x="160"
-        y={590 + i * 22}
+        x="140"
+        y={630 + i * 20}
         fill={p.textColor}
         fontFamily="sans-serif"
-        fontSize="18"
+        fontSize="14"
       >
         {lbl}
       </text>
     ))}
-
-    {/* values column */}
-
-    <foreignObject x="200" y="746" width="280" height="60">
-      <div
-        {...{ xmlns: "http://www.w3.org/1999/xhtml" }}
-        style={{
-          color: "#9CA3AF",
-          fontFamily: "sans-serif",
-          fontSize: 16,
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        {p.date}
-      </div>
-    </foreignObject>
   </svg>
 );
