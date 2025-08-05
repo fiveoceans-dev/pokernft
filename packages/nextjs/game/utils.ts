@@ -1,14 +1,12 @@
 // src/game/utils.ts
-import { RANKS, SUITS } from './constants';
-import type { Card } from './types';
+import { RANKS, SUITS } from "./constants";
+import type { Card } from "./types";
 
 /* ─────────── Random + Deck helpers ─────────── */
 
 export function freshDeck(): Card[] {
   const deck: Card[] = [];
-  for (const suit of SUITS)
-    for (const rank of RANKS)
-      deck.push({ rank, suit });
+  for (const suit of SUITS) for (const rank of RANKS) deck.push({ rank, suit });
   return shuffle(deck);
 }
 
@@ -24,7 +22,7 @@ export function shuffle<T>(array: T[]): T[] {
 /** Draws & returns the **top** card (mutates deck) */
 export function draw(deck: Card[]): Card {
   const card = deck.pop();
-  if (!card) throw new Error('Deck underflow');
+  if (!card) throw new Error("Deck underflow");
   return card;
 }
 
@@ -36,14 +34,14 @@ export function draw(deck: Card[]): Card {
    ---------------------------------------- */
 
 export interface RankedHand {
-  rankValue: number;    // lower = better (1 = Royal Flush)
-  bestCards: Card[];    // the 5-card best hand
+  rankValue: number; // lower = better (1 = Royal Flush)
+  bestCards: Card[]; // the 5-card best hand
 }
 
 /** Naïve fallback: high-card only.  Safe to replace later. */
 export function rankHand(sevenCards: Card[]): RankedHand {
   const sorted = [...sevenCards].sort(
-    (a, b) => RANKS.indexOf(b.rank) - RANKS.indexOf(a.rank)
+    (a, b) => RANKS.indexOf(b.rank) - RANKS.indexOf(a.rank),
   );
   return { rankValue: 10, bestCards: sorted.slice(0, 5) }; // 10 = "high card"
 }
@@ -54,8 +52,7 @@ export function compareHands(a: RankedHand, b: RankedHand): number {
   // tie-breaker: compare best card ranks
   for (let i = 0; i < 5; i++) {
     const diff =
-      RANKS.indexOf(b.bestCards[i].rank) -
-      RANKS.indexOf(a.bestCards[i].rank);
+      RANKS.indexOf(b.bestCards[i].rank) - RANKS.indexOf(a.bestCards[i].rank);
     if (diff !== 0) return diff;
   }
   return 0;

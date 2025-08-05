@@ -7,7 +7,13 @@ interface Props {
   onRiver: () => void;
 }
 
-export default function ActionBar({ street, onStart, onFlop, onTurn, onRiver }: Props) {
+export default function ActionBar({
+  street,
+  onStart,
+  onFlop,
+  onTurn,
+  onRiver,
+}: Props) {
   return (
     <div className="flex gap-4">
       {street === 0 && (
