@@ -1,19 +1,23 @@
 "use client";
 import React from "react";
-import Menu from "../components/Menu";
-import Link from "next/link";
+import { Header } from "../components/Header";
+import HeroSection from "../components/HeroSection";
+import ProvenanceSection from "../components/ProvenanceSection";
+import TopTournamentsSection from "../components/TopTournamentsSection";
+import MarketplaceSection from "../components/MarketplaceSection";
+import StayTunedSection from "../components/StayTunedSection";
+import { Footer } from "../components/Footer";
 
 export default function HomePage() {
   return (
-    <main className="flex flex-col items-center">
-      <Menu />
-      <h1 className="text-3xl font-bold mt-6">PokerBoots × Starknet</h1>
-      <Link
-        href="/play"
-        className="mt-4 px-6 py-2 bg-blue-700 rounded hover:bg-blue-900"
-      >
-        Play Tournament
-      </Link>
+    <main className="flex flex-col items-stretch">
+      <Header />
+      <HeroSection />
+      <ProvenanceSection />
+      <TopTournamentsSection />
+      <MarketplaceSection />
+      <StayTunedSection />
+      <Footer />
     </main>
   );
 }
