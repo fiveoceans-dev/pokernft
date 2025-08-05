@@ -26,6 +26,13 @@ export function draw(deck: Card[]): Card {
   return card;
 }
 
+/** Convert a numeric card code (0..51) into a Card object */
+export function indexToCard(code: number): Card {
+  const rank = RANKS[code % RANKS.length];
+  const suit = SUITS[Math.floor(code / RANKS.length)];
+  return { rank, suit };
+}
+
 /* ─────────── Hand-ranking stub ───────────
    For production, wire in a proper evaluator like:
    npm i poker-evaluator
