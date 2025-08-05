@@ -39,6 +39,7 @@ export default function HeroSection() {
             alt={s.title}
             className="w-full h-full object-cover"
           />
+
         </div>
       ))}
 

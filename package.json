@@ -11,6 +11,8 @@
     ]
   },
   "scripts": {
+    "build:next": "yarn workspace @ss-2/nextjs build",
+    "start:next": "yarn workspace @ss-2/nextjs start",
     "chain": "yarn workspace @ss-2/snfoundry chain",
     "compile": "yarn workspace @ss-2/snfoundry compile",
     "deploy": "yarn workspace @ss-2/snfoundry deploy",
