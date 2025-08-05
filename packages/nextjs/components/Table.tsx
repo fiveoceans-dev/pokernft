@@ -2,6 +2,7 @@
 
 import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
+import { indexToCard } from "../game/utils";
 import PlayerSeat from "./PlayerSeat";
 import type { Player } from "../game/types";
 
@@ -81,8 +82,10 @@ export default function Table() {
       {Array.from({ length: 5 }).map((_, i) => (
         <Card
           key={i}
-          card={community[i] ?? null}
-          hidden={i >= community.length}
+          card={
+            community[i] !== null ? indexToCard(community[i] as number) : null
+          }
+          hidden={community[i] === null}
           size="md"
         />
       ))}
