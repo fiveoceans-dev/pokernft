@@ -4,10 +4,10 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 const slides = [
-  { id: 0, title: "Featured NFT 1", image: "/carousel/pokernfts1.png" },
-  { id: 1, title: "Featured NFT 2", image: "/carousel/pokernfts2.png" },
-  { id: 2, title: "Featured NFT 3", image: "/carousel/pokernfts3.png" },
-  { id: 3, title: "Featured NFT 3", image: "/carousel/pokernfts4.png" },
+  { id: 0, title: "Next-gen poker lives on-Starknet", image: "/carousel/pokernfts1.png" },
+  { id: 1, title: "Fair play isn't optional — it's built in.", image: "/carousel/pokernfts2.png" },
+  { id: 2, title: "Every Hand Verified. Every Bet on Chain.", image: "/carousel/pokernfts3.png" },
+  { id: 3, title: "Permissionless wins.", image: "/carousel/pokernfts4.png" },
 ];
 
 /**
