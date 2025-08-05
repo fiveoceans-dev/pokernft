@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 // src/components/Card.tsx
+import Image from "next/image";
 import clsx from "clsx";
 import type { Card as TCard } from "../game/types"; // type-only ✔
 import cardStarknet from "../assets/svg-cards/card-starknet.svg";
@@ -47,7 +48,7 @@ interface Props {
 }
 
 export default function Card({ card, hidden, size = "md" }: Props) {
-  const className = clsx("relative rounded-md shadow-sm", {
+  const className = clsx("rounded-md shadow-sm", {
     "w-16 h-24": size === "sm",
     "w-20 h-28": size === "md",
     "w-24 h-32": size === "lg",
@@ -57,5 +58,16 @@ export default function Card({ card, hidden, size = "md" }: Props) {
   const src =
     hidden || !card ? cardStarknet : (faceSvgs[faceKey(card)] ?? cardStarknet); // fallback to back if missing
 
-  return <img src={src} className={className} draggable={false} />;
+  const alt = hidden || !card ? "Card back" : `${card.rank} of ${card.suit}`;
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      className={className}
+      draggable={false}
+      width={80}
+      height={120}
+    />
+  );
 }

@@ -32,7 +32,8 @@ async function loadContract(
 ): Promise<Contract> {
   if (!provider) throw new Error("Starknet provider not initialized");
   try {
-    const abi: Abi = (await import(/* @vite-ignore */ abiPath)).default;
+    const res = await fetch(abiPath);
+    const abi: Abi = await res.json();
     return new Contract(abi, address, account || provider);
   } catch (err) {
     console.error("Failed to load contract", err);

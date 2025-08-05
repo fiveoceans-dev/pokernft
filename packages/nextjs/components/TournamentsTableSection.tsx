@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 type Tournament = {
@@ -108,7 +109,6 @@ export default function TournamentsTableSection() {
         <h2 className="text-3xl font-bold mb-6">
           Trending <span className="text-yellow-400">Top</span>
         </h2>
-
         <div className="overflow-auto rounded-lg border border-gray-700">
           <table className="min-w-full text-sm table-auto">
             <thead className="bg-gray-900 text-gray-400 uppercase text-xs">
