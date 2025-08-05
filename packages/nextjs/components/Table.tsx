@@ -3,7 +3,7 @@
 import { useGameStore } from "../hooks/useGameStore";
 
 /**
- * Basic table layout used by the HomeTables and play pages.
+ * Basic table layout used by the play page.
  *
  * The previous version of this file accidentally re-imported itself which
  * resulted in an infinite recursion during the Next.js build process. This
