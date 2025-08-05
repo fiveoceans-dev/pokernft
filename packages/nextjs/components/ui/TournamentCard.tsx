@@ -12,7 +12,7 @@ export type TournamentCardProps = TournamentItem;
 
 export default function TournamentCard(props: TournamentCardProps) {
   const [open, setOpen] = useState(false);
-  const totalPrize = props.price * props.registered;
+  const totalPrize = props.totalPrize ?? props.price * props.registered;
 
   return (
     <div className="max-w-[10rem] w-full">

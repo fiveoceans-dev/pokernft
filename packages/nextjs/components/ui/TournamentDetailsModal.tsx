@@ -14,7 +14,11 @@ export type TournamentItem = {
   date: string;
   price: number;
   registered: number;
-  totalPrize: number;
+  /**
+   * Optionally include the total prize. If omitted, it will be derived from
+   * `price` and `registered` values.
+   */
+  totalPrize?: number;
 };
 
 type ModalProps = {
@@ -23,6 +27,7 @@ type ModalProps = {
 };
 
 export default function TournamentDetailsModal({ item, onClose }: ModalProps) {
+  const totalPrize = item.totalPrize ?? item.price * item.registered;
   const distribution = calculatePrizeDistribution(item.price, item.registered);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -50,7 +55,7 @@ export default function TournamentDetailsModal({ item, onClose }: ModalProps) {
           <p>{item.date}</p>
           <p>Price: {item.price} ETH</p>
           <p>Registered: {item.registered}</p>
-          <p>Total Prize: {item.totalPrize.toFixed(2)} ETH</p>
+          <p>Total Prize: {totalPrize.toFixed(2)} ETH</p>
         </div>
         <div className="text-background">
           <h4 className="font-semibold mb-1">Prize Distribution</h4>
