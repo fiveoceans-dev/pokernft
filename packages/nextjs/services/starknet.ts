@@ -18,16 +18,26 @@ let account: Account | null = null;
 /**
  * Initialize Starknet provider + account once the user connects their wallet.
  */
-export function initStarknet(starknetProvider: any) {
-  // Default provider (uses alpha4 by default)
-  provider = new Provider();
-  account = starknetProvider.account;
+export function initStarknet(starknetProvider?: any) {
+  const rpcUrl =
+    process.env.NEXT_PUBLIC_PROVIDER_URL ||
+    process.env.NEXT_PUBLIC_DEVNET_PROVIDER_URL;
+  provider = rpcUrl ? new Provider({ nodeUrl: rpcUrl }) : new Provider();
+  account = starknetProvider?.account ?? null;
 }
 
-async function loadContract(address: string, abiPath: string): Promise<Contract> {
+async function loadContract(
+  address: string,
+  abiPath: string,
+): Promise<Contract> {
   if (!provider) throw new Error("Starknet provider not initialized");
-  const abi: Abi = (await import(/* @vite-ignore */ abiPath)).default;
-  return new Contract(abi, address, account || provider);
+  try {
+    const abi: Abi = (await import(/* @vite-ignore */ abiPath)).default;
+    return new Contract(abi, address, account || provider);
+  } catch (err) {
+    console.error("Failed to load contract", err);
+    throw err;
+  }
 }
 
 export async function getNFTTicketContract(): Promise<Contract> {
@@ -47,7 +57,7 @@ export async function getDeckShufflerContract(): Promise<Contract> {
  */
 export async function checkNFTOwnership(
   userAddress: string,
-  tournamentId: string
+  tournamentId: string,
 ): Promise<boolean> {
   const nft = await getNFTTicketContract();
 

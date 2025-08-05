@@ -2,25 +2,14 @@
 
 import clsx from "clsx";
 import Card from "./Card";
-import type { Player, CardShape } from "../game/types";
+import type { Player, Card as TCard } from "../game/types";
 
 interface PlayerSeatProps {
-  player: Player;       // player object from your Zustand store
-  isDealer?: boolean;   // show “D” marker if true
-  isActive?: boolean;   // highlight border when it's this player's turn
-  bet?: number;         // amount currently bet by this player
-  revealCards?: boolean;// if true, show hole cards face-up
-}
-
-/**
- * Helper: convert a numeric code [0..51] into a CardShape { rank, suit }.
- * rank = 0..12  (2..Ace), suit = 0..3 (Spade, Heart, Diamond, Club)
- */
-function makeCardShape(code: number): CardShape {
-  return {
-    rank: code % 13,
-    suit: Math.floor(code / 13),
-  };
+  player: Player; // player object from your Zustand store
+  isDealer?: boolean; // show “D” marker if true
+  isActive?: boolean; // highlight border when it's this player's turn
+  bet?: number; // amount currently bet by this player
+  revealCards?: boolean; // if true, show hole cards face-up
 }
 
 export default function PlayerSeat({
@@ -31,20 +20,17 @@ export default function PlayerSeat({
   revealCards = false,
 }: PlayerSeatProps) {
   // If `player.hand` is null, treat as not yet dealt
-  let hole1: CardShape | null = null;
-  let hole2: CardShape | null = null;
-  if (player.hand) {
-    const [code1, code2] = player.hand;
-    hole1 = code1 !== null ? makeCardShape(code1) : null;
-    hole2 = code2 !== null ? makeCardShape(code2) : null;
-  }
+  const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [
+    null,
+    null,
+  ];
 
   return (
     <div
       className={clsx(
         "relative flex flex-col items-center gap-1",
         player.folded && "opacity-60",
-        isActive && "ring-4 ring-amber-300 rounded-lg"
+        isActive && "ring-4 ring-amber-300 rounded-lg",
       )}
     >
       {/* Dealer marker */}

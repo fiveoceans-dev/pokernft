@@ -25,7 +25,6 @@
     "test": "yarn workspace @ss-2/snfoundry test",
     "test:nextjs": "yarn workspace @ss-2/nextjs test",
     "vercel": "yarn workspace @ss-2/nextjs vercel",
-    "vercel:yolo": "yarn workspace @ss-2/nextjs vercel:yolo",
     "verify": "yarn workspace @ss-2/snfoundry verify"
   },
   "dependencies": {
