@@ -21,10 +21,11 @@ type HeaderMenuLink = {
 };
 
 export const menuLinks: HeaderMenuLink[] = [
-  {
-    label: "Home",
-    href: "/",
-  }
+  { label: "Home", href: "/#home" },
+  { label: "How it Works", href: "/#how" },
+  { label: "Top Tournaments", href: "/#tournaments" },
+  { label: "Marketplace", href: "/#marketplace" },
+  { label: "Play", href: "/play" },
 ];
 
 export const HeaderMenuLinks = () => {
@@ -135,6 +136,7 @@ export const Header = () => {
                 setIsDrawerOpen(false);
               }}
             >
+              <HeaderMenuLinks />
             </ul>
           )}
         </div>
@@ -153,6 +155,7 @@ export const Header = () => {
           </div>
         </Link>
         <ul className="hidden lg:flex lg:flex-nowrap menu menu-horizontal px-1 gap-2">
+          <HeaderMenuLinks />
         </ul>
       </div>
       <div className="navbar-end flex-grow mr-2 gap-4">
