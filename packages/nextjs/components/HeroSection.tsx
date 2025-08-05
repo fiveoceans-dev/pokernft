@@ -3,7 +3,7 @@
 import appMockup from "../assets/app-mockup.png";
 
 /**
- * HeroSection – concise, on‑point banner explaining the NFT‑tournament flow.
+ * HeroSection – concise, on-point banner explaining the NFT-tournament flow.
  */
 export default function HeroSection() {
   return (
@@ -25,13 +25,13 @@ export default function HeroSection() {
 
         {/* subline */}
         <p className="mt-4 text-slate-300 text-lg md:text-xl text-left">
-          Mint tickets → Prize pool auto‑escrows → Smart‑contract payouts.
+          Mint tickets → Prize pool auto-escrows → Smart-contract payouts.
         </p>
 
         {/* how it works concise */}
         <ul className="mt-6 space-y-2 text-sm md:text-base list-disc pl-6 text-slate-300 text-left">
-          <li>Anyone launches a tournament by selling ticket‑NFTs.</li>
-          <li>100% of sales locked in-bank by Starknet smart‑contracts.</li>
+          <li>Anyone launches a tournament by selling ticket-NFTs.</li>
+          <li>100% of sales locked in-bank by Starknet smart-contracts.</li>
           <li>
             After the final hand: 10% platform • 10% creator • 40% winner • 40%
             top&nbsp;15%.
