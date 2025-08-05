@@ -3,6 +3,8 @@ node_modules
 package-lock.json
 .idea
 
+packages/snfoundry/*
+
 # yarn / eslint
 .yarn/*
 !.yarn/patches
