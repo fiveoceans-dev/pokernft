@@ -1,6 +1,11 @@
-import PopularNftCard from "./ui/PopularNftCard";
+import {
+  PopularNftCard,
+  type PopularNftCardProps,
+} from "./ui/PopularNftCard";
 
-const items = Array.from({ length: 7 }).map((_, i) => ({
+type PopularNftItem = PopularNftCardProps & { id: number };
+
+const items: PopularNftItem[] = Array.from({ length: 7 }).map((_, i) => ({
   id: i,
   title: `PUNK${1000 + i}`,
   image: "/nft.png",
