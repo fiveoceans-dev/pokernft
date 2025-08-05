@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 
 type Tournament = {
@@ -57,11 +56,77 @@ const tournaments: Tournament[] = [
     supply: 1200,
     nft: "https://placehold.co/220x320.png?text=NFT",
   },
+  {
+    id: 4,
+    name: "Nightly Brawl",
+    creator: "CryptoPunks",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    game: "Hold'em",
+    buyIn: 75,
+    sold: 500,
+    prizes: "40% / 30% / 20% / 10%",
+    date: "2024-07-20",
+    supply: 900,
+    nft: "https://placehold.co/220x320.png?text=NFT",
+  },
+  {
+    id: 5,
+    name: "High Roller",
+    creator: "Azuki",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    game: "Omaha",
+    buyIn: 500,
+    sold: 120,
+    prizes: "60% / 25% / 15%",
+    date: "2024-08-05",
+    supply: 400,
+    nft: "https://placehold.co/220x320.png?text=NFT",
+  },
+  {
+    id: 6,
+    name: "Daily Spin",
+    creator: "Moonbirds",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    game: "Hold'em",
+    buyIn: 25,
+    sold: 800,
+    prizes: "25% / 15% / 10%",
+    date: "2024-08-20",
+    supply: 1500,
+    nft: "https://placehold.co/220x320.png?text=NFT",
+  },
+  {
+    id: 7,
+    name: "Weekend Warriors",
+    creator: "Pudgy Penguins",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    game: "Omaha",
+    buyIn: 150,
+    sold: 350,
+    prizes: "35% / 25% / 15% / 10%",
+    date: "2024-09-02",
+    supply: 600,
+    nft: "https://placehold.co/220x320.png?text=NFT",
+  },
+  {
+    id: 8,
+    name: "Grand Finale",
+    creator: "CloneX",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    game: "Hold'em",
+    buyIn: 1000,
+    sold: 80,
+    prizes: "50% / 30% / 20%",
+    date: "2024-09-30",
+    supply: 200,
+    nft: "https://placehold.co/220x320.png?text=NFT",
+  },
 ];
 
 type SortKey = keyof Tournament;
 
 const columns: { key: SortKey; label: string; numeric?: boolean }[] = [
+  { key: "nft", label: "NFT" },
   { key: "name", label: "Tournament" },
   { key: "creator", label: "Creator" },
   { key: "game", label: "Game" },
@@ -70,7 +135,6 @@ const columns: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: "prizes", label: "Prizes" },
   { key: "date", label: "Date" },
   { key: "supply", label: "Supply", numeric: true },
-  { key: "nft", label: "NFT" },
 ];
 
 export default function TournamentsTableSection() {
@@ -104,17 +168,17 @@ export default function TournamentsTableSection() {
   };
 
   return (
-    <section className="text-white p-8">
+    <section className="text-white p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold mb-6">
           Trending <span className="text-yellow-400">Top</span>
         </h2>
         <div className="overflow-auto rounded-lg border border-gray-700">
-          <table className="min-w-full text-sm table-auto">
-            <thead className="bg-gray-900 text-gray-400 uppercase text-xs">
+          <table className="min-w-full text-xs sm:text-sm table-auto">
+            <thead className="bg-gray-900 text-gray-400 uppercase text-[10px] sm:text-xs">
               <tr>
                 {columns.map((col) => (
-                  <th key={col.key} className="px-4 py-3 text-left relative">
+                  <th key={col.key} className="px-2 py-2 text-left relative">
                     <button
                       className="flex items-center gap-1"
                       onClick={() => toggleColumn(col.key)}
@@ -144,30 +208,37 @@ export default function TournamentsTableSection() {
             <tbody className="bg-black divide-y divide-gray-800">
               {sorted.map((t) => (
                 <tr key={t.id} className="hover:bg-gray-900 transition">
-                  <td className="px-4 py-3 flex items-center gap-3">
-                    {t.name}
+                  <td className="px-2 py-2">
+                    <img
+                      src={t.nft}
+                      alt={t.name}
+                      className="w-12 h-12 object-cover rounded"
+                    />
                   </td>
-                  <td className="px-4 py-3 flex items-center gap-3">
+                  <td className="px-2 py-2">{t.name}</td>
+                  <td className="px-2 py-2 flex items-center gap-2">
                     <img
                       src={t.creatorAvatar}
                       alt={t.creator}
-                      className="w-8 h-8 rounded-full"
+                      className="w-6 h-6 rounded-full"
                     />
                     <span>{t.creator}</span>
                   </td>
-                  <td className="px-4 py-3">{t.game}</td>
-                  <td className="px-4 py-3 text-green-400">{t.buyIn}</td>
-                  <td className="px-4 py-3 text-orange-400">{t.sold}</td>
-                  <td className="px-4 py-3">{t.prizes}</td>
-                  <td className="px-4 py-3">{t.date}</td>
-                  <td className="px-4 py-3">{t.supply}</td>
-                  <td className="px-4 py-3">
-                    <img src={t.nft} alt={t.name} className="w-8 h-8" />
-                  </td>
+                  <td className="px-2 py-2">{t.game}</td>
+                  <td className="px-2 py-2 text-green-400">{t.buyIn}</td>
+                  <td className="px-2 py-2 text-orange-400">{t.sold}</td>
+                  <td className="px-2 py-2">{t.prizes}</td>
+                  <td className="px-2 py-2">{t.date}</td>
+                  <td className="px-2 py-2">{t.supply}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex justify-end mt-4">
+          <button className="px-4 py-2 text-xs sm:text-sm bg-[#8a45fc] text-white rounded">
+            [MORE]
+          </button>
         </div>
       </div>
     </section>

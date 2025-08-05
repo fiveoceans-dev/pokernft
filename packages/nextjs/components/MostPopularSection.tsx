@@ -1,7 +1,4 @@
-import {
-  PopularNftCard,
-  type PopularNftCardProps,
-} from "./ui/PopularNftCard";
+import { PopularNftCard, type PopularNftCardProps } from "./ui/PopularNftCard";
 
 type PopularNftItem = PopularNftCardProps & { id: number };
 
@@ -24,11 +21,11 @@ const items: PopularNftItem[] = Array.from({ length: 5 }).map((_, i) => ({
  */
 export default function MostPopularSection() {
   return (
-    <section className="py-12 px-6 md:px-12">
+    <section className="py-12 px-4 sm:px-6 md:px-12">
       <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-8">
         Most Popular
       </h2>
-      <div className="grid grid-cols-5 gap-6 justify-items-center">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6 justify-items-center">
         {items.map((item) => (
           <PopularNftCard key={item.id} {...item} />
         ))}

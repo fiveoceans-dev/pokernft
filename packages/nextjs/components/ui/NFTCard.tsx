@@ -23,8 +23,8 @@ export const NFTCard: React.FC<NFTCardProps> = ({
   badge,
   actionLabel = "Buy now",
 }) => (
-  <div className="group relative col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
-    <div className="relative w-full aspect-square overflow-hidden rounded-lg bg-base-300">
+  <div className="group relative w-48 sm:w-56 flex-shrink-0">
+    <div className="relative w-48 h-48 sm:w-56 sm:h-56 overflow-hidden rounded-lg bg-base-300">
       <Image
         src={image}
         alt={title}

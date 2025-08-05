@@ -6,14 +6,8 @@ import Table from "../../components/Table";
 import { useGameStore } from "../../hooks/useGameStore";
 
 export default function PlayPage() {
-  const {
-    street,
-    reloadTableState,
-    startHand,
-    dealFlop,
-    dealTurn,
-    dealRiver,
-  } = useGameStore();
+  const { street, reloadTableState, startHand, dealFlop, dealTurn, dealRiver } =
+    useGameStore();
 
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +32,6 @@ export default function PlayPage() {
   async function handleJoinTable() {
     setError(null);
     setIsJoining(true);
-
   }
 
   return (
