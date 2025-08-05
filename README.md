@@ -11,8 +11,10 @@ yarn install
 
 ### Development
 
+Use the development server for instant feedback without rebuilding:
+
 ```bash
-yarn start        # run Next.js dev server
+yarn dev          # run Next.js dev server with hot reload
 yarn chain        # launch local Starknet devnet
 ```
 

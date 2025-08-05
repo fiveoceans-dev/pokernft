@@ -1,68 +1,89 @@
-// components/HeroSection.tsx
+"use client";
 
-import appMockup from "../assets/app-mockup.png";
+import { useEffect, useState } from "react";
+
+const slides = [
+  { id: 0, title: "Featured NFT 1", image: "/nft.png" },
+  { id: 1, title: "Featured NFT 2", image: "/nft-art.png" },
+  { id: 2, title: "Featured NFT 3", image: "/poker.png" },
+];
 
 /**
- * HeroSection – concise, on‑point banner explaining the NFT‑tournament flow.
+ * HeroSection – simple carousel inspired by Rarible's hero.
  */
 export default function HeroSection() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(
+      () => setIndex((i) => (i + 1) % slides.length),
+      5000,
+    );
+    return () => clearInterval(id);
+  }, []);
+
+  const next = () => setIndex((index + 1) % slides.length);
+  const prev = () => setIndex((index - 1 + slides.length) % slides.length);
+
   return (
-    <section
-      id="home"
-      className="relative flex flex-col justify-center h-[100vh] px-6 md:px-12 overflow-hidden"
-    >
-      {/* decorative angle */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-blue-600/20 to-indigo-800/10 [clip-path:polygon(0_0,100%_0,100%_75%,0_100%)] pointer-events-none" />
-
-      {/* content wrapper */}
-      <div className="relative z-10 max-w-4xl w-full mx-auto">
-        {/* headline */}
-        <h1 className="font-extrabold text-4xl md:text-4xl leading-tight uppercase tracking-wider text-left">
-          <span className="block text-yellow-400">POKER ON STARKNET</span>
-          <span className="block text-white-400">SPIN UP YOUR TOURNAMENT</span>
-          <span className="block text-white-400">WITH NFT SALE</span>
-        </h1>
-
-        {/* subline */}
-        <p className="mt-4 text-slate-300 text-lg md:text-xl text-left">
-          Mint tickets → Prize pool auto‑escrows → Smart‑contract payouts.
-        </p>
-
-        {/* how it works concise */}
-        <ul className="mt-6 space-y-2 text-sm md:text-base list-disc pl-6 text-slate-300 text-left">
-          <li>Anyone launches a tournament by selling ticket‑NFTs.</li>
-          <li>100% of sales locked in-bank by Starknet smart‑contracts.</li>
-          <li>
-            After the final hand: 10% platform • 10% creator • 40% winner • 40%
-            top&nbsp;15%.
-          </li>
-        </ul>
-
-        {/* CTA */}
-        <div className="mt-10 flex gap-4">
-          <a
-            href="/#mint"
-            className="px-6 py-3 bg-yellow-400 text-[#0c1a3a] font-semibold rounded-lg shadow hover:bg-yellow-300 transition-colors"
-          >
-            BUY NFT
-          </a>
-          <a
-            href="/play"
-            className="px-6 py-3 bg-transparent border border-yellow-400 text-yellow-400 font-semibold rounded-lg hover:bg-yellow-400 hover:text-[#0c1a3a] transition-colors"
-          >
-            PLAY NOW
-          </a>
+    <section className="relative h-[60vh] md:h-[70vh] overflow-hidden">
+      {slides.map((s, i) => (
+        <div
+          key={s.id}
+          className={`absolute inset-0 transition-opacity duration-700 ${
+            i === index ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <img
+            src={s.image}
+            alt={s.title}
+            className="w-full h-full object-cover"
+          />
         </div>
+      ))}
+
+      <div className="absolute inset-0 bg-black/40" />
+
+      <div className="relative z-10 h-full flex flex-col justify-center items-start px-6 md:px-12 text-white">
+        <h1 className="text-3xl md:text-5xl font-bold mb-4">
+          {slides[index].title}
+        </h1>
+        <a
+          href="/#mint"
+          className="px-6 py-3 bg-yellow-400 text-[#0c1a3a] font-semibold rounded-lg shadow hover:bg-yellow-300 transition-colors"
+        >
+          Buy NFT
+        </a>
       </div>
 
-      {/* mockup */}
-      <div className="absolute bottom-0 md:bottom-[-5rem] right-1/2 md:right-16 translate-x-1/2 md:translate-x-0 w-[240px] md:w-[340px] rotate-[4deg] shadow-2xl pointer-events-none">
-        <img
-          src={appMockup.src}
-          alt="Poker app mockup"
-          className="w-full h-auto object-contain"
-        />
+      <button
+        onClick={prev}
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/40 rounded-full p-2 text-white hover:bg-black/60"
+        aria-label="Previous slide"
+      >
+        ‹
+      </button>
+      <button
+        onClick={next}
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/40 rounded-full p-2 text-white hover:bg-black/60"
+        aria-label="Next slide"
+      >
+        ›
+      </button>
+
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setIndex(i)}
+            className={`w-3 h-3 rounded-full ${
+              i === index ? "bg-yellow-400" : "bg-white/50"
+            }`}
+            aria-label={`Go to slide ${i + 1}`}
+          />
+        ))}
       </div>
     </section>
   );
 }
+
