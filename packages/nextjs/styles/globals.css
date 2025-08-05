@@ -1,16 +1,20 @@
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
 
-
-
-:root,
-[data-theme] {
-  background: #000;
+:root {
+  --color-primary: #141416;
+  --color-accent: #3772ff;
+  --color-background: #f9fafb;
+  --color-border: #e5e7eb;
 }
 
 body {
   min-height: 100vh;
+  background-color: var(--color-primary);
+  color: var(--color-background);
+  font-family: "Inter", sans-serif;
 }
 
 h1,
@@ -19,10 +23,16 @@ h3,
 h4 {
   margin-bottom: 0.5rem;
   line-height: 1;
+  font-weight: 700;
 }
 
 p {
   margin: 1rem 0;
+  font-size: 16px;
+}
+
+.caption {
+  font-size: 12px;
 }
 
 .btn {
