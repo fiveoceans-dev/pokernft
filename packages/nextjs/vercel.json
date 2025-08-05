@@ -1,6 +1,5 @@
 {
   "framework": "nextjs",
-  "rootDirectory": "packages/nextjs",
   "installCommand": "yarn install",
   "buildCommand": "yarn build"
 }
