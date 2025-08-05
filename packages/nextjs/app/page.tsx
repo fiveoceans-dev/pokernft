@@ -1,6 +1,5 @@
 "use client";
 import React from "react";
-import { Header } from "../components/Header";
 import HeroSection from "../components/HeroSection";
 import MostPopularSection from "../components/MostPopularSection";
 import TournamentsTableSection from "../components/TournamentsTableSection";
@@ -11,7 +10,6 @@ import { Footer } from "../components/Footer";
 export default function HomePage() {
   return (
     <main className="flex flex-col items-stretch">
-      <Header />
       <HeroSection />
       <MostPopularSection />
       <TournamentsTableSection />

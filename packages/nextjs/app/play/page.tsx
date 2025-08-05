@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Menu from "../../components/Menu";
 import ActionBar from "../../components/ActionBar";
 import Table from "../../components/Table";
 import { useGameStore } from "../../hooks/useGameStore";
@@ -44,7 +43,6 @@ export default function PlayPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center bg-gradient-to-br from-green-900 to-green-700 text-white">
-      <Menu />
       <header className="relative w-full max-w-6xl flex items-center justify-between mt-6 mb-4 px-4">
         <h1 className="text-4xl font-bold">Tournament Table</h1>
         <button
