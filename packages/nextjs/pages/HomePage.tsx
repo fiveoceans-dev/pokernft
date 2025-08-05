@@ -13,8 +13,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen text-white bg-gradient-to-b from-[#02040b] via-[#0c1a3a] to-[#102047] overflow-x-hidden">
       <HeroSection />
-      <NftSaleSection />
-      <TournamentBoards />
+
       <StayTunedSection />
     </div>
   );
