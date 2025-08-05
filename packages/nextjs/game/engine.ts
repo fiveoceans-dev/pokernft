@@ -1,7 +1,7 @@
 // src/game/engine.ts
-import type { GameState, Player } from './types';
-import { draw, rankHand, compareHands, freshDeck } from './utils';
-import { STREETS, SMALL_BLIND, BIG_BLIND } from './constants';
+import type { GameState, Player, Card } from "./types";
+import { draw, rankHand, compareHands, freshDeck } from "./utils";
+import { STREETS, SMALL_BLIND, BIG_BLIND } from "./constants";
 
 /* ─────────── State transitions ─────────── */
 
@@ -11,7 +11,7 @@ export function initGame(players: Player[], dealerIndex = 0): GameState {
   // deal 2 hole cards each
   const dealtPlayers = players.map((p) => ({
     ...p,
-    hand: [draw(deck), draw(deck)],
+    hand: [draw(deck), draw(deck)] as [Card, Card],
     folded: false,
     currentBet: 0,
   }));
@@ -23,7 +23,7 @@ export function initGame(players: Player[], dealerIndex = 0): GameState {
     pot: SMALL_BLIND + BIG_BLIND,
     dealerIndex,
     currentIndex: (dealerIndex + 3) % players.length, // UTG in full ring
-    street: 'preflop',
+    street: "preflop",
   };
 }
 
@@ -35,15 +35,15 @@ export function nextStreet(state: GameState): GameState {
   const deck = state.deck;
   const streetPos = STREETS.indexOf(state.street);
   if (streetPos === -1 || streetPos >= STREETS.length - 1)
-    throw new Error('Already at showdown');
+    throw new Error("Already at showdown");
 
   const next = STREETS[streetPos + 1];
 
   // burn one, then add community cards as needed
   draw(deck);
-  if (next === 'flop')      state.community.push(draw(deck), draw(deck), draw(deck));
-  else if (next === 'turn') state.community.push(draw(deck));
-  else if (next === 'river')state.community.push(draw(deck));
+  if (next === "flop") state.community.push(draw(deck), draw(deck), draw(deck));
+  else if (next === "turn") state.community.push(draw(deck));
+  else if (next === "river") state.community.push(draw(deck));
 
   return { ...state, street: next, deck };
 }
@@ -57,11 +57,12 @@ export interface ShowdownResult {
 
 /** Determine winners & split pot (equal split ties) */
 export function showdown(state: GameState): ShowdownResult {
-  if (state.street !== 'showdown')
-    throw new Error('Not in showdown yet');
+  if (state.street !== "showdown") throw new Error("Not in showdown yet");
 
   const evaluated = state.players
-    .filter((p) => !p.folded)
+    .filter(
+      (p): p is Player & { hand: [Card, Card] } => !p.folded && p.hand !== null,
+    )
     .map((p) => ({
       player: p,
       score: rankHand([...p.hand, ...state.community]),
@@ -72,11 +73,10 @@ export function showdown(state: GameState): ShowdownResult {
   const winners = evaluated
     .filter((e) => e.score.rankValue === best)
     .sort((a, b) => compareHands(a.score, b.score))
-    .reduce<ShowdownResult['winners']>((acc, cur, idx, arr) => {
+    .reduce<ShowdownResult["winners"]>((acc, cur, idx, arr) => {
       // after sorting, compareHands will place best kicker first
       if (idx === 0) return [cur.player];
-      if (compareHands(cur.score, arr[0].score) === 0)
-        acc.push(cur.player); // exact tie
+      if (compareHands(cur.score, arr[0].score) === 0) acc.push(cur.player); // exact tie
       return acc;
     }, []);
 

@@ -23,7 +23,7 @@ const deployerDevnet =
     ACCOUNT_ADDRESS_DEVNET,
     PRIVATE_KEY_DEVNET,
     "1",
-    constants.TRANSACTION_VERSION.V3
+    constants.TRANSACTION_VERSION.V3,
   );
 
 const STRK_TOKEN_ADDRESS_DEVNET =
@@ -41,7 +41,7 @@ const deployerSepolia =
     process.env.ACCOUNT_ADDRESS_SEPOLIA,
     process.env.PRIVATE_KEY_SEPOLIA,
     "1",
-    constants.TRANSACTION_VERSION.V3
+    constants.TRANSACTION_VERSION.V3,
   );
 
 const STRK_TOKEN_ADDRESS =
@@ -59,7 +59,7 @@ const deployerMainnet =
     process.env.ACCOUNT_ADDRESS_MAINNET,
     process.env.PRIVATE_KEY_MAINNET,
     "1",
-    constants.TRANSACTION_VERSION.V3
+    constants.TRANSACTION_VERSION.V3,
   );
 
 const feeTokenOptions = {

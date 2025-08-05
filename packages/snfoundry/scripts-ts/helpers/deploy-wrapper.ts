@@ -36,7 +36,7 @@ function main() {
 
   if (argv._.length > 0) {
     console.error(
-      `❌ Invalid arguments, only --network or --no-reset can be passed in`
+      `❌ Invalid arguments, only --network or --no-reset can be passed in`,
     );
     return;
   }

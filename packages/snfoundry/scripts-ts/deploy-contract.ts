@@ -46,7 +46,7 @@ const { provider, deployer }: Network = networks[networkName];
 
 const declareIfNot_NotWait = async (
   payload: DeclareContractPayload,
-  options?: UniversalDetails
+  options?: UniversalDetails,
 ) => {
   const declareContractPayload = extractContractHashes(payload);
   try {
@@ -59,7 +59,7 @@ const declareIfNot_NotWait = async (
       });
       if (networkName === "sepolia" || networkName === "mainnet") {
         console.log(
-          yellow("Waiting for declaration transaction to be accepted...")
+          yellow("Waiting for declaration transaction to be accepted..."),
         );
         const receipt = await provider.waitForTransaction(transaction_hash);
         console.log(
@@ -67,15 +67,15 @@ const declareIfNot_NotWait = async (
           JSON.stringify(
             receipt,
             (_, v) => (typeof v === "bigint" ? v.toString() : v),
-            2
-          )
+            2,
+          ),
         );
 
         const receiptAny = receipt as any;
         if (receiptAny.execution_status !== "SUCCEEDED") {
           const revertReason = receiptAny.revert_reason || "Unknown reason";
           throw new Error(
-            red(`Declaration failed or reverted. Reason: ${revertReason}`)
+            red(`Declaration failed or reverted. Reason: ${revertReason}`),
           );
         }
         console.log(green("Declaration successful"));
@@ -98,7 +98,7 @@ const deployContract_NotWait = async (payload: {
   try {
     const { calls, addresses } = transaction.buildUDCCall(
       payload,
-      deployer.address
+      deployer.address,
     );
     deployCalls.push(...calls);
     return {
@@ -112,7 +112,7 @@ const deployContract_NotWait = async (payload: {
 
 const findContractFile = (
   contract: string,
-  fileType: "compiled_contract_class" | "contract_class"
+  fileType: "compiled_contract_class" | "contract_class",
 ): string => {
   const targetDir = path.resolve(__dirname, "../contracts/target/dev");
   const files = fs.readdirSync(targetDir);
@@ -123,7 +123,7 @@ const findContractFile = (
   if (!matchingFile) {
     throw new Error(
       `Could not find ${fileType} file for contract "${contract}". ` +
-        `Try removing snfoundry/contracts/target, then run 'yarn compile' and check if your contract name is correct inside the contracts/target/dev directory.`
+        `Try removing snfoundry/contracts/target, then run 'yarn compile' and check if your contract name is correct inside the contracts/target/dev directory.`,
     );
   }
 
@@ -152,7 +152,7 @@ const findContractFile = (
  */
 
 const deployContract = async (
-  params: DeployContractParams
+  params: DeployContractParams,
 ): Promise<{
   classHash: string;
   address: string;
@@ -179,12 +179,12 @@ const deployContract = async (
     compiledContractCasm = JSON.parse(
       fs
         .readFileSync(findContractFile(contract, "compiled_contract_class"))
-        .toString("ascii")
+        .toString("ascii"),
     );
   } catch (error) {
     if (error.message.includes("Could not find")) {
       console.error(
-        red(`The contract "${contract}" doesn't exist or is not compiled`)
+        red(`The contract "${contract}" doesn't exist or is not compiled`),
       );
     } else {
       console.error(red("Error reading compiled contract class file: "), error);
@@ -199,7 +199,7 @@ const deployContract = async (
     compiledContractSierra = JSON.parse(
       fs
         .readFileSync(findContractFile(contract, "contract_class"))
-        .toString("ascii")
+        .toString("ascii"),
     );
   } catch (error) {
     console.error(red("Error reading contract class file: "), error);
@@ -221,7 +221,7 @@ const deployContract = async (
       contract: compiledContractSierra,
       casm: compiledContractCasm,
     },
-    options
+    options,
   );
 
   let randomSalt = stark.randomAddress();
@@ -252,8 +252,8 @@ const executeDeployCalls = async (options?: UniversalDetails) => {
   if (deployCalls.length < 1) {
     throw new Error(
       red(
-        "Aborted: No contract to deploy. Please prepare the contracts with `deployContract`"
-      )
+        "Aborted: No contract to deploy. Please prepare the contracts with `deployContract`",
+      ),
     );
   }
 
@@ -290,7 +290,7 @@ const executeDeployCalls = async (options?: UniversalDetails) => {
 const loadExistingDeployments = () => {
   const networkPath = path.resolve(
     __dirname,
-    `../deployments/${networkName}_latest.json`
+    `../deployments/${networkName}_latest.json`,
   );
   if (fs.existsSync(networkPath)) {
     return JSON.parse(fs.readFileSync(networkPath, "utf8"));
@@ -301,14 +301,14 @@ const loadExistingDeployments = () => {
 const exportDeployments = () => {
   const networkPath = path.resolve(
     __dirname,
-    `../deployments/${networkName}_latest.json`
+    `../deployments/${networkName}_latest.json`,
   );
 
   if (!resetDeployments && fs.existsSync(networkPath)) {
     const currentTimestamp = new Date().getTime();
     fs.renameSync(
       networkPath,
-      networkPath.replace("_latest.json", `_${currentTimestamp}.json`)
+      networkPath.replace("_latest.json", `_${currentTimestamp}.json`),
     );
   }
 
