@@ -4,8 +4,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
 
 :root {
-  --color-primary: #141416;
-  --color-accent: #3772ff;
+  --color-primary: #0d1117;
+  --color-accent: #38bdf8;
   --color-background: #f9fafb;
   --color-border: #e5e7eb;
 }
@@ -67,7 +67,7 @@ body {
 
 .circle-gradient {
   border-radius: 630px;
-  background: #bd93f1;
+  background: #93c5fd;
   filter: blur(229px);
   position: absolute;
   top: 0;
@@ -75,7 +75,7 @@ body {
 
 .circle-gradient-blue {
   border-radius: 630px;
-  background: #a6e8fe;
+  background: #d8b4fe;
   filter: blur(250px);
   position: absolute;
   top: 0;
@@ -83,7 +83,7 @@ body {
 }
 
 .border-gradient {
-  border: 1px solid #5c4fe5;
+  border: 1px solid #7c3aed;
 }
 
 .bg-modal {
@@ -117,8 +117,8 @@ body {
     width: 1rem;
     height: 1rem;
     background: inherit;
-    border-top: 1px solid #8a45fc;
-    border-right: 1px solid #8a45fc;
+    border-top: 1px solid #7c3aed;
+    border-right: 1px solid #7c3aed;
     clip-path: polygon(100% 0, 0 0, 100% 100%);
     z-index: 10;
   }
@@ -129,13 +129,13 @@ body {
   top: 0;
   left: 60px;
   border-radius: 630px;
-  background: #7353d2;
+  background: #7c3aed;
   filter: blur(229px);
 }
 
 .circle-gradient-blue-dark {
   border-radius: 630px;
-  background: #0ea9ff;
+  background: #38bdf8;
   filter: blur(250px);
   position: absolute;
   top: 0;
@@ -148,7 +148,7 @@ body {
     height: 6px;
     clip-path: polygon(10% 100%, 90% 100%, 100% 0, 0 0);
     position: relative;
-    background-color: #5c4fe5;
+    background-color: #7c3aed;
     position: absolute;
     top: -1px;
   }
