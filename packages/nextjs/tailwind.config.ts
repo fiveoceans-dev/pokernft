@@ -43,8 +43,7 @@ const config: Config = {
             border: "1px solid #7C3AED",
           },
           ".bg-gradient-nav": {
-            background:
-              "linear-gradient(90deg,#3B82F6 0%, #7C3AED 100%)",
+            background: "linear-gradient(90deg,#3B82F6 0%, #7C3AED 100%)",
           },
           ".bg-main": {
             background:
@@ -94,65 +93,64 @@ const config: Config = {
       },
       {
         dark: {
-          primary: "#0D1117",
-          "primary-content": "#E2E8F0",
-          secondary: "#7C3AED",
-          "secondary-content": "#C4B5FD",
-          accent: "#38BDF8",
-          "accent-content": "#0F172A",
-          neutral: "#F9FAFB",
-          "neutral-content": "#0F172A",
-          "base-100": "#0D1117",
-          "base-200": "#1B1E32",
-          "base-300": "#111827",
-          "base-content": "#F9FAFB",
-          info: "#38BDF8",
-          success: "#10B981",
-          warning: "#FBBF24",
-          error: "#F87171",
+          primary: "#0A0A0A",
+          "primary-content": "#E5E5E5",
+          secondary: "#FF5F5F",
+          "secondary-content": "#0A0A0A",
+          accent: "#00FFD1",
+          "accent-content": "#0A0A0A",
+          neutral: "#1A1A1A",
+          "neutral-content": "#E5E5E5",
+          "base-100": "#0A0A0A",
+          "base-200": "#1A1A1A",
+          "base-300": "#2A2A2A",
+          "base-content": "#E5E5E5",
+          info: "#00FFD1",
+          success: "#2ECC71",
+          warning: "#FFD700",
+          error: "#FF5F5F",
           ".bg-gradient-modal": {
-            background: "#1E3A8A",
+            background: "#1A1A1A",
           },
           ".bg-modal": {
-            background:
-              "linear-gradient(90deg,#1E1B4B 0%, #1B2838 100%)",
+            background: "linear-gradient(90deg,#0A0A0A 0%, #1A1A1A 100%)",
           },
           ".modal-border": {
-            border: "1px solid #4B5563",
+            border: "1px solid #00FFD1",
           },
           ".bg-gradient-nav": {
             "background-image":
-              "linear-gradient(90deg,#38BDF8 0%, #7C3AED 100%)",
+              "linear-gradient(90deg,#00FFD1 0%, #FF5F5F 100%)",
           },
           ".bg-main": {
             background:
-              "radial-gradient(at 50% 0%, rgba(56,189,248,0.25), rgba(124,58,237,0.15) 60%), #0D1117",
+              "radial-gradient(at 50% 0%, rgba(0,255,209,0.15), rgba(255,95,95,0.1) 60%), #0A0A0A",
           },
           ".bg-underline": {
-            background: "#374151",
+            background: "#2A2A2A",
           },
           ".bg-container": {
-            background: "#1B1E32",
+            background: "#1A1A1A",
           },
           ".bg-btn-wallet": {
             "background-image":
-              "linear-gradient(180deg,#3B82F6 0%, #7C3AED 100%)",
+              "linear-gradient(180deg,#00FFD1 0%, #FF5F5F 100%)",
           },
           ".bg-input": {
             background: "rgba(255, 255, 255, 0.07)",
           },
           ".bg-component": {
             background:
-              "linear-gradient(113deg,rgba(30,27,75,0.6) 20.48%,rgba(27,40,56,0.6) 99.67%)",
+              "linear-gradient(113deg,rgba(10,10,10,0.6) 20.48%,rgba(26,26,26,0.6) 99.67%)",
           },
           ".bg-function": {
-            background: "rgba(124,58,237,0.37)",
+            background: "rgba(0,255,209,0.2)",
           },
           ".text-function": {
-            color: "#38BDF8",
+            color: "#00FFD1",
           },
           ".text-network": {
-            color: "#D8B4FE",
+            color: "#FF5F5F",
           },
           "--rounded-btn": "9999rem",
           ".tooltip": {
@@ -167,7 +165,7 @@ const config: Config = {
           },
           ".contract-content": {
             background:
-              "linear-gradient(113.34deg, rgba(30,27,75,0.6) 20.48%, rgba(27,40,56,0.6) 99.67%)",
+              "linear-gradient(113.34deg, rgba(10,10,10,0.6) 20.48%, rgba(26,26,26,0.6) 99.67%)",
           },
         },
       },
@@ -177,25 +175,26 @@ const config: Config = {
     extend: {
       boxShadow: {
         center: "0 0 12px -2px rgb(0 0 0 / 0.05)",
+        neon: "0 0 10px 0 rgba(0,255,209,0.7)",
+        "neon-red": "0 0 10px 0 rgba(255,95,95,0.7)",
       },
       animation: {
         "pulse-fast": "pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
       backgroundImage: {
         "gradient-light":
-          "linear-gradient(270deg,#93C5FD -17.42%, #D8B4FE 109.05%)",
-        "gradient-dark":
-          "linear-gradient(90deg,#38BDF8 0%, #7C3AED 100%)",
-        "gradient-vertical":
-          "linear-gradient(180deg,#3B82F6 0%, #7C3AED 100%)",
-        "gradient-icon":
-          "linear-gradient(90deg,#38BDF8 0%, #7C3AED 100%)",
+          "linear-gradient(270deg,#00FFD1 -17.42%, #FF5F5F 109.05%)",
+        "gradient-dark": "linear-gradient(90deg,#00FFD1 0%, #FF5F5F 100%)",
+        "gradient-vertical": "linear-gradient(180deg,#00FFD1 0%, #FF5F5F 100%)",
+        "gradient-icon": "linear-gradient(90deg,#00FFD1 0%, #FF5F5F 100%)",
       },
       colors: {
-        primary: "#0D1117",
-        accent: "#38BDF8",
-        background: "#F9FAFB",
-        border: "#E5E7EB",
+        primary: "#0A0A0A",
+        accent: "#00FFD1",
+        secondary: "#FF5F5F",
+        highlight: "#FFD700",
+        background: "#1A1A1A",
+        border: "#2A2A2A",
       },
       fontFamily: {
         sans: ["Inter", "sans-serif"],
