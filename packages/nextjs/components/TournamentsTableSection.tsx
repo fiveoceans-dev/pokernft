@@ -10,7 +10,9 @@ type Tournament = {
   game: string;
   buyIn: number;
   sold: number;
-  prizes: string;
+  prize: number;
+  creatorShare: number;
+  protocolFee: number;
   date: string;
   supply: number;
   nft: string;
@@ -19,107 +21,123 @@ type Tournament = {
 const tournaments: Tournament[] = [
   {
     id: 1,
-    name: "Saturday $200,000",
-    creator: "CryptoKitties",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Hold'em",
-    buyIn: 100,
-    sold: 450,
-    prizes: "40% / 30% / 20% / 10%",
-    date: "2024-06-01",
-    supply: 1000,
     nft: "https://placehold.co/220x320.png?text=NFT",
+    name: "Saturday $200,000",
+    game: "NLH",
+    date: "2024-06-01",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    creator: "CryptoKitties",
+    prize: 80,
+    creatorShare: 10,
+    protocolFee: 10,
+    sold: 450,
+    supply: 1000,
+    buyIn: 100,
   },
   {
     id: 2,
-    name: "Saturday Million",
-    creator: "Cool Cats",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Hold'em",
-    buyIn: 250,
-    sold: 300,
-    prizes: "50% / 30% / 20%",
-    date: "2024-06-15",
-    supply: 750,
     nft: "https://placehold.co/220x320.png?text=NFT",
+    name: "Saturday Million",
+    game: "NLH",
+    date: "2024-06-15",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    creator: "Cool Cats",
+    prize: 80,
+    creatorShare: 10,
+    protocolFee: 10,
+    sold: 300,
+    supply: 750,
+    buyIn: 250,
   },
   {
     id: 3,
-    name: "Sunday Showdown",
-    creator: "Doodles",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Hold'em",
-    buyIn: 50,
-    sold: 600,
-    prizes: "30% / 20% / 10%",
-    date: "2024-07-04",
-    supply: 1200,
     nft: "https://placehold.co/220x320.png?text=NFT",
+    name: "Sunday Showdown",
+    game: "NLH",
+    date: "2024-07-04",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    creator: "Doodles",
+    prize: 80,
+    creatorShare: 10,
+    protocolFee: 10,
+    sold: 600,
+    supply: 1200,
+    buyIn: 50,
   },
   {
     id: 4,
-    name: "Nightly Brawl",
-    creator: "CryptoPunks",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Hold'em",
-    buyIn: 75,
-    sold: 500,
-    prizes: "40% / 30% / 20% / 10%",
-    date: "2024-07-20",
-    supply: 900,
     nft: "https://placehold.co/220x320.png?text=NFT",
+    name: "Nightly Brawl",
+    game: "NLH",
+    date: "2024-07-20",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    creator: "CryptoPunks",
+    prize: 80,
+    creatorShare: 10,
+    protocolFee: 10,
+    sold: 500,
+    supply: 900,
+    buyIn: 75,
   },
   {
     id: 5,
-    name: "High Roller",
-    creator: "Azuki",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Hold'em",
-    buyIn: 500,
-    sold: 120,
-    prizes: "60% / 25% / 15%",
-    date: "2024-08-05",
-    supply: 400,
     nft: "https://placehold.co/220x320.png?text=NFT",
+    name: "High Roller",
+    game: "Hold'em",
+    date: "2024-08-05",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    creator: "Azuki",
+    prize: 80,
+    creatorShare: 10,
+    protocolFee: 10,
+    sold: 120,
+    supply: 400,
+    buyIn: 500,
   },
   {
     id: 6,
-    name: "Daily Spin",
-    creator: "Moonbirds",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Hold'em",
-    buyIn: 25,
-    sold: 800,
-    prizes: "25% / 15% / 10%",
-    date: "2024-08-20",
-    supply: 1500,
     nft: "https://placehold.co/220x320.png?text=NFT",
+    name: "Daily Spin",
+    game: "Hold'em",
+    date: "2024-08-20",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    creator: "Moonbirds",
+    prize: 80,
+    creatorShare: 10,
+    protocolFee: 10,
+    sold: 800,
+    supply: 1500,
+    buyIn: 25,
   },
   {
     id: 7,
+    nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Weekend Warriors",
+    game: "Hold'em",
+    date: "2024-09-02",
     creator: "Squiggles",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Hold'em",
-    buyIn: 150,
+    prize: 80,
+    creatorShare: 10,
+    protocolFee: 10,
     sold: 350,
-    prizes: "35% / 25% / 15% / 10%",
-    date: "2024-09-02",
     supply: 600,
-    nft: "https://placehold.co/220x320.png?text=NFT",
+    buyIn: 150,
   },
   {
     id: 8,
-    name: "Grand Finale",
-    creator: "CloneX",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Hold'em",
-    buyIn: 1000,
-    sold: 80,
-    prizes: "50% / 30% / 20%",
-    date: "2024-09-30",
-    supply: 200,
     nft: "https://placehold.co/320x320.png?text=NFT",
+    name: "Grand Finale",
+    date: "2024-09-30",
+    game: "Hold'em",
+    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    creator: "CloneX",
+    prize: 80,
+    creatorShare: 10,
+    protocolFee: 10,
+    sold: 80,
+    supply: 200,
+    buyIn: 1000,
   },
 ];
 
@@ -128,12 +146,14 @@ type SortKey = keyof Tournament;
 const columns: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: "nft", label: "NFT" },
   { key: "name", label: "Tournament" },
-  { key: "creator", label: "Creator" },
   { key: "game", label: "Game" },
-  { key: "buyIn", label: "Buy-In", numeric: true },
-  { key: "sold", label: "Sold", numeric: true },
-  { key: "prizes", label: "Prizes" },
   { key: "date", label: "Date" },
+  { key: "creator", label: "Creator" },
+  { key: "prize", label: "Prizes" },
+  { key: "creatorShare", label: "Prizes" },
+  { key: "protocolFee", label: "Prizes" },
+  { key: "sold", label: "Sold", numeric: true },
+  { key: "buyIn", label: "Buy-In", numeric: true },
 ];
 
 export default function TournamentsTableSection() {
@@ -167,10 +187,7 @@ export default function TournamentsTableSection() {
   };
 
   return (
-    <section
-      id="marketplace"
-      className="p-4 sm:p-8 bg-white text-gray-900 dark:bg-black dark:text-white"
-    >
+    <section className="p-4 sm:p-8 bg-white text-gray-900 dark:bg-black dark:text-white">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold mb-6">
           <span className="text-yellow-400">Marketplace</span>
@@ -179,63 +196,46 @@ export default function TournamentsTableSection() {
           <table className="min-w-full text-xs sm:text-sm table-auto">
             <thead className="bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-400 uppercase text-[10px] sm:text-xs">
               <tr>
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    className={`px-2 py-1 relative ${col.numeric ? "text-center" : "text-left"}`}
-                  >
-                    <button
-                      className="flex items-center gap-1"
-                      onClick={() => toggleColumn(col.key)}
-                    >
-                      {col.label}
-                    </button>
-                    {openColumn === col.key && (
-                      <div className="absolute left-0 mt-1 w-32 bg-gray-800 rounded shadow-lg z-10">
-                        <button
-                          className="block w-full text-left px-3 py-1 hover:bg-gray-700"
-                          onClick={() => applySort(col.key, "asc")}
-                        >
-                          {col.numeric ? "Low → High" : "A → Z"}
-                        </button>
-                        <button
-                          className="block w-full text-left px-3 py-1 hover:bg-gray-700"
-                          onClick={() => applySort(col.key, "desc")}
-                        >
-                          {col.numeric ? "High → Low" : "Z → A"}
-                        </button>
-                      </div>
-                    )}
-                  </th>
-                ))}
+                <th className="px-2 py-1">NFT</th>
+                <th className="px-2 py-1">Tournament</th>
+                <th className="px-2 py-1">Game</th>
+                <th className="px-2 py-1">Date</th>
+                <th className="px-2 py-1">Creator</th>
+                <th className="px-2 py-1 text-center">Prize 80%</th>
+                <th className="px-2 py-1 text-center">Creator 10%</th>
+                <th className="px-2 py-1 text-center">Protocol 10%</th>
+                <th className="px-2 py-1 text-center">Sold</th>
+                <th className="px-2 py-1 text-center">Buy-In</th>
+                <th className="px-2 py-1 text-center">Buy</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
               {sorted.map((t) => (
                 <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition">
                   <td className="px-2 py-1">
-                    <img
-                      src={t.nft}
-                      alt={t.name}
-                      className="w-12 h-12 object-cover rounded"
-                    />
+                    <img src={t.nft} alt={t.name} className="w-12 h-12 object-cover rounded" />
                   </td>
                   <td className="px-2 py-1">{t.name}</td>
+                  <td className="px-2 py-1">{t.game}</td>
+                  <td className="px-2 py-1">{t.date}</td>
                   <td className="px-2 py-1 flex items-center gap-2">
                     <img
                       src={t.creatorAvatar}
                       alt={t.creator}
-                      className="w-12 h-12 rounded-full object-cover"
+                      className="w-10 h-10 rounded-full object-cover"
                     />
                     <span>{t.creator}</span>
                   </td>
-                  <td className="px-2 py-1">{t.game}</td>
-                  <td className="px-2 py-1 text-green-600 dark:text-green-400 text-center">
-                    {t.buyIn}
+                  <td className="px-2 py-1 text-center text-yellow-400">{t.prize}%</td>
+                  <td className="px-2 py-1 text-center text-blue-400">{t.creatorShare}%</td>
+                  <td className="px-2 py-1 text-center text-red-400">{t.protocolFee}%</td>
+                  <td className="px-2 py-1 text-orange-500 text-center">{t.sold}/{t.supply}</td>
+                  <td className="px-2 py-1 text-green-500 text-center">${t.buyIn}</td>
+                  <td className="px-2 py-1 text-center">
+                    <button className="px-2 py-1 bg-purple-600 text-white rounded text-xs sm:text-sm hover:bg-purple-700">
+                      Buy
+                    </button>
                   </td>
-                  <td className="px-2 py-1 text-orange-600 dark:text-orange-400 text-center">{`${t.sold}/${t.supply}`}</td>
-                  <td className="px-2 py-1">{t.prizes}</td>
-                  <td className="px-2 py-1">{t.date}</td>
                 </tr>
               ))}
             </tbody>
