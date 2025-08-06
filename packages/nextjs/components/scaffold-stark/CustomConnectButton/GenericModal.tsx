@@ -29,7 +29,7 @@ const GenericModal = ({
     </label>
   );
 
-  return mounted ? createPortal(modal, document.body) : null;
+  return mounted ? <>{createPortal(modal, document.body)}</> : null;
 };
 
 export default GenericModal;
