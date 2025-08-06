@@ -46,7 +46,7 @@ export const HeaderMenuLinks = () => {
               passHref
               className={`${
                 isActive ? "animate-pulse" : ""
-              } px-4 py-2 text-sm font-semibold rounded-lg gap-2 grid grid-flow-col bg-yellow-400 text-[#0c1a3a] shadow-[0_0_15px_#facc15] hover:shadow-[0_0_20px_#facc15]`}
+              } px-4 py-2 text-sm font-semibold rounded-lg gap-2 grid grid-flow-col text-white hover:bg-yellow-400 hover:text-[#0c1a3a] hover:shadow-[0_0_20px_#facc15]`}
             >
               {icon}
               <span>{label}</span>
