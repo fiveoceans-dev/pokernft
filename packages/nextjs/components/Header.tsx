@@ -23,7 +23,7 @@ type HeaderMenuLink = {
 export const menuLinks: HeaderMenuLink[] = [
   { label: "Home", href: "/#home" },
   { label: "How it Works", href: "/#how" },
-  { label: "Top Tournaments", href: "/#tournaments" },
+  { label: "Trending", href: "/#tournaments" },
   { label: "Marketplace", href: "/#marketplace" },
 ];
 

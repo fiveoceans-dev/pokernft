@@ -170,7 +170,7 @@ export default function TournamentsTableSection() {
     <section className="text-white p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold mb-6">
-          Trending <span className="text-yellow-400">Top</span>
+          <span className="text-yellow-400">Marketplace</span>
         </h2>
         <div className="overflow-auto rounded-lg border border-gray-700">
           <table className="min-w-full text-xs sm:text-sm table-auto">

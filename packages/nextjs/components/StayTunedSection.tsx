@@ -27,7 +27,7 @@ export default function StayTunedSection() {
       {/* social icons */}
       <div className="mt-10 flex justify-center gap-8 text-4xl">
         <SocialIcon
-          href="https://twitter.com/pokerboots"
+          href="https://twitter.com/pokernfts"
           label="Twitter"
           className="hover:text-sky-400"
         >
@@ -36,7 +36,7 @@ export default function StayTunedSection() {
         <SocialIcon href="#" label="Instagram" className="hover:text-pink-400">
           <FaInstagram />
         </SocialIcon>
-        <SocialIcon href="#" label="Discord" className="hover:text-indigo-400">
+        <SocialIcon href="https://discord.gg/jW43eTwe6J" label="Discord" className="hover:text-indigo-400">
           <FaDiscord />
         </SocialIcon>
       </div>
