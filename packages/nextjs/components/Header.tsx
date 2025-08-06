@@ -4,8 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-import { CustomConnectButton } from "~~/components/scaffold-stark/CustomConnectButton";
-
 import { SwitchTheme } from "./SwitchTheme";
 
 type HeaderMenuLink = {
