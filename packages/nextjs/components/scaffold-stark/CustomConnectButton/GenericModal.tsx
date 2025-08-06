@@ -1,17 +1,22 @@
-import { useTheme } from "next-themes";
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 const GenericModal = ({
   children,
   className = "modal-box modal-border bg-modal  rounded-[8px] border flex flex-col gap-3 justify-around relative",
   modalId,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
   modalId: string;
 }) => {
-  const { resolvedTheme } = useTheme();
-  const isDarkMode = resolvedTheme === "dark";
-  return (
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const modal = (
     <label
       htmlFor={modalId}
       className="modal z-[1000] backdrop-blur cursor-pointer"
@@ -23,6 +28,8 @@ const GenericModal = ({
       </label>
     </label>
   );
+
+  return mounted ? createPortal(modal, document.body) : null;
 };
 
 export default GenericModal;
