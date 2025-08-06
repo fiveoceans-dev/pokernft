@@ -40,10 +40,7 @@ export default function HeroSection() {
   const prev = () => setIndex((index - 1 + slides.length) % slides.length);
 
   return (
-    <section
-      id="home"
-      className="relative h-[60vh] md:h-[70vh] overflow-hidden"
-    >
+    <section id="home" className="relative w-full aspect-[3/2] overflow-hidden">
       {slides.map((s, i) => (
         <div
           key={s.id}
