@@ -167,14 +167,17 @@ export default function TournamentsTableSection() {
   };
 
   return (
-    <section className="text-white p-4 sm:p-8">
+    <section
+      id="tournaments"
+      className="p-4 sm:p-8 bg-white text-gray-900 dark:bg-black dark:text-white"
+    >
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold mb-6">
           Trending <span className="text-yellow-400">Top</span>
         </h2>
-        <div className="overflow-auto rounded-lg border border-gray-700">
+        <div className="overflow-auto rounded-lg border border-gray-300 dark:border-gray-700">
           <table className="min-w-full text-xs sm:text-sm table-auto">
-            <thead className="bg-gray-900 text-gray-400 uppercase text-[10px] sm:text-xs">
+            <thead className="bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-400 uppercase text-[10px] sm:text-xs">
               <tr>
                 {columns.map((col) => (
                   <th
@@ -207,9 +210,9 @@ export default function TournamentsTableSection() {
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-black divide-y divide-gray-800">
+            <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
               {sorted.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-900 transition">
+                <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition">
                   <td className="px-2 py-1">
                     <img
                       src={t.nft}
@@ -227,10 +230,10 @@ export default function TournamentsTableSection() {
                     <span>{t.creator}</span>
                   </td>
                   <td className="px-2 py-1">{t.game}</td>
-                  <td className="px-2 py-1 text-green-400 text-center">
+                  <td className="px-2 py-1 text-green-600 dark:text-green-400 text-center">
                     {t.buyIn}
                   </td>
-                  <td className="px-2 py-1 text-orange-400 text-center">{`${t.sold}/${t.supply}`}</td>
+                  <td className="px-2 py-1 text-orange-600 dark:text-orange-400 text-center">{`${t.sold}/${t.supply}`}</td>
                   <td className="px-2 py-1">{t.prizes}</td>
                   <td className="px-2 py-1">{t.date}</td>
                 </tr>

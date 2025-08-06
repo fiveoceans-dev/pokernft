@@ -1,44 +1,33 @@
 // src/components/ActionBar.tsx
 interface Props {
-  street: number;
-  onStart: () => void;
-  onFlop: () => void;
-  onTurn: () => void;
-  onRiver: () => void;
+  street: string;
+  onStart(): void;
+  onFlop(): void;
+  onTurn(): void;
+  onRiver(): void;
 }
 
-export default function ActionBar({
-  street,
-  onStart,
-  onFlop,
-  onTurn,
-  onRiver,
-}: Props) {
+export default function ActionBar({ street, ...actions }: Props) {
   return (
-    <div className="flex gap-4">
-      {street === 0 && (
-        <button onClick={onStart} className="btn">
-          Deal Hole Cards
-        </button>
-      )}
-      {street === 1 && (
-        <button onClick={onFlop} className="btn">
+    <div className="flex gap-4 card p-2 rounded-full">
+      {street === "preflop" && (
+        <button onClick={actions.onFlop} className="btn">
           Deal Flop
         </button>
       )}
-      {street === 2 && (
-        <button onClick={onTurn} className="btn">
+      {street === "flop" && (
+        <button onClick={actions.onTurn} className="btn">
           Deal Turn
         </button>
       )}
-      {street === 3 && (
-        <button onClick={onRiver} className="btn">
+      {street === "turn" && (
+        <button onClick={actions.onRiver} className="btn">
           Deal River
         </button>
       )}
-      {street >= 4 && (
-        <button disabled className="btn opacity-50">
-          Showdown Done
+      {street === "river" && (
+        <button onClick={actions.onStart} className="btn">
+          New Hand
         </button>
       )}
     </div>
