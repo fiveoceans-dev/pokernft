@@ -10,38 +10,45 @@ const steps = [
 
 export default function HowItWorksSection() {
   return (
-    <section
-      id="how"
-      className="py-12 px-4 sm:px-6 md:px-12 bg-white text-gray-900 dark:bg-gray-900 dark:text-white flex flex-col md:flex-row items-center gap-8"
-    >
-      <div className="w-full md:w-1/2">
-        <video
-          controls
-          className="w-full rounded-lg shadow-lg"
-          src="https://www.w3schools.com/html/mov_bbb.mp4"
-        />
-      </div>
-      <div className="w-full md:w-1/2">
-        <h2 className="text-3xl md:text-4xl font-bold mb-6">How It Works</h2>
-        <div className="relative">
-          <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-300 dark:bg-gray-700" />
-          <div className="flex justify-between relative">
-            {steps.map((step, idx) => (
-              <div
-                key={idx}
-                className="flex flex-col items-center text-center w-1/5"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#8a45fc] text-white flex items-center justify-center z-10">
-                  {idx + 1}
-                </div>
-                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                  {step}
-                </p>
-              </div>
-            ))}
+    <section className="bg-black text-white py-16 px-4">
+      <div className="max-w-6xl mx-auto">
+        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">
+          Create Your Own <span className="text-yellow-400">POKER</span> Tournament
+        </h2>
+
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg">
+            <h3 className="text-xl font-semibold mb-2">🎨 Create an NFT</h3>
+            <p>Upload your own artwork. This NFT will represent your tournament entry ticket.</p>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg">
+            <h3 className="text-xl font-semibold mb-2">💰 Set Price, Supply & Date</h3>
+            <p>Choose your buy-in price, total supply, and tournament start date.</p>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg">
+            <h3 className="text-xl font-semibold mb-2">🛒 Bring Your Followers</h3>
+            <p>Share and sell your NFT to your community. Each buyer gets a seat at the table!</p>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg">
+            <h3 className="text-xl font-semibold mb-2">♠️ Protocol Spins Up a Table</h3>
+            <p>Once funded, the protocol automatically launches a secure onchain poker game.</p>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg">
+            <h3 className="text-xl font-semibold mb-2">📈 Fund Distribution</h3>
+            <p>Funds split: <span className="text-yellow-400">80%</span> prizes, <span className="text-blue-400">10%</span> creator, <span className="text-pink-400">10%</span> protocol.</p>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg">
+            <h3 className="text-xl font-semibold mb-2">🏆 Win Prizes & $POKER Airdrop</h3>
+            <p>Top 15% win prize money and get a bonus airdrop of $POKER tokens.</p>
           </div>
         </div>
       </div>
     </section>
+
   );
 }

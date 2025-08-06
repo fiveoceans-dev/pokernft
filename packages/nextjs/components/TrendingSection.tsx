@@ -4,8 +4,8 @@ type PopularNftItem = PopularNftCardProps & { id: number };
 
 const items: PopularNftItem[] = Array.from({ length: 7 }).map((_, i) => ({
   id: i,
-  title: `PUNK${1000 + i}`,
-  image: "/nft.png",
+  title: `FIVE`,
+  image: `/nfts/nft${i}.png`,
   buyIn: `$${20 + i}`,
   status: "Minting",
   gameType: "No-Limit Texas Hold'em",

@@ -241,11 +241,6 @@ export default function TournamentsTableSection() {
             </tbody>
           </table>
         </div>
-        <div className="flex justify-end mt-4">
-          <button className="px-4 py-2 text-xs sm:text-sm bg-[#8a45fc] text-white rounded">
-            [MORE]
-          </button>
-        </div>
       </div>
     </section>
   );
