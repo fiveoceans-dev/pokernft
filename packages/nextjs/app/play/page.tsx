@@ -1,29 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
 import ActionBar from "../../components/ActionBar";
 import Table from "../../components/Table";
+import WalletModal from "../../components/ui/WalletModal";
 import { useGameStore } from "../../hooks/useGameStore";
 
 export default function PlayPage() {
-  const { street, reloadTableState, startHand, dealFlop, dealTurn, dealRiver } =
-    useGameStore();
-
-  useEffect(() => {
-    async function connect() {
-      if (window.starknet) {
-        try {
-          await window.starknet.enable({ showModal: true });
-          await reloadTableState();
-        } catch {
-          console.error("Wallet connection failed");
-        }
-      } else {
-        console.error("No Starknet wallet found");
-      }
-    }
-    connect();
-  }, [reloadTableState]);
+  const { street, startHand, dealFlop, dealTurn, dealRiver } = useGameStore();
 
   const stageNames = ["preflop", "flop", "turn", "river", "showdown"] as const;
 
@@ -37,13 +20,16 @@ export default function PlayPage() {
         >
           Join Table
         </button>
-        <ActionBar
-          street={stageNames[street] ?? "preflop"}
-          onStart={startHand}
-          onFlop={dealFlop}
-          onTurn={dealTurn}
-          onRiver={dealRiver}
-        />
+        <div className="flex items-center gap-4">
+          <ActionBar
+            street={stageNames[street] ?? "preflop"}
+            onStart={startHand}
+            onFlop={dealFlop}
+            onTurn={dealTurn}
+            onRiver={dealRiver}
+          />
+          <WalletModal />
+        </div>
       </header>
       <Table />
     </main>
