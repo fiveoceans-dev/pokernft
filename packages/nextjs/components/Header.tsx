@@ -35,6 +35,7 @@ const NavLinks = ({ close }: { close?: () => void }) => {
           </Link>
         </li>
       ))}
+
     </>
   );
 };

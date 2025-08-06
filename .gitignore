@@ -22,4 +22,15 @@ package-lock.json
 .env.test.local
 .env.production.local
 
-.lock
+# build output
+packages/nextjs/.next/
+packages/nextjs/out/
+packages/nextjs/.turbo/
+coverage/
+dist/
+build/
+.vercel/output/
+
+# logs and debug
+yarn-error.log
+npm-debug.log*
