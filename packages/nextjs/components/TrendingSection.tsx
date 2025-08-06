@@ -21,7 +21,10 @@ const items: PopularNftItem[] = Array.from({ length: 7 }).map((_, i) => ({
  */
 export default function TrendingSection() {
   return (
-    <section className="py-12 px-4 sm:px-6 md:px-12">
+    <section
+      id="trending"
+      className="py-12 px-4 sm:px-6 md:px-12 bg-white text-gray-900 dark:bg-gray-900 dark:text-white"
+    >
       <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-8">
         Trending
       </h2>

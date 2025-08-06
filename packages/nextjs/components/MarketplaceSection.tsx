@@ -13,7 +13,10 @@ const items = Array.from({ length: 8 }).map((_, i) => ({
 
 export default function MarketplaceSection() {
   return (
-    <section className="py-12 px-4 sm:px-6">
+    <section
+      id="marketplace"
+      className="py-12 px-4 sm:px-6 bg-white dark:bg-gray-900"
+    >
       <div className="max-w-7xl mx-auto grid md:grid-cols-12 gap-6">
         <div className="md:col-span-3 mb-6 md:mb-0">
           <FiltersSidebar />
