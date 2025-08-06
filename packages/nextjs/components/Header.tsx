@@ -47,7 +47,7 @@ export const Header = () => {
     <header className="navbar bg-base-100/60 backdrop-blur z-20">
       <div className="flex-1">
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/pokerboots.svg" alt="SE2 logo" width={40} height={40} />
+          <Image src="/pokernfts.svg" alt="SE2 logo" width={40} height={40} />
         </Link>
       </div>
 

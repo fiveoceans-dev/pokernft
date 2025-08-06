@@ -218,7 +218,7 @@ define(["./workbox-4754cb34"], function (e) {
         { url: "/poker.png", revision: "b9449effe384bcadd1ec623a59abfbe6" },
         { url: "/poker.svg", revision: "9988ce4f9f7a583858e6331f21515d2c" },
         {
-          url: "/pokerboots.svg",
+          url: "/pokernfts.svg",
           revision: "9988ce4f9f7a583858e6331f21515d2c",
         },
         {
