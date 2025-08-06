@@ -120,11 +120,11 @@ const config: Config = {
           },
           ".bg-gradient-nav": {
             "background-image":
-              "linear-gradient(90deg,#00FFD1 0%, #FF5F5F 100%)",
+              "linear-gradient(90deg,#00FFD1 0%,rgb(14, 19, 150) 100%)",
           },
           ".bg-main": {
             background:
-              "radial-gradient(at 50% 0%, rgba(0,255,209,0.15), rgba(255,95,95,0.1) 60%), #0A0A0A",
+              "radial-gradient(at 50% 0%, rgba(20, 14, 81, 0.15), rgba(19, 10, 79, 0.1) 60%), #0A0A0A",
           },
           ".bg-underline": {
             background: "#2A2A2A",

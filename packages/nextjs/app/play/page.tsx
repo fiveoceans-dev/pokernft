@@ -28,7 +28,7 @@ export default function PlayPage() {
   const stageNames = ["preflop", "flop", "turn", "river", "showdown"] as const;
 
   return (
-    <main className="min-h-screen flex flex-col items-center bg-gradient-to-br from-[#0d0d0d] via-[#1b1b1b] to-[#232323] text-white">
+    <main className="min-h-screen flex flex-col items-center text-white">
       <header className="relative w-full max-w-6xl flex items-center justify-between mt-6 mb-4 px-4">
         <h1 className="text-4xl font-bold">PokerBoots × Starknet</h1>
         <button

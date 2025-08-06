@@ -16,8 +16,8 @@ type HeaderMenuLink = {
 const menuLinks: HeaderMenuLink[] = [
   { label: "Home", href: "/#home" },
   { label: "How it Works", href: "/#how" },
-  { label: "Trending", href: "/#tournaments" },
-  { label: "Marketplace", href: "/#marketplace" },
+  { label: "Trending", href: "/#trending" },
+  { label: "Tournaments", href: "/#tournaments" },
 ];
 
 const NavLinks = ({ close }: { close?: () => void }) => {
@@ -47,8 +47,9 @@ export const Header = () => {
     <header className="navbar bg-base-100/60 backdrop-blur z-20">
       <div className="flex-1">
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/pokernfts.svg" alt="SE2 logo" width={40} height={40} />
+          <Image src="/pokernfts.svg" alt="SE2 logo" width={60} height={60} />
         </Link>
+        POKER NFTs
       </div>
 
       <nav className="hidden lg:flex">
@@ -74,7 +75,6 @@ export const Header = () => {
       </div>
 
       <div className="flex-none ml-4 flex gap-4 items-center">
-        <CustomConnectButton />
         <SwitchTheme />
       </div>
     </header>

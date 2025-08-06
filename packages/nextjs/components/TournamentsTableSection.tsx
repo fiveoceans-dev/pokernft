@@ -188,10 +188,10 @@ export default function TournamentsTableSection() {
   };
 
   return (
-    <section className="p-4 sm:p-8 bg-white text-gray-900 dark:bg-black dark:text-white">
+    <section id="tournaments" className="p-4 sm:p-8 bg-white text-gray-900 dark:bg-black dark:text-white">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold mb-6">
-          <span className="text-yellow-400">Marketplace</span>
+          <span className="text-yellow-400">Tournaments</span>
         </h2>
         <div className="overflow-auto rounded-lg border border-gray-300 dark:border-gray-700">
           <table className="min-w-full text-xs sm:text-sm table-auto">
