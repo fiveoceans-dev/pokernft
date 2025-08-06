@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-import { CustomConnectButton } from "~~/components/scaffold-stark/CustomConnectButton";
+import ConnectModal from "~~/components/scaffold-stark/CustomConnectButton/ConnectModal";
+
 import { SwitchTheme } from "./SwitchTheme";
 
 type HeaderMenuLink = {
@@ -21,7 +21,6 @@ const menuLinks: HeaderMenuLink[] = [
 ];
 
 const NavLinks = ({ close }: { close?: () => void }) => {
-  const pathname = usePathname();
 
   return (
     <>
@@ -29,7 +28,8 @@ const NavLinks = ({ close }: { close?: () => void }) => {
         <li key={href} onClick={close}>
           <Link
             href={href}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg gap-2 grid grid-flow-col text-white hover:bg-yellow-400 hover:text-[#0c1a3a] hover:shadow-[0_0_20px_#facc15] ${pathname === href ? "animate-pulse" : ""}`}
+            className="px-4 py-2 text-sm font-semibold rounded-lg text-white hover:bg-yellow-400 hover:text-[#0c1a3a]"
+
           >
             {label}
           </Link>
@@ -77,7 +77,8 @@ export const Header = () => {
       </div>
 
       <div className="flex-none ml-4 flex gap-4 items-center">
-        <CustomConnectButton />
+        <ConnectModal />
+
         <SwitchTheme />
       </div>
     </header>
