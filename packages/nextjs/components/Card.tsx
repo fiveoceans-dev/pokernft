@@ -2,7 +2,7 @@
 import Image from "next/image";
 import clsx from "clsx";
 import type { Card as TCard } from "../game/types"; // type-only ✔
-import cardStarknet from "../assets/svg-cards/card-starknet.svg";
+import cardStarknet from "../assets/svg-cards/card-pokernfts.svg";
 // import cardPokerBoots from '../assets/svg-cards/card-pokerboots.svg';
 
 /* ─────────── import all face SVGs at build-time ───────────
