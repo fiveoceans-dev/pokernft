@@ -2,7 +2,7 @@
 
 import ActionBar from "../../components/ActionBar";
 import Table from "../../components/Table";
-import WalletModal from "../../components/ui/WalletModal";
+import { CustomConnectButton } from "../../components/scaffold-stark/CustomConnectButton";
 import { useGameStore } from "../../hooks/useGameStore";
 
 export default function PlayPage() {
@@ -28,7 +28,7 @@ export default function PlayPage() {
             onTurn={dealTurn}
             onRiver={dealRiver}
           />
-          <WalletModal />
+          <CustomConnectButton />
         </div>
       </header>
       <Table />
