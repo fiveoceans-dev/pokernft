@@ -32,13 +32,16 @@
     "verify": "yarn workspace @ss-2/snfoundry verify"
   },
   "dependencies": {
-    "postcss": "^8.4.38"
+    "@starknet-io/get-starknet-core": "^4.0.7",
+    "bitcoinjs-lib": "^6.1.7",
+    "postcss": "^8.4.38",
+    "starknet": "^7.6.4"
   },
   "devDependencies": {
     "daisyui": "^4.7.3",
     "husky": "^9.0.11",
     "pinst": "^3.0.0",
-    "prettier": "^3.4.2"
+    "prettier": "^3.6.2"
   },
   "packageManager": "yarn@3.2.3"
 }
