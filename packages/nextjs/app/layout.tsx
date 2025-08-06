@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: "Scaffold-Stark",
   description: "Fast track your starknet journey",
   icons: "/logo.ico",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+  },
 };
 
 const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
