@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buyNft } from "~~/services/nft";
 
 type Tournament = {
   id: number;
@@ -211,9 +212,16 @@ export default function TournamentsTableSection() {
             </thead>
             <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
               {sorted.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition">
+                <tr
+                  key={t.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-900 transition"
+                >
                   <td className="px-2 py-1">
-                    <img src={t.nft} alt={t.name} className="w-12 h-12 object-cover rounded" />
+                    <img
+                      src={t.nft}
+                      alt={t.name}
+                      className="w-12 h-12 object-cover rounded"
+                    />
                   </td>
                   <td className="px-2 py-1">{t.name}</td>
                   <td className="px-2 py-1">{t.game}</td>
@@ -226,13 +234,26 @@ export default function TournamentsTableSection() {
                     />
                     <span>{t.creator}</span>
                   </td>
-                  <td className="px-2 py-1 text-center text-yellow-400">{t.prize}%</td>
-                  <td className="px-2 py-1 text-center text-blue-400">{t.creatorShare}%</td>
-                  <td className="px-2 py-1 text-center text-red-400">{t.protocolFee}%</td>
-                  <td className="px-2 py-1 text-orange-500 text-center">{t.sold}/{t.supply}</td>
-                  <td className="px-2 py-1 text-green-500 text-center">${t.buyIn}</td>
+                  <td className="px-2 py-1 text-center text-yellow-400">
+                    {t.prize}%
+                  </td>
+                  <td className="px-2 py-1 text-center text-blue-400">
+                    {t.creatorShare}%
+                  </td>
+                  <td className="px-2 py-1 text-center text-red-400">
+                    {t.protocolFee}%
+                  </td>
+                  <td className="px-2 py-1 text-orange-500 text-center">
+                    {t.sold}/{t.supply}
+                  </td>
+                  <td className="px-2 py-1 text-green-500 text-center">
+                    ${t.buyIn}
+                  </td>
                   <td className="px-2 py-1 text-center">
-                    <button className="px-2 py-1 bg-purple-600 text-white rounded text-xs sm:text-sm hover:bg-purple-700">
+                    <button
+                      onClick={() => buyNft(t.id)}
+                      className="px-2 py-1 bg-purple-600 text-white rounded text-xs sm:text-sm hover:bg-purple-700"
+                    >
                       Buy
                     </button>
                   </td>

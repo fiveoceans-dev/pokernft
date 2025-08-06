@@ -1,22 +1,17 @@
 import React from "react";
 
-const steps = [
-  "Connect your wallet",
-  "Join a table",
-  "Get your cards",
-  "Play the rounds",
-  "Win the pot",
-];
+const message =
+  "Solving fraud in online poker, much like Bitcoin solved fraud in banking!";
 
-export default function HowItWorksSection() {
+export default function MissionStatementSection() {
   return (
-    <section className="bg-black text-white py-16 px-4">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">
-          <span className="text-yellow-400">Solving fraud in online poker, much like Bitcoin solved fraud in banking!</span>
-        </h2>
+    <section className="bg-black text-white py-4 overflow-hidden">
+      <div className="whitespace-nowrap">
+        <div className="animate-marquee inline-block">
+          <span className="mx-8">{message}</span>
+          <span className="mx-8">{message}</span>
+        </div>
       </div>
     </section>
-
   );
 }
