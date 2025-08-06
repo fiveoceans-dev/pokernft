@@ -86,6 +86,8 @@ body {
   filter: blur(229px);
   position: absolute;
   top: 0;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .circle-gradient-blue {
@@ -95,6 +97,8 @@ body {
   position: absolute;
   top: 0;
   right: 0;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .border-gradient {
@@ -146,6 +150,8 @@ body {
   border-radius: 630px;
   background: #7c3aed;
   filter: blur(229px);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .circle-gradient-blue-dark {
@@ -155,6 +161,8 @@ body {
   position: absolute;
   top: 0;
   right: 0;
+  pointer-events: none;
+  z-index: -1;
 }
 
 @layer utilities {
