@@ -63,7 +63,7 @@ body {
 }
 
 .modal {
-  @apply overflow-hidden z-[9999];
+  @apply overflow-hidden z-[10000];
 }
 
 .modal-box {

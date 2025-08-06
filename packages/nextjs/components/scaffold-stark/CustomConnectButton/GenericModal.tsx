@@ -19,7 +19,7 @@ const GenericModal = ({
   const modal = (
     <label
       htmlFor={modalId}
-      className="modal z-[1000] backdrop-blur cursor-pointer"
+      className="modal z-[10000] backdrop-blur cursor-pointer"
     >
       <label className={className}>
         {/* dummy input to capture event onclick on modal box */}
