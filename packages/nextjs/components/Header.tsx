@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-import ConnectModal from "~~/components/scaffold-stark/CustomConnectButton/ConnectModal";
+import { CustomConnectButton } from "~~/components/scaffold-stark/CustomConnectButton";
 
 import { SwitchTheme } from "./SwitchTheme";
 
@@ -74,8 +74,7 @@ export const Header = () => {
       </div>
 
       <div className="flex-none ml-4 flex gap-4 items-center">
-        <ConnectModal />
-
+        <CustomConnectButton />
         <SwitchTheme />
       </div>
     </header>
