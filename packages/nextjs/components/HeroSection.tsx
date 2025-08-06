@@ -58,7 +58,7 @@ export default function HeroSection() {
         </div>
       ))}
 
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0 bg-black/40 pointer-events-none" />
 
       <div className="relative z-10 h-full flex flex-col justify-center items-center text-center px-6 md:px-12">
         <h1 className="text-3xl md:text-5xl font-bold mb-6">

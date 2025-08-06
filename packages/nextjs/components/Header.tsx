@@ -21,7 +21,6 @@ const menuLinks: HeaderMenuLink[] = [
 ];
 
 const NavLinks = ({ close }: { close?: () => void }) => {
-
   return (
     <>
       {menuLinks.map(({ label, href }) => (
@@ -29,13 +28,11 @@ const NavLinks = ({ close }: { close?: () => void }) => {
           <Link
             href={href}
             className="px-4 py-2 text-sm font-semibold rounded-lg text-white hover:bg-yellow-400 hover:text-[#0c1a3a]"
-
           >
             {label}
           </Link>
         </li>
       ))}
-
     </>
   );
 };
