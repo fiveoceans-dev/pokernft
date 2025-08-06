@@ -11,7 +11,7 @@ export const WalletModal: React.FC = () => {
         {connected ? "Wallet" : "Connect Wallet"}
       </Button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
           <div className="bg-primary p-6 rounded-md w-80">
             {connected ? (
               <div className="space-y-4">

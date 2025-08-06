@@ -3,8 +3,10 @@ import React from "react";
 import Avatar from "./Avatar";
 import Badge from "./Badge";
 import Button from "./Button";
+import { buyNft } from "~~/services/nft";
 
 type NFTCardProps = {
+  id: number;
   title: string;
   image: string;
   creator: string;
@@ -15,6 +17,7 @@ type NFTCardProps = {
 };
 
 export const NFTCard: React.FC<NFTCardProps> = ({
+  id,
   title,
   image,
   creator,
@@ -32,7 +35,7 @@ export const NFTCard: React.FC<NFTCardProps> = ({
         className="object-cover transition-transform duration-300 group-hover:scale-105"
       />
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button>{actionLabel}</Button>
+        <Button onClick={() => buyNft(id)}>{actionLabel}</Button>
       </div>
       {badge && (
         <div className="absolute top-2 left-2">

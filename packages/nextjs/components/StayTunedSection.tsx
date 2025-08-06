@@ -36,7 +36,11 @@ export default function StayTunedSection() {
         <SocialIcon href="#" label="Instagram" className="hover:text-pink-400">
           <FaInstagram />
         </SocialIcon>
-        <SocialIcon href="https://discord.gg/jW43eTwe6J" label="Discord" className="hover:text-indigo-400">
+        <SocialIcon
+          href="https://discord.gg/jW43eTwe6J"
+          label="Discord"
+          className="hover:text-indigo-400"
+        >
           <FaDiscord />
         </SocialIcon>
       </div>

@@ -1,7 +1,10 @@
 import Image from "next/image";
 import type { FC } from "react";
+import Button from "./Button";
+import { buyNft } from "~~/services/nft";
 
 export interface PopularNftCardProps {
+  id: number;
   image: string;
   title: string;
   buyIn: string;
@@ -15,6 +18,7 @@ export interface PopularNftCardProps {
 }
 
 export const PopularNftCard: FC<PopularNftCardProps> = ({
+  id,
   image,
   title,
   buyIn,
@@ -72,11 +76,9 @@ export const PopularNftCard: FC<PopularNftCardProps> = ({
         <span className="text-gray-400">PRIZE</span>
       </div>
     </div>
-    <div className="px-2 flex justify-between text-xs text-gray-600 font-medium pb-4">
-      <div className="flex flex-col"></div>
-      <div className="text-right">
-        <span className="text-gray-400">Rules</span>
-      </div>
+    <div className="px-2 flex justify-between items-center text-xs text-gray-600 font-medium pb-4">
+      <Button onClick={() => buyNft(id)}>Buy</Button>
+      <span className="text-gray-400">Rules</span>
     </div>
   </div>
 );

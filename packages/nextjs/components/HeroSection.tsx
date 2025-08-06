@@ -60,18 +60,16 @@ export default function HeroSection() {
 
       <div className="absolute inset-0 bg-black/40" />
 
-      <div className="relative z-10 h-full flex flex-col justify-center items-start px-6 md:px-12">
-        <h1 className="text-3xl md:text-5xl font-bold mb-4">
+      <div className="relative z-10 h-full flex flex-col justify-center items-center text-center px-6 md:px-12">
+        <h1 className="text-3xl md:text-5xl font-bold mb-6">
           {slides[index].title}
         </h1>
-        <div className="flex gap-4">
-          <a
-            href="/play"
-            className="px-6 py-3 bg-yellow-400 text-[#0c1a3a] font-semibold rounded-lg shadow hover:bg-yellow-300 transition-colors"
-          >
-            Play
-          </a>
-        </div>
+        <a
+          href="/play"
+          className="px-8 py-4 bg-yellow-400 text-[#0c1a3a] font-semibold rounded-lg shadow-[0_0_15px_#facc15] animate-pulse hover:shadow-[0_0_20px_#facc15]"
+        >
+          Play
+        </a>
       </div>
 
       <button
