@@ -40,12 +40,6 @@ export default function StayTunedSection() {
           <FaDiscord />
         </SocialIcon>
       </div>
-      <p className="mt-8 text-slate-300">
-        <a href="#" className="underline text-yellow-300">
-          Join our Discord
-        </a>{" "}
-        to share your best hands.
-      </p>
     </section>
   );
 }

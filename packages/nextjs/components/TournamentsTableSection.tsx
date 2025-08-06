@@ -20,7 +20,7 @@ const tournaments: Tournament[] = [
   {
     id: 1,
     name: "Saturday $200,000",
-    creator: "BAYC",
+    creator: "CryptoKitties",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
     game: "Hold'em",
     buyIn: 100,
@@ -35,7 +35,7 @@ const tournaments: Tournament[] = [
     name: "Saturday Million",
     creator: "Cool Cats",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Omaha",
+    game: "Hold'em",
     buyIn: 250,
     sold: 300,
     prizes: "50% / 30% / 20%",
@@ -74,7 +74,7 @@ const tournaments: Tournament[] = [
     name: "High Roller",
     creator: "Azuki",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Omaha",
+    game: "Hold'em",
     buyIn: 500,
     sold: 120,
     prizes: "60% / 25% / 15%",
@@ -98,9 +98,9 @@ const tournaments: Tournament[] = [
   {
     id: 7,
     name: "Weekend Warriors",
-    creator: "Pudgy Penguins",
+    creator: "Squiggles",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    game: "Omaha",
+    game: "Hold'em",
     buyIn: 150,
     sold: 350,
     prizes: "35% / 25% / 15% / 10%",
@@ -119,7 +119,7 @@ const tournaments: Tournament[] = [
     prizes: "50% / 30% / 20%",
     date: "2024-09-30",
     supply: 200,
-    nft: "https://placehold.co/220x320.png?text=NFT",
+    nft: "https://placehold.co/320x320.png?text=NFT",
   },
 ];
 
@@ -168,7 +168,7 @@ export default function TournamentsTableSection() {
 
   return (
     <section
-      id="tournaments"
+      id="marketplace"
       className="p-4 sm:p-8 bg-white text-gray-900 dark:bg-black dark:text-white"
     >
       <div className="max-w-6xl mx-auto">
@@ -225,7 +225,7 @@ export default function TournamentsTableSection() {
                     <img
                       src={t.creatorAvatar}
                       alt={t.creator}
-                      className="w-6 h-6 rounded-full object-cover"
+                      className="w-12 h-12 rounded-full object-cover"
                     />
                     <span>{t.creator}</span>
                   </td>

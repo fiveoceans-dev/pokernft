@@ -15,7 +15,6 @@ export default function HomePage() {
       <HowItWorksSection />
       <TrendingSection />
       <TournamentsTableSection />
-      <MarketplaceSection />
       <StayTunedSection />
     </main>
   );
