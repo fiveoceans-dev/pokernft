@@ -10,6 +10,8 @@ export default function MissionStatementSection() {
         <div className="animate-marquee inline-block">
           <span className="mx-8">{message}</span>
           <span className="mx-8">{message}</span>
+          <span className="mx-8">{message}</span>
+          <span className="mx-8">{message}</span>
         </div>
       </div>
     </section>
