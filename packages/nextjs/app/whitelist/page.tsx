@@ -22,7 +22,7 @@ const WhitelistPage: React.FC = () => {
         Whitelist Application
       </h1>
       {submitted ? (
-        <p className="text-center">Thanks for applying! We'll be in touch.</p>
+        <p className="text-center">Thanks for applying! We&apos;ll be in touch.</p>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <input

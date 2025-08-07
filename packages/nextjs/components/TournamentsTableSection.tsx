@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { buyNft } from "~~/services/nft";
 
 type Tournament = {
@@ -220,20 +221,26 @@ export default function TournamentsTableSection() {
                   className="hover:bg-gray-50 dark:hover:bg-gray-900 transition"
                 >
                   <td className="px-2 py-1">
-                    <img
+                    <Image
                       src={t.nft}
                       alt={t.name}
+                      width={48}
+                      height={48}
                       className="w-12 h-12 object-cover rounded"
+                      unoptimized
                     />
                   </td>
                   <td className="px-2 py-1">{t.name}</td>
                   <td className="px-2 py-1">{t.game}</td>
                   <td className="px-2 py-1">{t.date}</td>
                   <td className="px-2 py-1 flex items-center gap-2">
-                    <img
+                    <Image
                       src={t.creatorAvatar}
                       alt={t.creator}
+                      width={40}
+                      height={40}
                       className="w-10 h-10 rounded-full object-cover"
+                      unoptimized
                     />
                     <span>{t.creator}</span>
                   </td>
