@@ -73,7 +73,7 @@ const WhitelistPage: React.FC = () => {
             placeholder="Referral Code"
             className="w-full p-2 rounded-md bg-transparent border border-border text-background"
           />
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full text-black">
             Apply
           </Button>
         </form>
