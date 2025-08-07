@@ -4,6 +4,7 @@ import {
 } from "@starknet-react/core";
 import { useEffect, useState, useMemo } from "react";
 import { AccountInterface, constants } from "starknet";
+import { initStarknet } from "~~/services/starknet";
 
 /**
  * Wrapper around starknet react's useAccount hook to fix inconsistencies
@@ -23,6 +24,8 @@ export function useAccount(): UseAccountResult {
 
   useEffect(() => {
     if (account) {
+      // ensure Starknet provider and account are initialised once a wallet connects
+      initStarknet({ account });
       const getChainId = async () => {
         try {
           let chainId: string | bigint;
