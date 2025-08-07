@@ -82,6 +82,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       // invoke("take_seat", [seat_idx])
       await table.invoke("take_seat", [BigInt(seatIdx)]);
       await get().reloadTableState();
+      const count = get().players.filter((p) => p).length;
+      set({ loading: false });
+      if (count >= 2) {
+        await get().startHand();
+      }
     } catch (err: any) {
       console.error(err);
       set({ error: "Failed to join seat", loading: false });

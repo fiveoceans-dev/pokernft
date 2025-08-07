@@ -51,7 +51,7 @@ export default function HowItWorksSection() {
   return (
     <section
       id="how"
-      className="bg-gradient-to-b from-gray-900 via-black to-gray-900 text-white py-24"
+      className="py-24 bg-white text-black dark:bg-gray-900 dark:text-white"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl sm:text-4xl font-bold text-center mb-16">
@@ -61,13 +61,13 @@ export default function HowItWorksSection() {
           {steps.map(({ title, description, icon: Icon }, index) => (
             <div
               key={index}
-              className="relative p-6 rounded-xl bg-gray-900/60 border border-gray-800 shadow-center transition-transform hover:-translate-y-1 hover:shadow-neon"
+              className="relative p-6 rounded-xl bg-white/70 border border-gray-200 shadow-center transition-transform hover:-translate-y-1 hover:shadow-neon dark:bg-gray-900/60 dark:border-gray-800"
             >
               <div className="flex items-center justify-center w-12 h-12 mb-4 rounded-full bg-accent/20 text-accent text-xl">
                 <Icon />
               </div>
               <h3 className="text-xl font-semibold mb-2">{title}</h3>
-              <p className="text-gray-300 text-sm">{description}</p>
+              <p className="text-gray-700 text-sm dark:text-gray-300">{description}</p>
             </div>
           ))}
         </div>
