@@ -19,8 +19,9 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
   // seats a bit closer to the table edge
   const rx = isMobile ? 43 : 48;
   const ry = isMobile ? 58 : 38;
+  const step = (2 * Math.PI) / count;
   return Array.from({ length: count }).map((_, i) => {
-    const angle = (2 * Math.PI * i) / count - Math.PI / 2;
+    const angle = step * (i + 0.5) - Math.PI / 2; // leave gap at top for bank
     return {
       x: `${50 + rx * Math.cos(angle)}%`,
       y: `${50 + ry * Math.sin(angle)}%`,
@@ -35,9 +36,21 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
 export default function Table() {
   const { players, community, joinSeat } = useGameStore();
   const [isMobile, setIsMobile] = useState(false);
+  const [tableScale, setTableScale] = useState(1);
 
   useEffect(() => {
-    const handle = () => setIsMobile(window.innerWidth < 640);
+    const handle = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobile(mobile);
+      const baseW = mobile ? 420 : 820;
+      const baseH = mobile ? 680 : 520;
+      const scale = Math.min(
+        window.innerWidth / baseW,
+        window.innerHeight / baseH,
+        1,
+      );
+      setTableScale(scale);
+    };
     handle();
     window.addEventListener("resize", handle);
     return () => window.removeEventListener("resize", handle);
@@ -62,21 +75,6 @@ export default function Table() {
       top: pos.y,
       transform: `translate(${pos.t})`,
     } as React.CSSProperties;
-
-    /* ── top centre reserved for bank/announcements ─────── */
-    if (idx === 0) {
-      return (
-        <div
-          key="bank"
-          className="absolute left-1/2 -translate-x-1/2 top-[5px]"
-        >
-          <div className="relative flex justify-center">
-            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-yellow-400">BANK</span>
-            <div className="w-24 h-12 flex items-center justify-center rounded bg-yellow-400 border-4 border-yellow-700 text-black"></div>
-          </div>
-        </div>
-      );
-    }
 
     /* ── empty seat → button ─────────────────────────────── */
     if (!address) {
@@ -119,8 +117,18 @@ export default function Table() {
     );
   };
 
+  const bankEl = (
+    <div key="bank" className="absolute left-1/2 -translate-x-1/2 top-[5px]">
+      <div className="relative flex justify-center">
+        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-yellow-400">
+          BANK
+        </span>
+        <div className="w-24 h-12 flex items-center justify-center rounded bg-yellow-400 border-4 border-yellow-700 text-black"></div>
+      </div>
+    </div>
+  );
+
   /* community cards – dead-centre via flexbox */
-  const cardScale = isMobile ? "scale-90" : "scale-95";
   const communityRow = (
     <div className="absolute inset-0 flex items-center justify-center gap-2 w-full">
       {Array.from({ length: 5 }).map((_, i) => (
@@ -131,19 +139,28 @@ export default function Table() {
           }
           hidden={community[i] === null}
           size="md"
-          className={cardScale}
         />
       ))}
     </div>
   );
 
+  const baseW = isMobile ? 420 : 820;
+  const baseH = isMobile ? 680 : 520;
+
   return (
     <div className="relative flex justify-center items-center py-24">
       {/* poker-table oval */}
       <div
-        className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)] md:w-[820px] md:h-[520px] w-[420px] h-[680px]"
+        className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
+        style={{
+          width: baseW,
+          height: baseH,
+          transform: `scale(${tableScale})`,
+          transformOrigin: "center",
+        }}
       >
         {communityRow}
+        {bankEl}
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
