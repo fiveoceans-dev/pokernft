@@ -67,8 +67,7 @@ export default function HeroSection() {
         </h1>
         <a
           href="/play"
-          className="px-8 py-4 bg-[var(--color-neon-yellow)] text-[#0c1a3a] font-semibold rounded-lg shadow-[0_0_15px_var(--color-neon-yellow)] animate-pulse hover:shadow-[0_0_20px_var(--color-neon-yellow)]"
-
+          className="px-8 py-4 text-sm rounded-full font-serif-renaissance bg-[var(--color-neon-yellow)] text-[#0c1a3a] shadow-[0_0_15px_var(--color-neon-yellow)] hover:bg-gradient-nav hover:text-white hover:shadow-none"
         >
           Play
         </a>
