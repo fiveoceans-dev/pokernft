@@ -198,6 +198,8 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["Inter", "sans-serif"],
+        "serif-renaissance": ["Cinzel", "serif"],
+        "serif-body": ["Lora", "serif"],
       },
     },
   },

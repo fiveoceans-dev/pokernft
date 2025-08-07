@@ -1,7 +1,7 @@
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lora:wght@400;700&family=Inter:wght@400;700&display=swap");
 
 :root {
   --color-primary: #0a0a0a;
@@ -16,7 +16,7 @@ body {
   min-height: 100vh;
   background-color: var(--color-primary);
   color: var(--color-background);
-  font-family: "Inter", sans-serif;
+  @apply font-serif-body;
   background-image:
     radial-gradient(
       circle at 20% 20%,
@@ -33,6 +33,7 @@ h4 {
   margin-bottom: 0.5rem;
   line-height: 1;
   font-weight: 700;
+  @apply font-serif-renaissance;
 }
 
 p {
