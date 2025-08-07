@@ -16,7 +16,10 @@ export const metadata: Metadata = {
 const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <html suppressHydrationWarning>
-      <body suppressHydrationWarning className="flex flex-col min-h-screen">
+      <body
+        suppressHydrationWarning
+        className="flex flex-col min-h-screen bg-main"
+      >
         <ThemeProvider>
           <ScaffoldStarkAppWithProviders>
             {children}

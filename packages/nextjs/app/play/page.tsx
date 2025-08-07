@@ -14,7 +14,7 @@ export default function PlayPage() {
 
   return (
     <main
-      className="min-h-screen flex flex-col text-white bg-cover bg-center"
+      className="min-h-screen flex flex-col text-white bg-main bg-cover bg-center"
       style={{ backgroundImage: `url('/nfts/nft2.png')` }}
     >
       <header className="relative w-full max-w-6xl flex justify-between items-center mt-6 mb-4 px-4">
