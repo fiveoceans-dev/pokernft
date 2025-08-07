@@ -15,22 +15,34 @@ interface SeatPos {
 }
 
 const buildLayout = (isMobile: boolean): SeatPos[] => {
-  const count = 9;
-  // seats a bit closer to the table edge
-  const rx = isMobile ? 43 : 48;
-  // when in vertical mode move seats down and compress vertically
-  const ry = isMobile ? 38 : 38;
-  const cy = isMobile ? 54 : 50;
-  const step = (2 * Math.PI) / count;
-  return Array.from({ length: count }).map((_, i) => {
-    let angle = step * (i + 0.5) - Math.PI / 2; // leave gap at top for bank
-    if (isMobile) {
-      const adjustments = [20, 0, -10, 10, 0, -10, 10, 0, -20];
-      angle += (adjustments[i] * Math.PI) / 180;
-    }
+  const desktop = [
+    { x: 70, y: 15 },
+    { x: 88, y: 35 },
+    { x: 92, y: 65 },
+    { x: 75, y: 85 },
+    { x: 50, y: 90 },
+    { x: 25, y: 85 },
+    { x: 8, y: 65 },
+    { x: 12, y: 35 },
+    { x: 30, y: 15 },
+  ];
+  const mobile = [
+    { x: 78, y: 8 },
+    { x: 92, y: 30 },
+    { x: 92, y: 62 },
+    { x: 75, y: 88 },
+    { x: 50, y: 92 },
+    { x: 25, y: 88 },
+    { x: 8, y: 62 },
+    { x: 8, y: 30 },
+    { x: 22, y: 8 },
+  ];
+  const positions = isMobile ? mobile : desktop;
+  return positions.map((p) => {
+    const angle = Math.atan2(p.y - 50, p.x - 50);
     return {
-      x: `${50 + rx * Math.cos(angle)}%`,
-      y: `${cy + ry * Math.sin(angle)}%`,
+      x: `${p.x}%`,
+      y: `${p.y}%`,
       t: "-50%,-50%",
       r: isMobile ? (angle * 180) / Math.PI : 0,
     };
