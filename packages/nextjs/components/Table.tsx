@@ -86,6 +86,14 @@ export default function Table() {
     return max;
   }, [layout]);
 
+  const communityCardSize = useMemo(() => {
+    return tableScale < 0.75 ? "xs" : tableScale < 1 ? "sm" : "md";
+  }, [tableScale]);
+
+  const holeCardSize = useMemo(() => {
+    return tableScale < 0.75 ? "sm" : tableScale < 1 ? "md" : "lg";
+  }, [tableScale]);
+
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
     const address = players[idx];
@@ -143,6 +151,7 @@ export default function Table() {
               isActive={isActive}
               revealCards={reveal}
               bet={player.currentBet}
+              cardSize={holeCardSize}
             />
           </div>
         </div>
@@ -170,7 +179,7 @@ export default function Table() {
             community[i] !== null ? indexToCard(community[i] as number) : null
           }
           hidden={community[i] === null}
-          size={tableScale < 1 ? "sm" : "md"}
+          size={communityCardSize}
         />
       ))}
     </div>
