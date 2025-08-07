@@ -1,13 +1,13 @@
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lora:wght@400;700&family=Inter:wght@400;700&display=swap");
 
 :root {
   --color-primary: #0a0a0a;
-  --color-accent: #00ffd1;
-  --color-secondary: #ff5f5f;
-  --color-highlight: #ffd700;
+  --color-accent: #ccff00;
+  --color-secondary: #4b0082;
+  --color-highlight: #800020;
   --color-background: #e5e5e5;
   --color-border: #2a2a2a;
   --color-neon-yellow: #e0ff00;
@@ -17,14 +17,14 @@ body {
   min-height: 100vh;
   background-color: var(--color-primary);
   color: var(--color-background);
-  font-family: "Inter", sans-serif;
+  @apply font-serif-body;
   background-image:
     radial-gradient(
       circle at 20% 20%,
-      rgba(0, 255, 209, 0.15),
+      rgba(204, 255, 0, 0.15),
       transparent 40%
     ),
-    radial-gradient(circle at 80% 0%, rgba(255, 95, 95, 0.15), transparent 40%);
+    radial-gradient(circle at 80% 0%, rgba(75, 0, 130, 0.15), transparent 40%);
 }
 
 h1,
@@ -34,6 +34,7 @@ h4 {
   margin-bottom: 0.5rem;
   line-height: 1;
   font-weight: 700;
+  @apply font-serif-renaissance;
 }
 
 p {
@@ -83,7 +84,7 @@ body {
 
 .circle-gradient {
   border-radius: 630px;
-  background: #93c5fd;
+  background: #4b0082;
   filter: blur(229px);
   position: absolute;
   top: 0;
@@ -93,7 +94,7 @@ body {
 
 .circle-gradient-blue {
   border-radius: 630px;
-  background: #d8b4fe;
+  background: #800020;
   filter: blur(250px);
   position: absolute;
   top: 0;
@@ -103,7 +104,7 @@ body {
 }
 
 .border-gradient {
-  border: 1px solid #7c3aed;
+  border: 1px solid #4b0082;
 }
 
 .bg-modal {
@@ -137,19 +138,20 @@ body {
     width: 1rem;
     height: 1rem;
     background: inherit;
-    border-top: 1px solid #7c3aed;
-    border-right: 1px solid #7c3aed;
+    border-top: 1px solid #4b0082;
+    border-right: 1px solid #4b0082;
     clip-path: polygon(100% 0, 0 0, 100% 100%);
     z-index: 10;
   }
 }
+
 
 .circle-gradient-dark {
   position: absolute;
   top: 0;
   left: 60px;
   border-radius: 630px;
-  background: #7c3aed;
+  background: #4b0082;
   filter: blur(229px);
   pointer-events: none;
   z-index: -1;
@@ -157,7 +159,7 @@ body {
 
 .circle-gradient-blue-dark {
   border-radius: 630px;
-  background: #38bdf8;
+  background: #800020;
   filter: blur(250px);
   position: absolute;
   top: 0;
@@ -187,7 +189,7 @@ body {
     height: 6px;
     clip-path: polygon(10% 100%, 90% 100%, 100% 0, 0 0);
     position: relative;
-    background-color: #7c3aed;
+    background-color: #4b0082;
     position: absolute;
     top: -1px;
   }
