@@ -10,6 +10,9 @@ export function freshDeck(): Card[] {
   return shuffle(deck);
 }
 
+/** Convenience alias used by higher level room logic */
+export const dealDeck = freshDeck;
+
 /** Fisher-Yates in-place shuffle (returns same ref for convenience) */
 export function shuffle<T>(array: T[]): T[] {
   for (let i = array.length - 1; i > 0; i--) {
