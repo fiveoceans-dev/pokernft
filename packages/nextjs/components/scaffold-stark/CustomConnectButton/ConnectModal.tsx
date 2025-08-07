@@ -113,9 +113,9 @@ const ConnectModal = () => {
                         className="w-full flex flex-col"
                       >
                         <button
-                          className={`hover:bg-gradient-modal border rounded-md text-neutral py-[8px] pl-[10px] pr-16 flex items-center gap-4 ${
-                            isDarkMode ? "border-[#385183]" : ""
-                          }`}
+                        className={`hover:bg-gradient-modal border rounded-md text-black py-[8px] pl-[10px] pr-16 flex items-center gap-4 ${
+                          isDarkMode ? "border-[#385183]" : ""
+                        }`}
                           onClick={(e) => handleConnectBurner(e, ix)}
                         >
                           <BlockieAvatar
