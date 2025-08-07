@@ -6,7 +6,7 @@ const message =
 export default function MissionStatementSection() {
   return (
     <section
-      className="py-6 overflow-hidden bg-white text-black dark:bg-gradient-to-r dark:from-secondary/20 dark:via-black dark:to-secondary/20 dark:text-white"
+      className="py-6 text-accent"
     >
       <div className="whitespace-nowrap">
         <div className="animate-marquee inline-block text-lg tracking-wide">

@@ -8,7 +8,7 @@ export default function StayTunedSection() {
   return (
     <section
       id="community"
-      className="relative py-24 overflow-hidden bg-gradient-to-b from-black via-gray-900 to-black text-white"
+      className="relative py-24 overflow-hidden text-white"
     >
 
       {/* subtle radial glow */}
