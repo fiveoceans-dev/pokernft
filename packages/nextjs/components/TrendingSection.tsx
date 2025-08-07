@@ -21,11 +21,11 @@ export default function TrendingSection() {
   return (
     <section
       id="trending"
-      className="py-12 text-gray-900 dark:text-white"
+      className="py-24 bg-gradient-to-b from-black via-gray-900 to-black text-white"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-8">
-          Trending
+        <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-10">
+          <span className="text-accent">Trending</span>
         </h2>
         <div className="overflow-x-auto pb-2">
           <div className="grid grid-cols-7 gap-4 md:gap-6 w-max">
