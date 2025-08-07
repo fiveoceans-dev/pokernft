@@ -21,6 +21,7 @@ export const AddressInput = ({
 
   const handleChange = useCallback(
     (newValue: Address) => {
+      if (!newValue) return;
       const sanitizedValue = newValue.toLowerCase();
 
       if (sanitizedValue === "0x") {
