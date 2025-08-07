@@ -14,14 +14,17 @@ export default function PlayPage() {
 
   return (
     <main
-      className="h-screen flex flex-col text-white bg-main bg-cover bg-center overflow-hidden"
-      style={{ backgroundImage: `url('/nfts/nft2.png')` }}
+      className="h-screen flex flex-col text-white bg-main overflow-hidden"
+      style={{
+        backgroundImage: "url('/nfts/nft2.png')",
+        backgroundSize: "auto 100%",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
     >
-      <header className="relative w-full max-w-6xl flex justify-between items-center mt-6 mb-4 px-4">
-        <div className="flex-1">
-          <h1 className="text-4xl font-bold text-left">Poker Night on Starknet</h1>
-        </div>
-        <div className="flex items-center gap-4">
+      <header className="relative w-full max-w-6xl flex items-center mt-6 mb-4 px-4">
+        <h1 className="text-4xl font-bold text-left">Poker Night on Starknet</h1>
+        <div className="ml-auto flex items-center gap-4">
           <ActionBar
             street={stageNames[street] ?? "preflop"}
             onStart={startHand}
