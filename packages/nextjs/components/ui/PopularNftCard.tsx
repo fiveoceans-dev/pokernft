@@ -56,7 +56,7 @@ export const PopularNftCard: FC<PopularNftCardProps> = ({
         </div>
       </div>
       <div className="text-right">
-        <span className="ml-1 text-yellow-400">{dateTime}</span>
+        <span className="ml-1 text-accent">{dateTime}</span>
         <br />
         <span className="text-xs text-gray-500 font-medium">
           {tournamentType}

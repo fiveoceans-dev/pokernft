@@ -14,7 +14,7 @@ export default function StayTunedSection() {
       {/* subtle radial glow */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-800/10 via-indigo-600/10 to-purple-700/10 rounded-[40%] blur-[180px] -z-10" />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12 text-center">
-        <h2 className="text-3xl md:text-4xl font-extrabold tracking-wide text-yellow-300">
+        <h2 className="text-3xl md:text-4xl font-extrabold tracking-wide text-accent">
           Highlights & Community
         </h2>
         <p className="max-w-xl mx-auto mt-4 text-slate-300">
