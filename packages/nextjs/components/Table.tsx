@@ -23,7 +23,11 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
   const cy = isMobile ? 54 : 50;
   const step = (2 * Math.PI) / count;
   return Array.from({ length: count }).map((_, i) => {
-    const angle = step * (i + 0.5) - Math.PI / 2; // leave gap at top for bank
+    let angle = step * (i + 0.5) - Math.PI / 2; // leave gap at top for bank
+    if (isMobile) {
+      const adjustments = [20, 0, -10, 10, 0, -10, 10, 0, -20];
+      angle += (adjustments[i] * Math.PI) / 180;
+    }
     return {
       x: `${50 + rx * Math.cos(angle)}%`,
       y: `${cy + ry * Math.sin(angle)}%`,
@@ -142,7 +146,7 @@ export default function Table() {
             community[i] !== null ? indexToCard(community[i] as number) : null
           }
           hidden={community[i] === null}
-          size="md"
+          size={tableScale < 1 ? "sm" : "md"}
         />
       ))}
     </div>
@@ -152,7 +156,7 @@ export default function Table() {
   const baseH = isMobile ? 680 : 520;
 
   return (
-    <div className="relative flex justify-center items-center py-24">
+    <div className="relative flex justify-center items-center w-full h-full">
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
