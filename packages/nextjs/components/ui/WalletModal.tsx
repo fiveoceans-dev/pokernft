@@ -15,12 +15,12 @@ export const WalletModal: React.FC = () => {
           <div className="bg-primary p-6 rounded-md w-80">
             {connected ? (
               <div className="space-y-4">
-                <p className="text-background">0x1234...abcd</p>
+                <p>0x1234...abcd</p>
                 <Button onClick={() => setConnected(false)}>Disconnect</Button>
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-background">Connect your wallet</p>
+                <p>Connect your wallet</p>
                 <Button onClick={() => setConnected(true)}>Connect</Button>
               </div>
             )}
