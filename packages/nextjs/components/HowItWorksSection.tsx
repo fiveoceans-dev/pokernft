@@ -66,7 +66,7 @@ export default function HowItWorksSection() {
 
           <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg transition-transform hover:scale-105 hover:shadow-lg">
             <h3 className="text-xl font-semibold mb-2">
-              Win Prizes & $POKER Airdrop
+             Get $POKER Airdrop
             </h3>
             <p>
               Top 15% win prize money and get a bonus airdrop of $POKER tokens.
