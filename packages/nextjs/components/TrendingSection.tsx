@@ -21,7 +21,7 @@ export default function TrendingSection() {
   return (
     <section
       id="trending"
-      className="py-12 bg-white text-gray-900 dark:bg-gray-900 dark:text-white"
+      className="py-12 text-gray-900 dark:text-white"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-8">
