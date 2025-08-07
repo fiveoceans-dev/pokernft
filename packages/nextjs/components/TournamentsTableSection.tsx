@@ -194,7 +194,7 @@ export default function TournamentsTableSection() {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl font-bold mb-6">
-          <span className="text-yellow-400">Tournaments</span>
+          <span className="text-accent">Tournaments</span>
         </h2>
         <div className="overflow-auto rounded-lg border border-gray-300 dark:border-gray-700">
           <table className="min-w-full text-xs sm:text-sm table-auto">
@@ -237,7 +237,7 @@ export default function TournamentsTableSection() {
                     />
                     <span>{t.creator}</span>
                   </td>
-                  <td className="px-2 py-1 text-center text-yellow-400">
+                  <td className="px-2 py-1 text-center text-accent">
                     {t.prize}%
                   </td>
                   <td className="px-2 py-1 text-center text-blue-400">

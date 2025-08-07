@@ -35,7 +35,7 @@ export default function PlayerSeat({
     >
       {/* Dealer marker */}
       {isDealer && (
-        <span className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-yellow-400 text-black text-xs font-bold flex items-center justify-center">
+        <span className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-accent text-black text-xs font-bold flex items-center justify-center">
           D
         </span>
       )}

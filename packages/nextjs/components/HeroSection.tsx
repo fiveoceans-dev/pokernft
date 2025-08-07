@@ -66,7 +66,7 @@ export default function HeroSection() {
         </h1>
         <a
           href="/play"
-          className="px-8 py-4 bg-yellow-400 text-[#0c1a3a] font-semibold rounded-lg shadow-[0_0_15px_#facc15] animate-pulse hover:shadow-[0_0_20px_#facc15]"
+          className="px-8 py-4 bg-accent text-primary font-semibold rounded-lg shadow-neon animate-pulse hover:shadow-neon-hover"
         >
           Play
         </a>
@@ -93,7 +93,7 @@ export default function HeroSection() {
             key={i}
             onClick={() => setIndex(i)}
             className={`w-3 h-3 rounded-full ${
-              i === index ? "bg-yellow-400" : "bg-white/50"
+              i === index ? "bg-accent" : "bg-white/50"
             }`}
             aria-label={`Go to slide ${i + 1}`}
           />
