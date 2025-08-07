@@ -3775,6 +3775,7 @@ __metadata:
     "@types/react": 18.2.48
     "@types/react-copy-to-clipboard": ^5.0.4
     "@types/react-dom": 18.2.19
+    "@types/ws": ^8.18.1
     "@vitejs/plugin-react": ^4.3.4
     "@vitest/coverage-istanbul": ^2.1.1
     "@vitest/coverage-v8": ^2.1.1
@@ -3804,6 +3805,7 @@ __metadata:
     shx: ^0.4.0
     starknet: ^7.1.0
     tailwindcss: ^3.3.0
+    ts-node: ^10.9.2
     type-fest: ^4.6.0
     typescript: ^5
     usehooks-ts: ^2.13.0
@@ -3812,6 +3814,7 @@ __metadata:
     vitest: ^3.0.9
     webpack: ^5.97.1
     webpack-cli: ^6.0.1
+    ws: ^8.18.3
     zustand: ^4.1.2
   peerDependencies:
     "@babel/core": ^7.0.0
@@ -4337,6 +4340,15 @@ __metadata:
   version: 2.0.7
   resolution: "@types/trusted-types@npm:2.0.7"
   checksum: 8e4202766a65877efcf5d5a41b7dd458480b36195e580a3b1085ad21e948bc417d55d6f8af1fd2a7ad008015d4117d5fdfe432731157da3c68678487174e4ba3
+  languageName: node
+  linkType: hard
+
+"@types/ws@npm:^8.18.1":
+  version: 8.18.1
+  resolution: "@types/ws@npm:8.18.1"
+  dependencies:
+    "@types/node": "*"
+  checksum: 0331b14cde388e2805af66cad3e3f51857db8e68ed91e5b99750915e96fe7572e58296dc99999331bbcf08f0ff00a227a0bb214e991f53c2a5aca7b0e71173fa
   languageName: node
   linkType: hard
 
@@ -14444,7 +14456,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:^8.18.0":
+"ws@npm:^8.18.0, ws@npm:^8.18.3":
   version: 8.18.3
   resolution: "ws@npm:8.18.3"
   peerDependencies:
