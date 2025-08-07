@@ -4,13 +4,11 @@ import React, { useCallback, useRef, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bars3Icon, BugAntIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon } from "@heroicons/react/24/outline";
 import { useOutsideClick } from "~~/hooks/scaffold-stark";
 import { CustomConnectButton } from "~~/components/scaffold-stark/CustomConnectButton";
-import { useTheme } from "next-themes";
 import { useTargetNetwork } from "~~/hooks/scaffold-stark/useTargetNetwork";
 import { devnet } from "@starknet-react/chains";
-import { SwitchTheme } from "./SwitchTheme";
 import { useAccount, useNetwork, useProvider } from "@starknet-react/core";
 import { BlockIdentifier } from "starknet";
 
@@ -31,12 +29,7 @@ export const menuLinks: HeaderMenuLink[] = [
 
 export const HeaderMenuLinks = () => {
   const pathname = usePathname();
-  const { theme } = useTheme();
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    setIsDark(theme === "dark");
-  }, [theme]);
+  const [isDark] = useState(true);
   return (
     <>
       {menuLinks.map(({ label, href, icon }) => {

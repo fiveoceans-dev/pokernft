@@ -13,6 +13,8 @@ package-lock.json
 .eslintcache
 .DS_Store
 .vercel
+.pnp.cjs
+.pnp.loader.mjs
 
 # Environment files
 .env

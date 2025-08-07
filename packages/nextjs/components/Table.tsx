@@ -1,6 +1,6 @@
 // src/components/Table.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
 import { indexToCard } from "../game/utils";
@@ -14,24 +14,20 @@ interface SeatPos {
   r: number;
 }
 
-/* ─── absolute positions (0 = top, 4 = bottom-center) ─── */
-const desktopLayout: SeatPos[] = [
-  { x: "72%", y: "1%", t: "-50%,-50%", r: 0 }, // 1 top-right
-  { x: "96%", y: "20%", t: "-50%,-50%", r: 0 }, // 2 right-top
-  { x: "100%", y: "60%", t: "-50%,-50%", r: 0 }, // 3 right
-  { x: "82%", y: "90%", t: "-50%,-50%", r: 0 }, // 4 bottom-right
-  { x: "50%", y: "100%", t: "-50%,-100%", r: 0 }, // 5 bottom (local)
-  { x: "18%", y: "90%", t: "-50%,-50%", r: 0 }, // 6 bottom-left
-];
-
-const mobileLayout: SeatPos[] = [
-  { x: "50%", y: "4%", t: "-50%,-50%", r: 180 }, // top
-  { x: "88%", y: "20%", t: "-50%,-50%", r: 90 }, // right-top
-  { x: "88%", y: "80%", t: "-50%,-50%", r: 90 }, // right-bottom
-  { x: "50%", y: "96%", t: "-50%,-50%", r: 0 }, // bottom
-  { x: "12%", y: "80%", t: "-50%,-50%", r: -90 }, // left-bottom
-  { x: "12%", y: "20%", t: "-50%,-50%", r: -90 }, // left-top
-];
+const buildLayout = (isMobile: boolean): SeatPos[] => {
+  const count = 9;
+  const rx = isMobile ? 40 : 45;
+  const ry = isMobile ? 55 : 35;
+  return Array.from({ length: count }).map((_, i) => {
+    const angle = (2 * Math.PI * i) / count - Math.PI / 2;
+    return {
+      x: `${50 + rx * Math.cos(angle)}%`,
+      y: `${50 + ry * Math.sin(angle)}%`,
+      t: "-50%,-50%",
+      r: isMobile ? (angle * 180) / Math.PI : 0,
+    };
+  });
+};
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -46,7 +42,14 @@ export default function Table() {
     return () => window.removeEventListener("resize", handle);
   }, []);
 
-  const layout = isMobile ? mobileLayout : desktopLayout;
+  const layout = useMemo(() => buildLayout(isMobile), [isMobile]);
+  const localIdx = useMemo(() => {
+    let max = 0;
+    for (let i = 1; i < layout.length; i++) {
+      if (parseFloat(layout[i].y) > parseFloat(layout[max].y)) max = i;
+    }
+    return max;
+  }, [layout]);
 
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
@@ -84,7 +87,7 @@ export default function Table() {
     };
     const isDealer = idx === 0;
     const isActive = false; // turn logic TBD
-    const reveal = idx === 4; // local player
+    const reveal = idx === localIdx;
 
     return (
       <div key={idx} style={posStyle} className="absolute">
@@ -121,7 +124,7 @@ export default function Table() {
     <div className="relative flex justify-center items-center py-24 bg-main">
       {/* poker-table oval */}
       <div
-        className="relative rounded-full border-8 border-[var(--brand-accent)] bg-gradient-to-br from-[#1e1e1e] to-[#0e0e0e] shadow-[0_0_40px_rgba(0,0,0,0.6)] md:w-[680px] md:h-[420px] w-[420px] h-[680px]"
+        className="relative rounded-full border-8 border-[var(--brand-accent)] shadow-[0_0_40px_rgba(0,0,0,0.6)] md:w-[680px] md:h-[420px] w-[420px] h-[680px]"
       >
         {communityRow}
         {/* seats */}
