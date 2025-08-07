@@ -3,7 +3,6 @@ node_modules
 package-lock.json
 .idea
 
-
 # yarn / eslint
 .yarn/*
 !.yarn/patches
@@ -26,6 +25,7 @@ package-lock.json
 packages/nextjs/.next/
 packages/nextjs/out/
 packages/nextjs/.turbo/
+node_modules/
 coverage/
 dist/
 build/
@@ -34,3 +34,8 @@ build/
 # logs and debug
 yarn-error.log
 npm-debug.log*
+
+.yarnrc.yml
+yarn.lock
+
+.next/
