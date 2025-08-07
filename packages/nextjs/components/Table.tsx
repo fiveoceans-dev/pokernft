@@ -63,12 +63,16 @@ export default function Table() {
       transform: `translate(${pos.t})`,
     } as React.CSSProperties;
 
-    /* ── top centre reserved for pot/announcements ──────── */
+    /* ── top centre reserved for bank/announcements ─────── */
     if (idx === 0) {
       return (
-        <div key="pot" style={posStyle} className="absolute">
-          <div className="w-24 h-12 flex items-center justify-center rounded bg-yellow-400 border-4 border-yellow-700 text-black">
-            Pot
+        <div
+          key="bank"
+          className="absolute left-1/2 -translate-x-1/2 top-[5px]"
+        >
+          <div className="relative flex justify-center">
+            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-yellow-400">BANK</span>
+            <div className="w-24 h-12 flex items-center justify-center rounded bg-yellow-400 border-4 border-yellow-700 text-black"></div>
           </div>
         </div>
       );
@@ -116,8 +120,9 @@ export default function Table() {
   };
 
   /* community cards – dead-centre via flexbox */
+  const cardScale = isMobile ? "scale-90" : "scale-95";
   const communityRow = (
-    <div className="absolute inset-0 flex items-center justify-center gap-2">
+    <div className="absolute inset-0 flex items-center justify-center gap-2 w-full">
       {Array.from({ length: 5 }).map((_, i) => (
         <Card
           key={i}
@@ -126,6 +131,7 @@ export default function Table() {
           }
           hidden={community[i] === null}
           size="md"
+          className={cardScale}
         />
       ))}
     </div>

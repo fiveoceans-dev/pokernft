@@ -52,14 +52,24 @@ interface Props {
   card: TCard | null; // null while face-down
   hidden?: boolean;
   size?: "sm" | "md" | "lg";
+  className?: string;
 }
 
-export default function Card({ card, hidden, size = "md" }: Props) {
-  const className = clsx("rounded-md shadow-sm", {
-    "w-16 h-24": size === "sm",
-    "w-20 h-28": size === "md",
-    "w-24 h-32": size === "lg",
-  });
+export default function Card({
+  card,
+  hidden,
+  size = "md",
+  className: extraClass,
+}: Props) {
+  const className = clsx(
+    "rounded-md shadow-sm",
+    {
+      "w-16 h-24": size === "sm",
+      "w-20 h-28": size === "md",
+      "w-24 h-32": size === "lg",
+    },
+    extraClass,
+  );
 
   /* choose back or face */
   const src =
