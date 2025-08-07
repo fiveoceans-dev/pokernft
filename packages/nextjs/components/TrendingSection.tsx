@@ -20,7 +20,7 @@ const items: PopularNftCardProps[] = Array.from({ length: 7 }).map((_, i) => ({
 export default function TrendingSection() {
   return (
     <section
-      id="trending"
+      id="marketplace"
       className="py-24 text-white"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">

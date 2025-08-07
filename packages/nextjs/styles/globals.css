@@ -24,7 +24,7 @@ body {
       rgba(204, 255, 0, 0.15),
       transparent 40%
     ),
-    radial-gradient(circle at 80% 0%, rgba(75, 0, 130, 0.15), transparent 40%);
+    radial-gradient(circle at 80% 0%, rgba(0, 26, 130, 0.15), transparent 40%);
 }
 
 h1,

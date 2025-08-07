@@ -215,7 +215,7 @@ define(["./workbox-4754cb34"], function (e) {
         { url: "/manifest.json", revision: "781788f3e2bc4b2b176b5d8c425d7475" },
         { url: "/nft-art.png", revision: "14f53c64738877b3fa88aab9a910979b" },
         { url: "/nft.png", revision: "d03c88ded58792ce4abda0659221ef4a" },
-        { url: "/poker.png", revision: "b9449effe384bcadd1ec623a59abfbe6" },
+        { url: "/pokernfts.svg", revision: "b9449effe384bcadd1ec623a59abfbe6" },
         { url: "/poker.svg", revision: "9988ce4f9f7a583858e6331f21515d2c" },
         {
           url: "/pokernfts.svg",
