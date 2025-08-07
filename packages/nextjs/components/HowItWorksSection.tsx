@@ -1,77 +1,75 @@
 import React from "react";
+import {
+  FaImage,
+  FaTags,
+  FaUsers,
+  FaTable,
+  FaCoins,
+  FaGift,
+} from "react-icons/fa";
 
 const steps = [
-  "Connect your wallet",
-  "Join a table",
-  "Get your cards",
-  "Play the rounds",
-  "Win the pot",
+  {
+    title: "Create an NFT",
+    description:
+      "Upload your own artwork. This NFT will represent your tournament entry ticket.",
+    icon: FaImage,
+  },
+  {
+    title: "Set Price, Supply & Date",
+    description:
+      "Choose your buy-in price, total supply, and tournament start date.",
+    icon: FaTags,
+  },
+  {
+    title: "Bring Your Followers",
+    description:
+      "Share and sell your NFT to your community. Each buyer gets a seat at the table!",
+    icon: FaUsers,
+  },
+  {
+    title: "Protocol Spins Up a Table",
+    description:
+      "Once funded, the protocol automatically launches a secure onchain poker game.",
+    icon: FaTable,
+  },
+  {
+    title: "Fund Distribution",
+    description:
+      "Funds split: 80% prizes, 10% creator, 10% protocol.",
+    icon: FaCoins,
+  },
+  {
+    title: "Get $POKER Airdrop",
+    description:
+      "Top 15% win prize money and get a bonus airdrop of $POKER tokens.",
+    icon: FaGift,
+  },
 ];
 
 export default function HowItWorksSection() {
   return (
-    <section id="how" className="bg-black text-white py-16">
+    <section
+      id="how"
+      className="bg-gradient-to-b from-gray-900 via-black to-gray-900 text-white py-24"
+    >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
-        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">
-          Create Your Own <span className="text-accent">POKER</span>{" "}
-          Tournament
+        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-16">
+          Create Your Own <span className="text-accent">POKER</span> Tournament
         </h2>
-
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg transition-transform hover:scale-105 hover:shadow-lg">
-            <h3 className="text-xl font-semibold mb-2">Create an NFT</h3>
-            <p>
-              Upload your own artwork. This NFT will represent your tournament
-              entry ticket.
-            </p>
-          </div>
-
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg transition-transform hover:scale-105 hover:shadow-lg">
-            <h3 className="text-xl font-semibold mb-2">
-              Set Price, Supply & Date
-            </h3>
-            <p>
-              Choose your buy-in price, total supply, and tournament start date.
-            </p>
-          </div>
-
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg transition-transform hover:scale-105 hover:shadow-lg">
-            <h3 className="text-xl font-semibold mb-2">
-              Bring Your Followers
-            </h3>
-            <p>
-              Share and sell your NFT to your community. Each buyer gets a seat
-              at the table!
-            </p>
-          </div>
-
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg transition-transform hover:scale-105 hover:shadow-lg">
-            <h3 className="text-xl font-semibold mb-2">
-              Protocol Spins Up a Table
-            </h3>
-            <p>
-              Once funded, the protocol automatically launches a secure onchain
-              poker game.
-            </p>
-          </div>
-
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg transition-transform hover:scale-105 hover:shadow-lg">
-            <h3 className="text-xl font-semibold mb-2">Fund Distribution</h3>
-            <p>
-              Funds split: <span className="text-accent">80%</span> prizes,{" "}
-              <span className="text-blue-400">10%</span> creator,{" "}
-              <span className="text-pink-400">10%</span> protocol.
-            </p>
-          </div>
-
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg transition-transform hover:scale-105 hover:shadow-lg">
-            <h3 className="text-xl font-semibold mb-2">
-             Get $POKER Airdrop
-            </h3>
-            <p>
-              Top 15% win prize money and get a bonus airdrop of $POKER tokens.
-            </p>
-          </div>
+        <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-3">
+          {steps.map(({ title, description, icon: Icon }, index) => (
+            <div
+              key={index}
+              className="relative p-6 rounded-xl bg-gray-900/60 border border-gray-800 shadow-center transition-transform hover:-translate-y-1 hover:shadow-neon"
+            >
+              <div className="flex items-center justify-center w-12 h-12 mb-4 rounded-full bg-accent/20 text-accent text-xl">
+                <Icon />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">{title}</h3>
+              <p className="text-gray-300 text-sm">{description}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

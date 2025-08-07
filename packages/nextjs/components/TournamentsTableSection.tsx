@@ -190,10 +190,10 @@ export default function TournamentsTableSection() {
   return (
     <section
       id="tournaments"
-      className="py-4 sm:py-8 bg-white text-gray-900 dark:bg-black dark:text-white"
+      className="py-24 bg-gradient-to-b from-white via-gray-50 to-white text-gray-900 dark:from-gray-900 dark:via-black dark:to-gray-900 dark:text-white"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
-        <h2 className="text-3xl font-bold mb-6">
+        <h2 className="text-3xl font-bold text-center mb-8">
           <span className="text-accent">Tournaments</span>
         </h2>
         <div className="overflow-auto rounded-lg border border-gray-300 dark:border-gray-700">
