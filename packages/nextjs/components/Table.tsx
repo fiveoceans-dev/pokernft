@@ -16,8 +16,9 @@ interface SeatPos {
 
 const buildLayout = (isMobile: boolean): SeatPos[] => {
   const count = 9;
-  const rx = isMobile ? 40 : 45;
-  const ry = isMobile ? 55 : 35;
+  // seats a bit closer to the table edge
+  const rx = isMobile ? 43 : 48;
+  const ry = isMobile ? 58 : 38;
   return Array.from({ length: count }).map((_, i) => {
     const angle = (2 * Math.PI * i) / count - Math.PI / 2;
     return {
@@ -62,13 +63,23 @@ export default function Table() {
       transform: `translate(${pos.t})`,
     } as React.CSSProperties;
 
+    /* ── top centre reserved for pot/announcements ──────── */
+    if (idx === 0) {
+      return (
+        <div key="pot" style={posStyle} className="absolute">
+          <div className="w-24 h-12 flex items-center justify-center rounded bg-yellow-400 border-4 border-yellow-700 text-black">
+            Pot
+          </div>
+        </div>
+      );
+    }
+
     /* ── empty seat → button ─────────────────────────────── */
     if (!address) {
       return (
         <div key={idx} style={posStyle} className="absolute">
           <button
             onClick={() => joinSeat(idx)}
-            style={{ transform: `rotate(${pos.r}deg)` }}
             className="w-24 h-8 flex items-center justify-center rounded text-xs text-gray-300 border border-dashed border-gray-500 bg-black/20 transition-colors duration-150 hover:bg-red-500 hover:text-white"
           >
             Play
@@ -85,7 +96,7 @@ export default function Table() {
       folded: false,
       currentBet: 0,
     };
-    const isDealer = idx === 0;
+    const isDealer = idx === 1;
     const isActive = false; // turn logic TBD
     const reveal = idx === localIdx;
 
