@@ -53,11 +53,12 @@ export default function HeroSection() {
             alt={s.title}
             fill
             priority={i === index}
-            className="object-cover"
+            className="object-cover scale-105 animate-parallax"
           />
         </div>
       ))}
 
+      <div className="absolute inset-0 hero-overlay pointer-events-none animate-dream" />
       <div className="absolute inset-0 bg-black/40 pointer-events-none" />
 
       <div className="relative z-10 h-full flex flex-col justify-center items-center text-center px-6 md:px-12">
@@ -66,7 +67,8 @@ export default function HeroSection() {
         </h1>
         <a
           href="/play"
-          className="px-8 py-4 bg-accent text-primary font-semibold rounded-lg shadow-neon animate-pulse hover:shadow-neon-hover"
+          className="px-8 py-4 bg-[var(--color-neon-yellow)] text-[#0c1a3a] font-semibold rounded-lg shadow-[0_0_15px_var(--color-neon-yellow)] animate-pulse hover:shadow-[0_0_20px_var(--color-neon-yellow)]"
+
         >
           Play
         </a>
@@ -93,7 +95,7 @@ export default function HeroSection() {
             key={i}
             onClick={() => setIndex(i)}
             className={`w-3 h-3 rounded-full ${
-              i === index ? "bg-accent" : "bg-white/50"
+              i === index ? "bg-[var(--color-neon-yellow)]" : "bg-white/50"
             }`}
             aria-label={`Go to slide ${i + 1}`}
           />

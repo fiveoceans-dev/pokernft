@@ -10,6 +10,7 @@
   --color-highlight: #800020;
   --color-background: #e5e5e5;
   --color-border: #2a2a2a;
+  --color-neon-yellow: #e0ff00;
 }
 
 body {
@@ -167,6 +168,21 @@ body {
   z-index: -1;
 }
 
+.hero-overlay {
+  mix-blend-mode: overlay;
+  background:
+    radial-gradient(
+      circle at 30% 30%,
+      rgba(224, 255, 0, 0.15),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 70% 70%,
+      rgba(0, 255, 209, 0.15),
+      transparent 60%
+    );
+}
+
 @layer utilities {
   .trapeze {
     width: 84px;
@@ -201,5 +217,39 @@ body {
 @layer utilities {
   .animate-marquee {
     animation: marquee 20s linear infinite;
+  }
+}
+
+@keyframes parallax {
+  0% {
+    transform: scale(1.05) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.1) translate(-2%, -2%);
+  }
+  100% {
+    transform: scale(1.05) translate(0, 0);
+  }
+}
+
+@keyframes dream {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+@layer utilities {
+  .animate-parallax {
+    animation: parallax 30s ease-in-out infinite;
+  }
+  .animate-dream {
+    background-size: 200% 200%;
+    animation: dream 40s ease-in-out infinite;
   }
 }
