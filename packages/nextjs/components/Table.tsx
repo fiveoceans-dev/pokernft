@@ -29,11 +29,11 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
   const mobile = [
     { x: 85, y: 8 },
     { x: 100, y: 30 },
-    { x: 100, y: 62 },
+    { x: 100, y: 72 },
     { x: 88, y: 88 },
     { x: 50, y: 98 },
     { x: 12, y: 88 },
-    { x: 0, y: 62 },
+    { x: 0, y: 72 },
     { x: 0, y: 30 },
     { x: 15, y: 8 },
   ];
