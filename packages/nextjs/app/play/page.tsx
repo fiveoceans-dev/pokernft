@@ -1,5 +1,7 @@
 "use client";
 
+// Play poker interface with wallet connect
+
 import ActionBar from "../../components/ActionBar";
 import Table from "../../components/Table";
 import { CustomConnectButton } from "../../components/scaffold-stark/CustomConnectButton";
