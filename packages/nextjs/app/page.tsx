@@ -10,7 +10,7 @@ import MissionStatementSection from "../components/MissionStatementSection";
 
 export default function HomePage() {
   return (
-    <main className="flex flex-col items-stretch">
+    <main className="flex flex-col items-stretch space-y-24">
       <HeroSection />
       <MissionStatementSection />
       <HowItWorksSection />
