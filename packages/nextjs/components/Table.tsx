@@ -85,16 +85,25 @@ export default function Table() {
       transform: `translate(${pos.t})`,
     } as React.CSSProperties;
 
+    const seatNumber = (
+      <span className="absolute -top-4 -left-4 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center">
+        {idx + 1}
+      </span>
+    );
+
     /* ── empty seat → button ─────────────────────────────── */
     if (!address) {
       return (
         <div key={idx} style={posStyle} className="absolute">
-          <button
-            onClick={() => joinSeat(idx)}
-            className="w-24 h-8 flex items-center justify-center rounded text-xs text-gray-300 border border-dashed border-gray-500 bg-black/20 transition-colors duration-150 hover:bg-red-500 hover:text-white"
-          >
-            Play
-          </button>
+          <div className="relative">
+            {seatNumber}
+            <button
+              onClick={() => joinSeat(idx)}
+              className="w-24 h-8 flex items-center justify-center rounded text-xs text-gray-300 border border-dashed border-gray-500 bg-black/20 transition-colors duration-150 hover:bg-red-500 hover:text-white"
+            >
+              Play
+            </button>
+          </div>
         </div>
       );
     }
@@ -113,14 +122,17 @@ export default function Table() {
 
     return (
       <div key={idx} style={posStyle} className="absolute">
-        <div style={{ transform: `rotate(${pos.r}deg)` }}>
-          <PlayerSeat
-            player={player}
-            isDealer={isDealer}
-            isActive={isActive}
-            revealCards={reveal}
-            bet={player.currentBet}
-          />
+        <div className="relative">
+          {seatNumber}
+          <div style={{ transform: `rotate(${pos.r}deg)` }}>
+            <PlayerSeat
+              player={player}
+              isDealer={isDealer}
+              isActive={isActive}
+              revealCards={reveal}
+              bet={player.currentBet}
+            />
+          </div>
         </div>
       </div>
     );
