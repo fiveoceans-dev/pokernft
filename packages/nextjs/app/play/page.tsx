@@ -18,14 +18,14 @@ export default function PlayPage() {
       className="h-screen flex flex-col text-white bg-main overflow-hidden"
       style={{
         backgroundImage: "url('/nfts/nft2.png')",
-        backgroundSize: "auto 100%",
+        backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
-      <header className="relative w-full max-w-6xl flex items-center justify-between mt-6 mb-4 px-4">
+      <header className="relative w-full flex items-center mt-6 mb-4 px-4">
         <AnimatedTitle text="Poker Night on Starknet" />
-        <div className="ml-auto flex items-center gap-4">
+        <div className="flex flex-1 items-center justify-end gap-4">
           <ActionBar
             street={stageNames[street] ?? "preflop"}
             onStart={startHand}
