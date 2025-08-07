@@ -137,16 +137,9 @@ export const Header = () => {
         <Link
           href="/"
           passHref
-          className="hidden lg:flex items-center gap-2 ml-4 mr-6 shrink-0"
+          className="hidden lg:flex items-center gap-2 ml-4 mr-6 shrink-0 text-accent font-serif-renaissance text-xl"
         >
-          <div className="flex relative w-12 h-12">
-            <Image
-              alt="Poker NFTs"
-              className="cursor-pointer"
-              fill
-              src="/pokernfts.svg"
-            />
-          </div>
+          PokerNFTs.com
         </Link>
         <ul className="hidden lg:flex lg:flex-nowrap menu menu-horizontal px-1 gap-2">
           <HeaderMenuLinks />
