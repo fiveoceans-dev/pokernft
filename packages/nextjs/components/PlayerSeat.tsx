@@ -10,6 +10,7 @@ interface PlayerSeatProps {
   isActive?: boolean; // highlight border when it's this player's turn
   bet?: number; // amount currently bet by this player
   revealCards?: boolean; // if true, show hole cards face-up
+  cardSize?: "xs" | "sm" | "md" | "lg"; // size of player's hole cards
 }
 
 export default function PlayerSeat({
@@ -18,6 +19,7 @@ export default function PlayerSeat({
   isActive = false,
   bet = 0,
   revealCards = false,
+  cardSize = "lg",
 }: PlayerSeatProps) {
   // If `player.hand` is null, treat as not yet dealt
   const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [
@@ -42,8 +44,8 @@ export default function PlayerSeat({
 
       {/* Pocket cards positioned above the seat */}
       <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex gap-2">
-        <Card card={hole1} hidden={!revealCards} size="lg" />
-        <Card card={hole2} hidden={!revealCards} size="lg" />
+        <Card card={hole1} hidden={!revealCards} size={cardSize} />
+        <Card card={hole2} hidden={!revealCards} size={cardSize} />
       </div>
 
       {/* Player name and chip count */}

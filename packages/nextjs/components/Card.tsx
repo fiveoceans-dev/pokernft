@@ -51,7 +51,7 @@ function faceKey(card: TCard) {
 interface Props {
   card: TCard | null; // null while face-down
   hidden?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }
 
@@ -64,6 +64,7 @@ export default function Card({
   const className = clsx(
     "rounded-md shadow-sm",
     {
+      "w-12 h-18": size === "xs",
       "w-16 h-24": size === "sm",
       "w-20 h-28": size === "md",
       "w-24 h-32": size === "lg",
