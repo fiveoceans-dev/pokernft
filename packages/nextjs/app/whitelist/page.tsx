@@ -10,7 +10,7 @@ const InfoCard = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div className="p-4 bg-primary/10 rounded-md border border-primary text-background space-y-2">
+  <div className="p-4 bg-primary/10 rounded-md border border-accent text-background text-white space-y-2">
     <h2 className="font-semibold">{title}</h2>
     <div className="text-sm leading-relaxed">{children}</div>
   </div>
