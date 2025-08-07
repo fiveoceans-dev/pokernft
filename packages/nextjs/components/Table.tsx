@@ -18,13 +18,15 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
   const count = 9;
   // seats a bit closer to the table edge
   const rx = isMobile ? 43 : 48;
-  const ry = isMobile ? 58 : 38;
+  // when in vertical mode move seats down and compress vertically
+  const ry = isMobile ? 38 : 38;
+  const cy = isMobile ? 54 : 50;
   const step = (2 * Math.PI) / count;
   return Array.from({ length: count }).map((_, i) => {
     const angle = step * (i + 0.5) - Math.PI / 2; // leave gap at top for bank
     return {
       x: `${50 + rx * Math.cos(angle)}%`,
-      y: `${50 + ry * Math.sin(angle)}%`,
+      y: `${cy + ry * Math.sin(angle)}%`,
       t: "-50%,-50%",
       r: isMobile ? (angle * 180) / Math.PI : 0,
     };
@@ -44,9 +46,12 @@ export default function Table() {
       setIsMobile(mobile);
       const baseW = mobile ? 420 : 820;
       const baseH = mobile ? 680 : 520;
+      const minTableWidth = mobile ? 360 : baseW;
+      const bottomSpace = mobile ? 100 : 0;
+      const minScale = minTableWidth / baseW;
       const scale = Math.min(
-        window.innerWidth / baseW,
-        window.innerHeight / baseH,
+        Math.max(window.innerWidth / baseW, minScale),
+        (window.innerHeight - bottomSpace) / baseH,
         1,
       );
       setTableScale(scale);
@@ -120,10 +125,9 @@ export default function Table() {
   const bankEl = (
     <div key="bank" className="absolute left-1/2 -translate-x-1/2 top-[5px]">
       <div className="relative flex justify-center">
-        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-yellow-400">
+        <div className="w-24 h-12 flex items-center justify-center rounded bg-yellow-400 border-4 border-yellow-700 text-black">
           BANK
-        </span>
-        <div className="w-24 h-12 flex items-center justify-center rounded bg-yellow-400 border-4 border-yellow-700 text-black"></div>
+        </div>
       </div>
     </div>
   );
