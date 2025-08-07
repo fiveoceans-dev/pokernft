@@ -27,15 +27,15 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
     { x: 30, y: 15 },
   ];
   const mobile = [
-    { x: 78, y: 8 },
-    { x: 92, y: 30 },
-    { x: 92, y: 62 },
-    { x: 75, y: 88 },
-    { x: 50, y: 92 },
-    { x: 25, y: 88 },
-    { x: 8, y: 62 },
-    { x: 8, y: 30 },
-    { x: 22, y: 8 },
+    { x: 85, y: 8 },
+    { x: 100, y: 30 },
+    { x: 100, y: 62 },
+    { x: 88, y: 88 },
+    { x: 50, y: 98 },
+    { x: 12, y: 88 },
+    { x: 0, y: 62 },
+    { x: 0, y: 30 },
+    { x: 15, y: 8 },
   ];
   const positions = isMobile ? mobile : desktop;
   return positions.map((p) => {
