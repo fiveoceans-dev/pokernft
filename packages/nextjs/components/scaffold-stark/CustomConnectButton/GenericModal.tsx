@@ -2,7 +2,7 @@ import { useTheme } from "next-themes";
 
 const GenericModal = ({
   children,
-  className = "modal-box modal-border bg-modal  rounded-[8px] border flex flex-col gap-3 justify-around relative",
+  className = "modal-box modal-border rounded-[8px] border flex flex-col gap-3 justify-around relative",
   modalId,
 }: {
   children: React.ReactNode;
