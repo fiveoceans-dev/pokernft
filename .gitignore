@@ -36,6 +36,5 @@ yarn-error.log
 npm-debug.log*
 
 .yarnrc.yml
-yarn.lock
 
 .next/
