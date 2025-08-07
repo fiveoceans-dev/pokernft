@@ -4,10 +4,18 @@ import React, { useState } from "react";
 import Button from "~~/components/ui/Button";
 
 const WhitelistPage: React.FC = () => {
-  const [form, setForm] = useState({ address: "", email: "" });
+  const [form, setForm] = useState({
+    nickname: "",
+    email: "",
+    wallet: "",
+    purpose: "",
+    referral: "",
+  });
   const [submitted, setSubmitted] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -26,10 +34,10 @@ const WhitelistPage: React.FC = () => {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
-            name="address"
-            value={form.address}
+            name="nickname"
+            value={form.nickname}
             onChange={handleChange}
-            placeholder="Wallet Address"
+            placeholder="Nickname"
             required
             className="w-full p-2 rounded-md bg-transparent border border-border text-background"
           />
@@ -38,7 +46,31 @@ const WhitelistPage: React.FC = () => {
             type="email"
             value={form.email}
             onChange={handleChange}
-            placeholder="Email"
+            placeholder="Email (optional)"
+            className="w-full p-2 rounded-md bg-transparent border border-border text-background"
+          />
+          <input
+            name="wallet"
+            value={form.wallet}
+            onChange={handleChange}
+            placeholder="Starknet Wallet"
+            required
+            className="w-full p-2 rounded-md bg-transparent border border-border text-background"
+          />
+          <textarea
+            name="purpose"
+            value={form.purpose}
+            onChange={handleChange}
+            placeholder="Purpose of Application"
+            rows={4}
+            required
+            className="w-full p-2 rounded-md bg-transparent border border-border text-background"
+          />
+          <input
+            name="referral"
+            value={form.referral}
+            onChange={handleChange}
+            placeholder="Referral Code"
             className="w-full p-2 rounded-md bg-transparent border border-border text-background"
           />
           <Button type="submit" className="w-full">
