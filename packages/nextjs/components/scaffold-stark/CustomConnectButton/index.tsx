@@ -90,5 +90,3 @@ export const CustomConnectButton = () => {
     </>
   );
 };
-
-export default CustomConnectButton;
