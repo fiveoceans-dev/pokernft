@@ -14,84 +14,6 @@ const config: Config = {
   daisyui: {
     themes: [
       {
-        light: {
-          primary: "#3B82F6",
-          "primary-content": "#FFFFFF",
-          secondary: "#4B0082",
-          "secondary-content": "#FFFFFF",
-          accent: "#CCFF00",
-          "accent-content": "#1F2937",
-          neutral: "#1F2937",
-          "neutral-content": "#FFFFFF",
-          "base-100": "#FFFFFF",
-          "base-200": "#F3F4F6",
-          "base-300": "#E5E7EB",
-          "base-content": "#1F2937",
-          info: "#3B82F6",
-          success: "#10B981",
-          warning: "#FBBF24",
-          error: "#EF4444",
-          ".bg-gradient-modal": {
-            "background-image":
-              "linear-gradient(270deg,#CCFF00 -17.42%, #4B0082 109.05%)",
-          },
-          ".bg-modal": {
-            background:
-              "linear-gradient(270deg,#F3F4F6 -17.42%, #E0E7FF 109.05%)",
-          },
-          ".modal-border": {
-            border: "1px solid #4B0082",
-          },
-          ".bg-gradient-nav": {
-            background: "linear-gradient(90deg,#CCFF00 0%, #4B0082 100%)",
-          },
-          ".bg-main": {
-            background:
-              "radial-gradient(at 50% 0%, rgba(204,255,0,0.4), rgba(75,0,130,0.2) 60%), #FFFFFF",
-          },
-          ".bg-underline": {
-            background:
-              "linear-gradient(270deg,#CCFF00 -17.42%, #4B0082 109.05%)",
-          },
-          ".bg-container": {
-            background: "transparent",
-          },
-          ".bg-btn-wallet": {
-            "background-image":
-              "linear-gradient(90deg,#CCFF00 0%, #4B0082 100%)",
-          },
-          ".bg-input": {
-            background: "rgba(0, 0, 0, 0.05)",
-          },
-          ".bg-component": {
-            background: "rgba(255, 255, 255, 0.65)",
-          },
-          ".bg-function": {
-            background:
-              "linear-gradient(270deg,#CCFF00 -17.42%, #4B0082 109.05%)",
-          },
-          ".text-function": {
-            color: "#4B0082",
-          },
-          ".text-network": {
-            color: "#800020",
-          },
-          "--rounded-btn": "9999rem",
-          ".tooltip": {
-            "--tooltip-tail": "6px",
-          },
-          ".link": {
-            textUnderlineOffset: "2px",
-          },
-          ".link:hover": {
-            opacity: "80%",
-          },
-          ".contract-content": {
-            background: "white",
-          },
-        },
-      },
-      {
         dark: {
           primary: "#0A0A0A",
           "primary-content": "#E5E5E5",
@@ -183,8 +105,6 @@ const config: Config = {
         "pulse-fast": "pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
       backgroundImage: {
-        "gradient-light":
-          "linear-gradient(270deg,#CCFF00 -17.42%, #4B0082 109.05%)",
         "gradient-dark": "linear-gradient(90deg,#CCFF00 0%, #800020 100%)",
         "gradient-vertical": "linear-gradient(180deg,#CCFF00 0%, #4B0082 100%)",
         "gradient-icon": "linear-gradient(90deg,#CCFF00 0%, #800020 100%)",

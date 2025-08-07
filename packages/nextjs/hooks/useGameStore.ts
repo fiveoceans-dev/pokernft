@@ -5,7 +5,7 @@ import type { Contract } from "starknet";
 
 /**
  * GameState shape for our poker MVP:
- *  - players: an array of up to 6 addresses (or null if seat empty)
+ *  - players: an array of up to 9 addresses (or null if seat empty)
  *  - community: an array of up to 5 card‐codes (number) or null if not yet dealt
  *  - street: [0..4] indicating preflop (0), flop (1), turn (2), river (3), showdown (4)
  *  - loading / error flags
@@ -28,7 +28,7 @@ interface GameState {
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
-  players: Array(6).fill(null),
+  players: Array(9).fill(null),
   community: Array(5).fill(null),
   street: 0,
   loading: false,
@@ -42,7 +42,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       // 1) Read all seats
       const newPlayers: (string | null)[] = [];
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 9; i++) {
         // get_player_info(seat_idx: felt) → (owner: felt, hole1: felt, hole2: felt, revealed: felt)
         const res: any = await table.call("get_player_info", [BigInt(i)]);
         const ownerAddr: string = res.owner.toString();
