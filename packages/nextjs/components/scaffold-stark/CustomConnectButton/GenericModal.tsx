@@ -1,16 +1,12 @@
-import { useTheme } from "next-themes";
-
 const GenericModal = ({
   children,
-  className = "modal-box modal-border rounded-[8px] border flex flex-col gap-3 justify-around relative",
+  className = "modal-box modal-border rounded-[8px] border flex flex-col gap-3 justify-around relative bg-[var(--color-accent)] text-black",
   modalId,
 }: {
   children: React.ReactNode;
   className?: string;
   modalId: string;
 }) => {
-  const { resolvedTheme } = useTheme();
-  const isDarkMode = resolvedTheme === "dark";
   return (
     <label htmlFor={modalId} className="modal  backdrop-blur cursor-pointer">
       <label className={className}>
