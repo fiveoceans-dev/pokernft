@@ -1,5 +1,5 @@
 {
-    "name": "Scaffold Stark",
+    "name": "PokerNFTs",
     "image": "starknetfoundation/starknet-dev:2.11.4",
     "customizations": {
         "vscode": {

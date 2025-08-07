@@ -125,7 +125,7 @@ export default function Table() {
   const bankEl = (
     <div key="bank" className="absolute left-1/2 -translate-x-1/2 top-[5px]">
       <div className="relative flex justify-center">
-        <div className="w-24 h-12 flex items-center justify-center rounded bg-yellow-400 border-4 border-yellow-700 text-black">
+        <div className="w-24 h-12 flex items-center justify-center rounded bg-[var(--color-accent)] border-4 border-yellow-700 text-black">
           BANK
         </div>
       </div>
