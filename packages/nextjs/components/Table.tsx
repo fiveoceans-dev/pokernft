@@ -71,7 +71,7 @@ export default function Table() {
             style={{ transform: `rotate(${pos.r}deg)` }}
             className="w-24 h-8 flex items-center justify-center rounded text-xs text-gray-300 border border-dashed border-gray-500 bg-black/20 transition-colors duration-150 hover:bg-red-500 hover:text-white"
           >
-            Join Seat
+            Play
           </button>
         </div>
       );
@@ -121,10 +121,10 @@ export default function Table() {
   );
 
   return (
-    <div className="relative flex justify-center items-center py-24 bg-main">
+    <div className="relative flex justify-center items-center py-24">
       {/* poker-table oval */}
       <div
-        className="relative rounded-full border-8 border-[var(--brand-accent)] shadow-[0_0_40px_rgba(0,0,0,0.6)] md:w-[680px] md:h-[420px] w-[420px] h-[680px]"
+        className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)] md:w-[820px] md:h-[520px] w-[420px] h-[680px]"
       >
         {communityRow}
         {/* seats */}
