@@ -22,6 +22,43 @@ export interface Card {
   rank: Rank;
 }
 
+export type Stage =
+  | "waiting"
+  | "preflop"
+  | "flop"
+  | "turn"
+  | "river"
+  | "showdown";
+
+/** Basic representation of a connected player */
+export interface PlayerSession {
+  id: string; // socket id or UUID
+  nickname: string;
+  tableId: string;
+  seat: number;
+  chips: number;
+  isDealer: boolean;
+  isTurn: boolean;
+  hand: Card[]; // two cards once dealt
+  hasFolded: boolean;
+  /** amount currently wagered in this betting round */
+  currentBet: number;
+}
+
+/** High level room state used by the server */
+export interface GameRoom {
+  id: string;
+  players: PlayerSession[];
+  dealerIndex: number;
+  currentTurnIndex: number;
+  stage: Stage;
+  pot: number;
+  communityCards: Card[];
+  minBet: number;
+  /** remaining cards in the deck */
+  deck: Card[];
+}
+
 export interface Player {
   name: string; // e.g. the player's address or nickname
   chips: number; // how many chips they have (for display)
