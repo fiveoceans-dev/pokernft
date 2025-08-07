@@ -1,5 +1,6 @@
 {
   "name": "@ss-2/nextjs",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "build": "next build",
