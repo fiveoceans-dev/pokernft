@@ -4,6 +4,7 @@
 
 import ActionBar from "../../components/ActionBar";
 import Table from "../../components/Table";
+import AnimatedTitle from "../../components/AnimatedTitle";
 import { CustomConnectButton } from "../../components/scaffold-stark/CustomConnectButton";
 import { useGameStore } from "../../hooks/useGameStore";
 
@@ -22,8 +23,8 @@ export default function PlayPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <header className="relative w-full max-w-6xl flex items-center mt-6 mb-4 px-4">
-        <h1 className="text-4xl font-bold text-left">Poker Night on Starknet</h1>
+      <header className="relative w-full max-w-6xl flex items-center justify-between mt-6 mb-4 px-4">
+        <AnimatedTitle text="Poker Night on Starknet" />
         <div className="ml-auto flex items-center gap-4">
           <ActionBar
             street={stageNames[street] ?? "preflop"}

@@ -99,8 +99,15 @@ theme: {
       "neon-hover": "0 0 20px 0 rgba(204,255,0,0.7)",
       "neon-blue": "0 0 10px 0 rgba(44,77,255,0.7)", // replaced neon-red
     },
+    keyframes: {
+      flip: {
+        "0%": { transform: "rotateY(90deg)", opacity: "0" },
+        "100%": { transform: "rotateY(0deg)", opacity: "1" },
+      },
+    },
     animation: {
       "pulse-fast": "pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      flip: "flip 0.6s ease-out forwards",
     },
     backgroundImage: {
       "gradient-dark": "linear-gradient(90deg,#CCFF00 0%, #2C4DFF 100%)",
