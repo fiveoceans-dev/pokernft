@@ -64,21 +64,14 @@ const ConnectModal = () => {
     }
   }
 
-  const handleOpenModal = () => {
-    if (modalRef.current) {
-      modalRef.current.checked = true;
-    }
-  };
-
   return (
     <div>
-      <button
-        type="button"
-        onClick={handleOpenModal}
-        className="px-8 py-4 bg-yellow-400 text-[#0c1a3a] font-semibold rounded-lg shadow-[0_0_15px_#facc15] hover:shadow-[0_0_20px_#facc15] animate-pulse"
+      <label
+        htmlFor="connect-modal"
+        className="rounded-[18px]  btn-sm font-bold px-8 bg-btn-wallet py-3 cursor-pointer"
       >
         <span>Connect</span>
-      </button>
+      </label>
 
       <input
         ref={modalRef}
