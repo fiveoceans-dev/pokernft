@@ -5,7 +5,7 @@ import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
 import { indexToCard } from "../game/utils";
 import PlayerSeat from "./PlayerSeat";
-import type { Player } from "../game/types";
+import type { Player, Card as TCard } from "../game/types";
 
 interface SeatPos {
   x: string;
@@ -52,7 +52,7 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
 /* ─────────────────────────────────────────────────────── */
 
 export default function Table() {
-  const { players, community, joinSeat } = useGameStore();
+  const { players, playerHands, community, joinSeat } = useGameStore();
   const [isMobile, setIsMobile] = useState(false);
   const [tableScale, setTableScale] = useState(1);
 
@@ -97,6 +97,7 @@ export default function Table() {
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
     const address = players[idx];
+    const handCodes = playerHands[idx];
     const pos = layout[idx];
     if (!pos) return null;
     const posStyle = {
@@ -129,10 +130,14 @@ export default function Table() {
     }
 
     /* ── occupied seat ───────────────────────────────────── */
+    const hand: [TCard, TCard] | null = handCodes
+      ? [indexToCard(handCodes[0]), indexToCard(handCodes[1])]
+      : null;
+
     const player: Player = {
       name: address,
       chips: 0,
-      hand: null,
+      hand,
       folded: false,
       currentBet: 0,
     };
