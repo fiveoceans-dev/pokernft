@@ -112,7 +112,11 @@ export default function Table() {
     /* ── empty seat → button ─────────────────────────────── */
     if (!nickname) {
       const badge = (
-        <span className="absolute -top-5 left-10 w-5 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center">
+        <span
+          className="absolute -top-5 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full
+                    bg-black/60 text-white text-xs flex items-center justify-center
+                    pointer-events-none"
+        >
           {idx + 1}
         </span>
       );
@@ -138,7 +142,7 @@ export default function Table() {
 
     const player: Player = {
       name: nickname,
-      chips: 0,
+      chips: 111110,
       hand,
       folded: false,
       currentBet: 0,
@@ -148,7 +152,12 @@ export default function Table() {
     const reveal = idx === localIdx;
 
     const badge = (
-      <span className="absolute -top-5 left-10 px-2 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center">
+      <span
+        className="absolute -top-5 left-1/2 -translate-x-1/2 h-5 w-20 px-2 rounded-full
+                  bg-black/60 text-white text-xs flex items-center justify-center
+                  font-mono tabular-nums whitespace-nowrap pointer-events-none"
+      >
+        {/* show bet if you prefer: `$${player.currentBet}` */}
         {`$${player.chips}`}
       </span>
     );
