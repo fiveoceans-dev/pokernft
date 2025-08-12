@@ -33,6 +33,7 @@ export default function PlayerSeat({
     <div
       className={clsx(
         "relative w-24 h-8",
+
         player.folded && "opacity-60",
         isActive && "ring-4 ring-amber-300 rounded-lg",
       )}
@@ -75,6 +76,7 @@ export default function PlayerSeat({
           </div>
         )}
       </div>
+
     </div>
   );
 }
