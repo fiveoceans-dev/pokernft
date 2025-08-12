@@ -36,6 +36,11 @@ export function indexToCard(code: number): Card {
   return { rank, suit };
 }
 
+/** Convert a Card object back into its numeric code (0..51) */
+export function cardToIndex(card: Card): number {
+  return SUITS.indexOf(card.suit) * RANKS.length + RANKS.indexOf(card.rank);
+}
+
 /* ─────────── Hand-ranking stub ───────────
    For production, wire in a proper evaluator like:
    npm i poker-evaluator
