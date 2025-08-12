@@ -203,7 +203,7 @@ export default function Table() {
   const baseH = isMobile ? 680 : 520;
 
   return (
-    <div className="relative flex flex-col items-center w-full h-full">
+    <div className="relative flex flex-col items-center justify-center w-full h-full">
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
@@ -219,7 +219,7 @@ export default function Table() {
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
-      <div className="mt-4 flex gap-2">
+      <div className="mt-12 flex gap-2">
         {[
           "Fold",
           "Check",
