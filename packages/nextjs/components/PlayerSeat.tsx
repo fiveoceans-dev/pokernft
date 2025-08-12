@@ -20,7 +20,7 @@ export default function PlayerSeat({
   isActive = false,
   bet = 0,
   revealCards = false,
-  cardSize = "lg",
+  cardSize = "sm",
   dealerOffset = { x: 0, y: -20 },
 }: PlayerSeatProps) {
   // If `player.hand` is null, treat as not yet dealt
@@ -31,16 +31,13 @@ export default function PlayerSeat({
 
   return (
     <div
-      className={clsx(
-        "relative w-24 flex flex-col items-center",
-        player.folded && "opacity-60",
-      )}
+      className={clsx("relative w-24 h-8", player.folded && "opacity-60")}
     >
-      {/* Chip balance above the seat */}
-      <div className="mb-1 text-white font-semibold">{`$${player.chips}`}</div>
-
-      {/* Hole cards aligned with seat */}
-      <div className="mb-1 flex justify-center gap-2">
+      {/* Hole cards positioned above the seat box without shifting it */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 flex gap-2"
+        style={{ bottom: "100%", marginBottom: "0.5rem" }}
+      >
         <Card card={hole1} hidden={!revealCards} size={cardSize} />
         <Card card={hole2} hidden={!revealCards} size={cardSize} />
       </div>
@@ -48,8 +45,8 @@ export default function PlayerSeat({
       {/* Seat box with player name */}
       <div
         className={clsx(
-          "relative w-full h-8",
-          isActive && "ring-4 ring-amber-300 rounded-lg",
+          "relative w-full h-full",
+          isActive && "animate-pulse",
         )}
       >
         {/* Dealer marker */}
@@ -64,14 +61,24 @@ export default function PlayerSeat({
           </span>
         )}
 
-        <div className="absolute inset-0 flex items-center justify-center rounded bg-black/60 text-white font-semibold text-center truncate px-1">
+        <div
+          className={clsx(
+            "absolute inset-0 flex items-center justify-center rounded text-white font-semibold text-center truncate px-1 transition-colors",
+            isActive
+              ? "bg-[var(--color-accent)] text-black"
+              : "bg-black/60 hover:bg-red-500",
+          )}
+        >
           {player.name}
         </div>
       </div>
 
-      {/* Bet below seat */}
+      {/* Bet displayed below the seat */}
       {bet > 0 && (
-        <div className="mt-1 px-2 py-0.5 bg-green-700 rounded text-xs text-white">
+        <div
+          className="absolute left-1/2 -translate-x-1/2 px-2 py-0.5 bg-green-700 rounded text-xs text-white"
+          style={{ top: "100%", marginTop: "0.25rem" }}
+        >
           Bet {bet}
         </div>
       )}
