@@ -69,14 +69,13 @@ export default function PlayerSeat({
         className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
         style={{ top: "100%", marginTop: "0.25rem" }}
       >
-        <div className="text-sm text-white">{`$${player.chips}`}</div>
+        <div className="text-white font-semibold text-center">{`$${player.chips}`}</div>
         {bet > 0 && (
           <div className="mt-1 px-2 py-0.5 bg-green-700 rounded text-xs text-white">
             Bet {bet}
           </div>
         )}
       </div>
-
     </div>
   );
 }

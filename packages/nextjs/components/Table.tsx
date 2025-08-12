@@ -96,7 +96,7 @@ export default function Table() {
 
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
-    const address = players[idx];
+    const nickname = players[idx];
     const handCodes = playerHands[idx];
     const pos = layout[idx];
     if (!pos) return null;
@@ -119,10 +119,10 @@ export default function Table() {
     );
 
     /* ── empty seat → button ─────────────────────────────── */
-    if (!address) {
+    if (!nickname) {
       return (
         <div key={idx} style={posStyle} className="absolute">
-          <div >
+          <div>
             {seatNumber}
             <button
               onClick={() => joinSeat(idx)}
@@ -141,7 +141,7 @@ export default function Table() {
       : null;
 
     const player: Player = {
-      name: address,
+      name: nickname,
       chips: 0,
       hand,
       folded: false,
