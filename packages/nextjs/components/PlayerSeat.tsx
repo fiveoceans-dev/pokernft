@@ -32,50 +32,49 @@ export default function PlayerSeat({
   return (
     <div
       className={clsx(
-        "relative w-24 h-8",
-
+        "relative w-24 flex flex-col items-center",
         player.folded && "opacity-60",
-        isActive && "ring-4 ring-amber-300 rounded-lg",
       )}
     >
-      {/* Dealer marker */}
-      {isDealer && (
-        <span
-          className="absolute left-1/2 top-1/2 w-6 h-6 rounded-full bg-accent text-black text-xs font-bold flex items-center justify-center"
-          style={{
-            transform: `translate(-50%, -50%) translate(${dealerOffset.x}px, ${dealerOffset.y}px)`,
-          }}
-        >
-          D
-        </span>
-      )}
+      {/* Chip balance above the seat */}
+      <div className="mb-1 text-white font-semibold">{`$${player.chips}`}</div>
 
-      {/* Pocket cards positioned above the seat */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2 flex gap-2"
-        style={{ bottom: "100%", marginBottom: "0.5rem" }}
-      >
+      {/* Hole cards aligned with seat */}
+      <div className="mb-1 flex justify-center gap-2">
         <Card card={hole1} hidden={!revealCards} size={cardSize} />
         <Card card={hole2} hidden={!revealCards} size={cardSize} />
       </div>
 
-      {/* Player name box */}
-      <div className="absolute inset-0 flex items-center justify-center rounded bg-black/60 text-white font-semibold text-center truncate px-1">
-        {player.name}
+      {/* Seat box with player name */}
+      <div
+        className={clsx(
+          "relative w-full h-8",
+          isActive && "ring-4 ring-amber-300 rounded-lg",
+        )}
+      >
+        {/* Dealer marker */}
+        {isDealer && (
+          <span
+            className="absolute left-1/2 top-1/2 w-6 h-6 rounded-full bg-accent text-black text-xs font-bold flex items-center justify-center"
+            style={{
+              transform: `translate(-50%, -50%) translate(${dealerOffset.x}px, ${dealerOffset.y}px)`,
+            }}
+          >
+            D
+          </span>
+        )}
+
+        <div className="absolute inset-0 flex items-center justify-center rounded bg-black/60 text-white font-semibold text-center truncate px-1">
+          {player.name}
+        </div>
       </div>
 
-      {/* Chip count and bet below name */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
-        style={{ top: "100%", marginTop: "0.25rem" }}
-      >
-        <div className="text-white font-semibold text-center">{`$${player.chips}`}</div>
-        {bet > 0 && (
-          <div className="mt-1 px-2 py-0.5 bg-green-700 rounded text-xs text-white">
-            Bet {bet}
-          </div>
-        )}
-      </div>
+      {/* Bet below seat */}
+      {bet > 0 && (
+        <div className="mt-1 px-2 py-0.5 bg-green-700 rounded text-xs text-white">
+          Bet {bet}
+        </div>
+      )}
     </div>
   );
 }
