@@ -16,15 +16,15 @@ interface SeatPos {
 
 const buildLayout = (isMobile: boolean): SeatPos[] => {
   const desktop = [
-    { x: 70, y: 15 },
-    { x: 88, y: 35 },
-    { x: 92, y: 65 },
-    { x: 75, y: 85 },
-    { x: 50, y: 90 },
-    { x: 25, y: 85 },
-    { x: 8, y: 65 },
-    { x: 12, y: 35 },
-    { x: 30, y: 15 },
+    { x: 75, y: 10 },
+    { x: 92, y: 35 },
+    { x: 95, y: 65 },
+    { x: 80, y: 90 },
+    { x: 50, y: 95 },
+    { x: 20, y: 90 },
+    { x: 5, y: 65 },
+    { x: 8, y: 35 },
+    { x: 25, y: 10 },
   ];
   const mobile = [
     { x: 85, y: 8 },
@@ -107,7 +107,7 @@ export default function Table() {
     } as React.CSSProperties;
 
     const seatNumber = (
-      <span className="absolute -top-4 -left-4 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center">
+      <span className="absolute -top-5 left-10 w-5 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center">
         {idx + 1}
       </span>
     );
@@ -116,7 +116,7 @@ export default function Table() {
     if (!address) {
       return (
         <div key={idx} style={posStyle} className="absolute">
-          <div className="relative">
+          <div >
             {seatNumber}
             <button
               onClick={() => joinSeat(idx)}
@@ -148,7 +148,6 @@ export default function Table() {
     return (
       <div key={idx} style={posStyle} className="absolute">
         <div className="relative">
-          {seatNumber}
           <div style={{ transform: `rotate(${pos.r}deg)` }}>
             <PlayerSeat
               player={player}
