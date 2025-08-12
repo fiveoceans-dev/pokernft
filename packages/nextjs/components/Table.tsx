@@ -44,7 +44,7 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
       x: `${p.x}%`,
       y: `${p.y}%`,
       t: "-50%,-50%",
-      r: isMobile ? (angle * 180) / Math.PI : 0,
+      r: isMobile ? (angle * 0) / Math.PI : 0,
     };
   });
 };
