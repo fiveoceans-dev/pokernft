@@ -36,7 +36,7 @@ export default function PlayerSeat({
       {/* Hole cards positioned above the seat box without shifting it */}
       <div
         className="absolute w-full flex justify-center gap-2"
-        style={{ bottom: "100%", marginBottom: "0.5rem" }}
+        style={{ bottom: "150%", marginBottom: "0.5rem" }}
       >
         <Card card={hole1} hidden={!revealCards} size={cardSize} />
         <Card card={hole2} hidden={!revealCards} size={cardSize} />
