@@ -90,9 +90,7 @@ export default function Table() {
     return tableScale < 0.75 ? "xs" : tableScale < 1 ? "sm" : "md";
   }, [tableScale]);
 
-  const holeCardSize = useMemo(() => {
-    return tableScale < 0.75 ? "sm" : tableScale < 1 ? "md" : "lg";
-  }, [tableScale]);
+  const holeCardSize = "sm";
 
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
@@ -111,19 +109,17 @@ export default function Table() {
     const mag = Math.sqrt(dx * dx + dy * dy) || 1;
     const offset = 40;
     const dealerOffset = { x: (dx / mag) * offset, y: (dy / mag) * offset };
-
-    const seatNumber = (
-      <span className="absolute -top-5 left-10 w-5 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center">
-        {idx + 1}
-      </span>
-    );
-
     /* ── empty seat → button ─────────────────────────────── */
     if (!nickname) {
+      const badge = (
+        <span className="absolute -top-5 left-10 w-5 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center">
+          {idx + 1}
+        </span>
+      );
       return (
         <div key={idx} style={posStyle} className="absolute">
           <div>
-            {seatNumber}
+            {badge}
             <button
               onClick={() => joinSeat(idx)}
               className="w-24 h-8 flex items-center justify-center rounded text-xs text-gray-300 border border-dashed border-gray-500 bg-black/20 transition-colors duration-150 hover:bg-red-500 hover:text-white"
@@ -151,9 +147,16 @@ export default function Table() {
     const isActive = false; // turn logic TBD
     const reveal = idx === localIdx;
 
+    const badge = (
+      <span className="absolute -top-5 left-10 px-2 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center">
+        {`$${player.chips}`}
+      </span>
+    );
+
     return (
       <div key={idx} style={posStyle} className="absolute">
         <div className="relative">
+          {badge}
           <div style={{ transform: `rotate(${pos.r}deg)` }}>
             <PlayerSeat
               player={player}
@@ -200,7 +203,7 @@ export default function Table() {
   const baseH = isMobile ? 680 : 520;
 
   return (
-    <div className="relative flex justify-center items-center w-full h-full">
+    <div className="relative flex flex-col items-center w-full h-full">
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
@@ -215,6 +218,22 @@ export default function Table() {
         {bankEl}
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
+      </div>
+      <div className="mt-4 flex gap-2">
+        {[
+          "Fold",
+          "Check",
+          "Call",
+          "Bet",
+          "Raise",
+        ].map((action) => (
+          <button
+            key={action}
+            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
+          >
+            {action}
+          </button>
+        ))}
       </div>
     </div>
   );
