@@ -11,6 +11,7 @@ interface PlayerSeatProps {
   bet?: number; // amount currently bet by this player
   revealCards?: boolean; // if true, show hole cards face-up
   cardSize?: "xs" | "sm" | "md" | "lg"; // size of player's hole cards
+  dealerOffset?: { x: number; y: number }; // offset dealer button toward centre
 }
 
 export default function PlayerSeat({
@@ -20,6 +21,7 @@ export default function PlayerSeat({
   bet = 0,
   revealCards = false,
   cardSize = "lg",
+  dealerOffset = { x: 0, y: -20 },
 }: PlayerSeatProps) {
   // If `player.hand` is null, treat as not yet dealt
   const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [
@@ -30,35 +32,43 @@ export default function PlayerSeat({
   return (
     <div
       className={clsx(
-        "relative flex flex-col items-center gap-1",
+        "relative flex flex-col items-center w-24",
         player.folded && "opacity-60",
         isActive && "ring-4 ring-amber-300 rounded-lg",
       )}
     >
       {/* Dealer marker */}
       {isDealer && (
-        <span className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-accent text-black text-xs font-bold flex items-center justify-center">
+        <span
+          className="absolute left-1/2 top-1/2 w-6 h-6 rounded-full bg-accent text-black text-xs font-bold flex items-center justify-center"
+          style={{
+            transform: `translate(-50%, -50%) translate(${dealerOffset.x}px, ${dealerOffset.y}px)`,
+          }}
+        >
           D
         </span>
       )}
 
       {/* Pocket cards positioned above the seat */}
-      <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex gap-2">
+      <div
+        className="absolute left-1/2 -translate-x-1/2 flex gap-2"
+        style={{ bottom: "100%", marginBottom: "0.5rem" }}
+      >
         <Card card={hole1} hidden={!revealCards} size={cardSize} />
         <Card card={hole2} hidden={!revealCards} size={cardSize} />
       </div>
 
-      {/* Player name and chip count */}
-      <div className="text-center text-white">
-        <div className="font-semibold truncate max-w-[100px]">
-          {player.name}
-        </div>
-        <div className="text-sm">{player.chips} chips</div>
+      {/* Player name box */}
+      <div className="w-24 h-8 flex items-center justify-center rounded bg-black/60 text-white font-semibold text-center truncate px-1">
+        {player.name}
       </div>
+
+      {/* Chip count */}
+      <div className="mt-1 text-sm text-white">{`$${player.chips}`}</div>
 
       {/* Current bet */}
       {bet > 0 && (
-        <div className="mt-0.5 px-2 py-0.5 bg-green-700 rounded text-xs text-white">
+        <div className="mt-1 px-2 py-0.5 bg-green-700 rounded text-xs text-white">
           Bet {bet}
         </div>
       )}

@@ -106,6 +106,12 @@ export default function Table() {
       transform: `translate(${pos.t})`,
     } as React.CSSProperties;
 
+    const dx = 50 - parseFloat(pos.x);
+    const dy = 50 - parseFloat(pos.y);
+    const mag = Math.sqrt(dx * dx + dy * dy) || 1;
+    const offset = 40;
+    const dealerOffset = { x: (dx / mag) * offset, y: (dy / mag) * offset };
+
     const seatNumber = (
       <span className="absolute -top-5 left-10 w-5 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center">
         {idx + 1}
@@ -156,6 +162,7 @@ export default function Table() {
               revealCards={reveal}
               bet={player.currentBet}
               cardSize={holeCardSize}
+              dealerOffset={dealerOffset}
             />
           </div>
         </div>
