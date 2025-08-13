@@ -52,9 +52,14 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
 /* ─────────────────────────────────────────────────────── */
 
 export default function Table({ timer }: { timer?: number | null }) {
-  const { players, playerHands, community, joinSeat } = useGameStore();
+  const { players, playerHands, community, joinSeat, bigBlind } = useGameStore();
   const [isMobile, setIsMobile] = useState(false);
   const [tableScale, setTableScale] = useState(1);
+  const [bet, setBet] = useState(bigBlind);
+
+  useEffect(() => {
+    setBet(bigBlind);
+  }, [bigBlind]);
 
   useEffect(() => {
     const handle = () => {
@@ -230,13 +235,7 @@ export default function Table({ timer }: { timer?: number | null }) {
         {layout.map((_, i) => seatAt(i))}
       </div>
       <div className="mt-12 flex gap-2">
-        {[
-          "Fold",
-          "Check",
-          "Call",
-          "Bet",
-          "Raise",
-        ].map((action) => (
+        {["Fold", "Check", "Call"].map((action) => (
           <button
             key={action}
             className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
@@ -244,6 +243,26 @@ export default function Table({ timer }: { timer?: number | null }) {
             {action}
           </button>
         ))}
+        <div className="flex flex-col items-center">
+          <button className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500">Bet</button>
+          <div className="flex items-center mt-1">
+            <input
+              type="range"
+              min={bigBlind}
+              max={10000}
+              value={bet}
+              onChange={(e) => setBet(Number(e.target.value))}
+              className="w-40"
+            />
+            <input
+              type="number"
+              value={bet}
+              onChange={(e) => setBet(Number(e.target.value))}
+              className="w-16 ml-2 text-black rounded"
+            />
+          </div>
+        </div>
+        <button className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500">Raise</button>
       </div>
     </div>
   );

@@ -19,12 +19,17 @@ export default function PlayPage() {
     dealRiver,
     playerHands,
     players,
+    startBlindTimer,
   } = useGameStore();
   const [timer, setTimer] = useState<number | null>(null);
 
   const stageNames = ["preflop", "flop", "turn", "river", "showdown"] as const;
   const handStarted = playerHands.some((h) => h !== null);
   const activePlayers = players.filter(Boolean).length;
+
+  useEffect(() => {
+    startBlindTimer();
+  }, [startBlindTimer]);
 
   useEffect(() => {
     if (activePlayers >= 2 && !handStarted && timer === null) {
