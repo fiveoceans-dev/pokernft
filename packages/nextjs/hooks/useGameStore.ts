@@ -48,6 +48,9 @@ interface GameStoreState {
   phase: EnginePhase;
   loading: boolean;
   error: string | null;
+  /** dealer / action log */
+  logs: string[];
+  addLog: (msg: string) => void;
 
   // Actions --------------------------------------------------------------
   reloadTableState: () => Promise<void>;
@@ -73,6 +76,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   phase: machine.state,
   loading: false,
   error: null,
+  logs: [],
+  addLog: (msg) => set((s) => ({ logs: [...s.logs, msg] })),
 
   /** Sync Zustand state from the current room object */
   reloadTableState: async () => {
@@ -106,7 +111,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  /** Seat a demo player at the given index and auto-start if enough players */
+  /** Seat a demo player at the given index */
   joinSeat: async (seatIdx: number) => {
     // prevent double seating
     if (room.players.some((p) => p.seat === seatIdx)) return;
@@ -117,9 +122,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       chips: 1000,
     });
     await get().reloadTableState();
-    if (room.players.length >= 2 && machine.state === EnginePhase.WaitingForPlayers) {
-      await get().startHand();
-    }
+    get().addLog(`Player ${seatIdx + 1} joined`);
   },
 
   /** Deal new hole cards to all players */
@@ -135,6 +138,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     startHandGame(room);
     machine.dispatch({ type: "DEAL_COMPLETE" });
     await get().reloadTableState();
+    get().addLog("Hand started");
   },
 
   /** Reveal the flop */
@@ -147,6 +151,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       progressStage(room);
       machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
+      get().addLog("Flop dealt");
     }
   },
 
@@ -160,6 +165,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       progressStage(room);
       machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
+      get().addLog("Turn dealt");
     }
   },
 
@@ -173,6 +179,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       progressStage(room);
       machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
+      get().addLog("River dealt");
     }
   },
 
@@ -181,6 +188,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const current = room.players[room.currentTurnIndex];
     handleAction(room, current.id, action);
     await get().reloadTableState();
+    get().addLog(`${current.nickname} ${action.type}`);
     if (isRoundComplete(room)) {
       const remaining = room.players.filter((p) => !p.hasFolded).length;
       machine.dispatch({ type: "BETTING_COMPLETE", remainingPlayers: remaining });

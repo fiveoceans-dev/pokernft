@@ -2,20 +2,55 @@
 
 // Play poker interface with wallet connect
 
+import { useEffect, useState } from "react";
 import ActionBar from "../../components/ActionBar";
 import Table from "../../components/Table";
 import AnimatedTitle from "../../components/AnimatedTitle";
+import DealerWindow from "../../components/DealerWindow";
 import { CustomConnectButton } from "../../components/scaffold-stark/CustomConnectButton";
 import { useGameStore } from "../../hooks/useGameStore";
 
 export default function PlayPage() {
-  const { street, startHand, dealFlop, dealTurn, dealRiver } = useGameStore();
+  const {
+    street,
+    startHand,
+    dealFlop,
+    dealTurn,
+    dealRiver,
+    playerHands,
+    players,
+  } = useGameStore();
+  const [timer, setTimer] = useState<number | null>(null);
 
   const stageNames = ["preflop", "flop", "turn", "river", "showdown"] as const;
+  const handStarted = playerHands.some((h) => h !== null);
+  const activePlayers = players.filter(Boolean).length;
+
+  useEffect(() => {
+    if (activePlayers >= 2 && !handStarted && timer === null) {
+      setTimer(10);
+    }
+  }, [activePlayers, handStarted, timer]);
+
+  useEffect(() => {
+    if (timer === null || handStarted) return;
+    if (timer === 0) {
+      startHand();
+      setTimer(null);
+      return;
+    }
+    const id = setTimeout(() => setTimer((t) => (t as number) - 1), 1000);
+    return () => clearTimeout(id);
+  }, [timer, handStarted, startHand]);
+
+  const handleStart = async () => {
+    setTimer(null);
+    await startHand();
+  };
 
   return (
     <main
-      className="h-screen flex flex-col text-white bg-main overflow-hidden"
+      className="relative h-screen flex flex-col text-white bg-main overflow-hidden"
       style={{
         backgroundImage: "url('/nfts/nft2.png')",
         backgroundSize: "cover",
@@ -28,17 +63,19 @@ export default function PlayPage() {
         <div className="flex flex-1 items-center justify-end gap-4">
           <ActionBar
             street={stageNames[street] ?? "preflop"}
-            onStart={startHand}
+            onStart={handleStart}
             onFlop={dealFlop}
             onTurn={dealTurn}
             onRiver={dealRiver}
+            hasHandStarted={handStarted}
           />
           <CustomConnectButton />
         </div>
       </header>
       <div className="flex-1 flex items-center justify-center">
-        <Table />
+        <Table timer={timer} />
       </div>
+      <DealerWindow />
     </main>
   );
 }
