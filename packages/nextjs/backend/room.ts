@@ -176,8 +176,15 @@ export function determineWinners(room: GameRoom): PlayerSession[] {
 export function isRoundComplete(room: GameRoom): boolean {
   const active = room.players.filter((p) => !p.hasFolded);
   if (active.length <= 1) return true;
-  const highest = Math.max(...active.map((p) => p.currentBet));
-  return active.every((p) => p.currentBet === highest);
+  if (active.every((p) => p.chips === 0)) return true;
+  const maxBet = Math.max(...active.map((p) => p.currentBet));
+  const allMatched = active.every(
+    (p) => p.chips === 0 || p.currentBet === maxBet,
+  );
+  const canAct = active.some(
+    (p) => p.chips > 0 && p.currentBet < maxBet,
+  );
+  return allMatched && !canAct;
 }
 
 /** Split the pot equally amongst winners */

@@ -6,7 +6,7 @@ import {
   PlayerAction,
   DeadBlindRule,
 } from "./types";
-import { recomputePots } from "./potManager";
+import { rebuildPots } from "./potManager";
 import { countActivePlayers, isHeadsUp } from "./tableUtils";
 
 /**
@@ -196,7 +196,7 @@ export function assignBlindsAndButton(table: Table): boolean {
     table.seats[sb]?.state === PlayerState.ALL_IN ||
     table.seats[bb]?.state === PlayerState.ALL_IN
   ) {
-    recomputePots(table);
+    rebuildPots(table);
   }
 
   return true;
