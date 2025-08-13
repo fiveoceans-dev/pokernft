@@ -1,69 +1,71 @@
-# Poker Game States
+# Poker Table State Machine
 
-This document outlines the state machine governing a single poker table. The backend is responsible for enforcing state transitions and ensuring fairness while keeping the implementation modular.
-
-## Overview
-
-The game is represented as a deterministic state machine. Each state has well-defined entry conditions, allowed actions, exit conditions, and resolution logic for edge cases. Components such as random number generation (RNG), hand evaluation, and networking are pluggable modules so they can be swapped or upgraded without altering the overall workflow.
+This document describes the server-side `TableState` lifecycle for a single no-limit Texas Hold'em table. Each state has clear entry conditions, responsibilities and exit criteria.
 
 ## States
 
-### 1. **WaitingForPlayers**
-- **Entry**: Table created or round finished.
-- **Actions**: Players join, leave, or buy in. Backend verifies eligibility and reserves seats.
-- **Exit**: Minimum required players are seated and ready.
-- **Edge Cases**: 
-  - If a player disconnects before the round starts, the seat is released after a timeout.
+### 1. **WAITING**
+- **Entry**: Table created or previous hand cleaned up.
+- **Actions**: Players join, leave or buy in. Backend validates seats and buy-ins.
+- **Exit**: Minimum required players are ready.
+- **Edge Cases**: Disconnected players may lose their seat after a timeout.
 
-### 2. **Shuffling**
-- **Entry**: Minimum players are ready.
-- **Actions**: Deck is shuffled using a verifiable RNG module. Card order is secret to everyone except the RNG module.
-- **Exit**: Deck is prepared for dealing.
-- **Edge Cases**: 
-  - RNG failure triggers a re-shuffle using a backup generator.
+### 2. **BLINDS**
+- **Entry**: Enough players are seated.
+- **Actions**: Small and big blinds are posted (automatically or by prompt).
+- **Exit**: Blinds committed by required players.
+- **Edge Cases**: Missing blinds result in the player sitting out or being removed.
 
-### 3. **Dealing**
-- **Entry**: Deck ready.
-- **Actions**: Dealer distributes cards to players and board as required for the variant.
-- **Exit**: All required cards are dealt.
-- **Edge Cases**: 
-  - Player disconnects while receiving cards: cards remain face down; if the player does not reconnect before their first action, they are folded.
+### 3. **DEALING_HOLE**
+- **Entry**: Blinds posted.
+- **Actions**: Deck is shuffled and two hole cards dealt to each seated player.
+- **Exit**: All players receive cards.
+- **Edge Cases**: Disconnected players keep cards face down and are auto-folded if still absent when action reaches them.
 
-### 4. **BettingRound**
-This state repeats for each betting phase (Pre-Flop, Flop, Turn, River).
+### 4. **PRE_FLOP**
+- **Entry**: Hole cards dealt.
+- **Actions**: First betting round starting from the player left of the big blind.
+- **Exit**: Betting closes when all active players have matched the highest bet or folded.
+- **Edge Cases**: Expired action timer triggers auto-check or auto-fold. All-ins create side pots.
 
-- **Entry**: Dealing phase or previous betting round completed.
-- **Actions**: In turn order, each active player can *fold*, *check/call*, or *bet/raise*.
-- **Exit**: Betting is closed when all active players have matched the highest bet or folded.
-- **Edge Cases**:
-  - **Disconnect**: A disconnected player is treated as “timebanked”. If the action timer expires, the backend auto-folds or checks based on game rules.
-  - **Timeout**: Each player action is limited by a configurable timer. Expiration triggers auto-fold/check and records a timeout event.
-  - **Insufficient Funds**: All-in rules apply automatically; side pots are created by the backend.
+### 5. **FLOP**
+- **Entry**: Pre-flop betting round completed.
+- **Actions**: Three community cards dealt followed by a betting round.
+- **Exit/Edge Cases**: Same as **PRE_FLOP**.
 
-### 5. **Showdown**
-- **Entry**: Last betting round completed with more than one player remaining.
-- **Actions**: Hands are revealed. The evaluation module determines the winner(s).
-- **Exit**: Winning players identified.
-- **Edge Cases**: 
-  - Ties or split pots are calculated by the evaluation module.
-  - Disconnected players’ hands are revealed automatically if eligible for the pot.
+### 6. **TURN**
+- **Entry**: Flop betting round completed.
+- **Actions**: One community card dealt followed by a betting round.
+- **Exit/Edge Cases**: Same as **PRE_FLOP**.
 
-### 6. **Payout**
-- **Entry**: Winners determined.
-- **Actions**: Chips are awarded, pots are cleared, and statistics updated.
-- **Exit**: Payout complete.
-- **Edge Cases**: 
-  - Transfer failure triggers retry logic; if unresolved, the table enters a Paused state pending admin resolution.
+### 7. **RIVER**
+- **Entry**: Turn betting round completed.
+- **Actions**: Final community card dealt followed by the last betting round.
+- **Exit/Edge Cases**: Same as **PRE_FLOP**.
 
-### 7. **Paused** *(optional)*
-- **Entry**: Critical error, manual intervention, or network partition.
-- **Actions**: No gameplay. Admins or automated recovery processes may attempt to resolve the issue.
-- **Exit**: Resolved back to previous state or terminated.
+### 8. **SHOWDOWN**
+- **Entry**: Final betting round completed with more than one player remaining.
+- **Actions**: Remaining hands are revealed and ranked.
+- **Exit**: Winners determined and pot shares calculated.
+- **Edge Cases**: Disconnected players' hands are revealed automatically; ties and split pots handled by the evaluator.
+
+### 9. **PAYOUT**
+- **Entry**: Winners resolved.
+- **Actions**: Chips are distributed, rake is applied and pots cleared.
+- **Exit**: Stacks updated and pots emptied.
+- **Edge Cases**: Transfer failures pause the table until resolved.
+
+### 10. **ROTATE**
+- **Entry**: Payout complete.
+- **Actions**: Dealer button and blinds move to the next eligible players.
+- **Exit**: Rotation finished.
+
+### 11. **CLEANUP**
+- **Entry**: Rotation complete.
+- **Actions**: Board, pots and per-hand metadata are reset.
+- **Exit**: Table returns to **WAITING** for the next hand.
 
 ## Additional Considerations
-
-- **State Persistence**: All state transitions are logged to durable storage for auditing and recovery.
-- **Reconnection Logic**: When a player reconnects, the backend replays the necessary state changes to synchronize the client.
-- **Modularity**: RNG, evaluation, networking, and persistence are separate modules communicating via defined interfaces. This enables upgrading any component without redefining game flow.
-- **Security**: Sensitive operations (e.g., deck shuffling, card dealing) happen server-side; clients only receive information they are authorized to view.
-
+- **State Persistence**: Transitions are logged for auditing and recovery.
+- **Reconnection Logic**: Rejoining players receive a replay of missing state changes.
+- **Security**: Deck shuffling and card dealing happen server-side; clients only receive authorised information.

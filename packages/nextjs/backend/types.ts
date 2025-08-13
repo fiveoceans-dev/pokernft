@@ -57,7 +57,7 @@ export interface GameRoom {
   deck: Card[];
 }
 
-export interface Player {
+export interface UiPlayer {
   name: string;
   chips: number;
   hand: [Card, Card] | null;
@@ -67,7 +67,7 @@ export interface Player {
 
 export interface GameState {
   deck: Card[];
-  players: Player[];
+  players: UiPlayer[];
   community: Card[];
   pot: number;
   dealerIndex: number;
@@ -78,4 +78,116 @@ export interface GameState {
 export interface CardShape {
   rank: number;
   suit: number;
+}
+
+export enum PlayerState {
+  EMPTY = 'EMPTY',
+  SEATED = 'SEATED',
+  SITTING_OUT = 'SITTING_OUT',
+  ACTIVE = 'ACTIVE',
+  FOLDED = 'FOLDED',
+  ALL_IN = 'ALL_IN',
+  DISCONNECTED = 'DISCONNECTED',
+  LEAVING = 'LEAVING',
+}
+
+export enum PlayerAction {
+  NONE = 'NONE',
+  FOLD = 'FOLD',
+  CHECK = 'CHECK',
+  CALL = 'CALL',
+  BET = 'BET',
+  RAISE = 'RAISE',
+  ALL_IN = 'ALL_IN',
+}
+
+export interface Player {
+  id: string;
+  seatIndex: number;
+  stack: number;
+  state: PlayerState;
+  hasButton: boolean;
+  autoPostBlinds: boolean;
+  timebankMs: number;
+  betThisRound: number;
+  totalCommitted: number;
+  holeCards: Card[];
+  lastAction: PlayerAction;
+}
+
+export enum TableState {
+  WAITING = 'WAITING',
+  BLINDS = 'BLINDS',
+  DEALING_HOLE = 'DEALING_HOLE',
+  PRE_FLOP = 'PRE_FLOP',
+  FLOP = 'FLOP',
+  TURN = 'TURN',
+  RIVER = 'RIVER',
+  SHOWDOWN = 'SHOWDOWN',
+  PAYOUT = 'PAYOUT',
+  ROTATE = 'ROTATE',
+  CLEANUP = 'CLEANUP',
+}
+
+export enum Round {
+  PREFLOP = 'PREFLOP',
+  FLOP = 'FLOP',
+  TURN = 'TURN',
+  RIVER = 'RIVER',
+}
+
+export interface Pot {
+  amount: number;
+  eligibleSeatSet: number[];
+}
+
+export interface RakeConfig {
+  percentage: number;
+  cap: number;
+  min: number;
+}
+
+export interface Table {
+  seats: Array<Player | null>;
+  buttonIndex: number;
+  smallBlindIndex: number;
+  bigBlindIndex: number;
+  smallBlindAmount: number;
+  bigBlindAmount: number;
+  minBuyIn: number;
+  maxBuyIn: number;
+  state: TableState;
+  deck: Card[];
+  board: Card[];
+  pots: Pot[];
+  currentRound: Round;
+  actingIndex: number | null;
+  betToCall: number;
+  minRaise: number;
+  actionTimer: number;
+  interRoundDelayMs: number;
+  dealAnimationDelayMs: number;
+  rakeConfig?: RakeConfig;
+}
+
+export interface HandAction {
+  playerId: string;
+  round: Round;
+  action: PlayerAction;
+  amount: number;
+  elapsedMs: number;
+}
+
+export interface HandLog {
+  handId: string;
+  tableId: string;
+  startTs: number;
+  endTs: number;
+  initialStacks: number[];
+  seatMap: Array<string | null>;
+  actions: HandAction[];
+  deckSeed: string;
+  pots: Pot[];
+  winners: { playerId: string; amount: number; potIndexes: number[] }[];
+  rake?: number;
 }
