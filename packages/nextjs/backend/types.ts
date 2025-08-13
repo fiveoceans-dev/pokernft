@@ -115,6 +115,7 @@ export interface Player {
   lastAction: PlayerAction;
   missedSmallBlind: boolean;
   missedBigBlind: boolean;
+  sitOutNextHand?: boolean;
 }
 
 export enum TableState {

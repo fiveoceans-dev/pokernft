@@ -8,6 +8,21 @@ betting rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md
 
 ## Core Modules
 
+| Module                   | Responsibility                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **TableManager**         | Orchestrates the hand lifecycle and table state machine, moves the dealer button and enforces the minimum number of active players.    |
+| **SeatingManager**       | Handles seat assignment, buy‑in/top‑up, sit‑out/return and leave actions; removes busted players or, if re-buy is enabled, parks them as `SITTING_OUT`. |
+| **BlindManager**         | Assigns the dealer button and blind positions, auto‑posts blinds (allowing all‑in when short), enforces heads‑up order and manages dead or missed blinds. |
+| **Dealer**               | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server.             |
+| **BettingEngine**        | Manages turn order, validates actions and raise sizes, tracks `betToCall`/`minRaise` and detects round completion.                     |
+| **PotManager**           | Tracks per‑round and total commitments, rebuilds main and side pots on all‑ins, applies rake and settles payouts.                                            |
+| **HandEvaluator**        | Ranks seven‑card hands, resolves ties and supports split pots.                                                                         |
+| **TimerService**         | Runs per‑action countdowns with optional timebank and disconnect grace; triggers auto‑fold or check on expiry and provides deal/inter‑round delay helpers. |
+| **EventBus**             | Emits state changes to clients and queues validated commands to the server.                                                            |
+| **Persistence/Audit**    | Records immutable hand and action logs for settlements and anti‑fraud analysis.                                                        |
+| **RulesConfig**          | Defines game parameters such as blinds, rake and buy‑in limits.                                                                        |
+| **Integrity/Anti‑Abuse** | Optional hooks for rate limiting and collusion detection.                                                                              |
+=======
 | Module                   | Responsibility                                                                                                                                                                        |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **TableManager**         | Orchestrates the hand lifecycle and table state machine, moves the dealer button and enforces the minimum number of active players.                                                   |
