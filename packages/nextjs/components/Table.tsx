@@ -153,6 +153,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     const mag = Math.sqrt(dx * dx + dy * dy) || 1;
     const offset = 40;
     const dealerOffset = { x: (dx / mag) * offset, y: (dy / mag) * offset };
+    const betOffset = { x: (dx / mag) * (offset - 10), y: (dy / mag) * (offset - 10) };
     /* ── empty seat → button ─────────────────────────────── */
     if (!nickname) {
       const badge = (
@@ -219,6 +220,7 @@ export default function Table({ timer }: { timer?: number | null }) {
               bet={player.currentBet}
               cardSize={holeCardSize}
               dealerOffset={dealerOffset}
+              betOffset={betOffset}
             />
           </div>
         </div>

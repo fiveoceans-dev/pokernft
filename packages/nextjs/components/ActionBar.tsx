@@ -10,7 +10,7 @@ interface Props {
 
 export default function ActionBar({ street, hasHandStarted, ...actions }: Props) {
   return (
-    <div className="flex gap-4 card p-2 rounded-full">
+    <div className="flex flex-col gap-2 card p-2 rounded">
       {street === "preflop" && !hasHandStarted && (
         <button
           onClick={actions.onStart}

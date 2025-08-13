@@ -12,6 +12,7 @@ interface PlayerSeatProps {
   revealCards?: boolean; // if true, show hole cards face-up
   cardSize?: "xs" | "sm" | "md" | "lg"; // size of player's hole cards
   dealerOffset?: { x: number; y: number }; // offset dealer button toward centre
+  betOffset?: { x: number; y: number }; // offset bet toward table centre
 }
 
 export default function PlayerSeat({
@@ -22,6 +23,7 @@ export default function PlayerSeat({
   revealCards = false,
   cardSize = "sm",
   dealerOffset = { x: 0, y: -20 },
+  betOffset = { x: 0, y: 20 },
 }: PlayerSeatProps) {
   // If `player.hand` is null, treat as not yet dealt
   const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [
@@ -76,8 +78,12 @@ export default function PlayerSeat({
       {/* Bet displayed below the seat */}
       {bet > 0 && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 px-2 py-0.5 bg-green-700 rounded text-xs text-white"
-          style={{ top: "100%", marginTop: "0.25rem" }}
+          className="absolute px-2 py-0.5 bg-green-700 rounded text-xs text-white"
+          style={{
+            left: "50%",
+            top: "50%",
+            transform: `translate(-50%, -50%) translate(${betOffset.x}px, ${betOffset.y}px)`,
+          }}
         >
           Bet {bet}
         </div>
