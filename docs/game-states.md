@@ -9,31 +9,35 @@ The game is represented as a deterministic state machine. Each state has well-de
 ## States
 
 ### 1. **WaitingForPlayers**
+
 - **Entry**: Table created or round finished.
 - **Actions**: Players join, leave, or buy in. Backend verifies eligibility and reserves seats.
 - **Exit**: Minimum required players are seated and ready.
-- **Edge Cases**: 
+- **Edge Cases**:
   - If a player disconnects before the round starts, the seat is released after a timeout.
 
 ### 2. **Shuffling**
+
 - **Entry**: Minimum players are ready.
 - **Actions**: Deck is shuffled using a verifiable RNG module. Card order is secret to everyone except the RNG module.
 - **Exit**: Deck is prepared for dealing.
-- **Edge Cases**: 
+- **Edge Cases**:
   - RNG failure triggers a re-shuffle using a backup generator.
 
 ### 3. **Dealing**
+
 - **Entry**: Deck ready.
 - **Actions**: Dealer distributes cards to players and board as required for the variant.
 - **Exit**: All required cards are dealt.
-- **Edge Cases**: 
+- **Edge Cases**:
   - Player disconnects while receiving cards: cards remain face down; if the player does not reconnect before their first action, they are folded.
 
 ### 4. **BettingRound**
+
 This state repeats for each betting phase (Pre-Flop, Flop, Turn, River).
 
 - **Entry**: Dealing phase or previous betting round completed.
-- **Actions**: In turn order, each active player can *fold*, *check/call*, or *bet/raise*.
+- **Actions**: In turn order, each active player can _fold_, _check/call_, or _bet/raise_.
 - **Exit**: Betting is closed when all active players have matched the highest bet or folded.
 - **Edge Cases**:
   - **Disconnect**: A disconnected player is treated as “timebanked”. If the action timer expires, the backend auto-folds or checks based on game rules.
@@ -41,21 +45,26 @@ This state repeats for each betting phase (Pre-Flop, Flop, Turn, River).
   - **Insufficient Funds**: All-in rules apply automatically; side pots are created by the backend.
 
 ### 5. **Showdown**
+
 - **Entry**: Last betting round completed with more than one player remaining.
 - **Actions**: Hands are revealed. The evaluation module determines the winner(s).
 - **Exit**: Winning players identified.
-- **Edge Cases**: 
+- **Edge Cases**:
   - Ties or split pots are calculated by the evaluation module.
   - Disconnected players’ hands are revealed automatically if eligible for the pot.
 
 ### 6. **Payout**
+
 - **Entry**: Winners determined.
 - **Actions**: Chips are awarded, pots are cleared, and statistics updated.
 - **Exit**: Payout complete.
-- **Edge Cases**: 
+- **Edge Cases**:
   - Transfer failure triggers retry logic; if unresolved, the table enters a Paused state pending admin resolution.
 
-### 7. **Paused** *(optional)*
+For detailed reveal order, evaluation, and payout rules, see [Showdown & Payouts](./showdown-payouts.md).
+
+### 7. **Paused** _(optional)_
+
 - **Entry**: Critical error, manual intervention, or network partition.
 - **Actions**: No gameplay. Admins or automated recovery processes may attempt to resolve the issue.
 - **Exit**: Resolved back to previous state or terminated.
@@ -100,4 +109,3 @@ Zero chips after payout: remain **SEATED** but **SITTING_OUT** (or **LEAVING** i
 - **PAYOUT** (rank, resolve side pots, split, rake)
 - **ROTATE** (move button to next active seat)
 - **CLEANUP** (reset per-hand fields) → back to **WAITING** or **BLINDS**
-
