@@ -1,0 +1,39 @@
+# Networking Contract
+
+This document defines the WebSocket protocol between poker clients and the server.
+Commands from the client are idempotent and must include a unique `cmdId`. The
+server ignores duplicates and always replies with the authoritative state.
+
+## Server → Client Events
+
+- `TABLE_SNAPSHOT` – full `Table` state for reconciliation.
+- `HAND_START` – a new hand has begun.
+- `BLINDS_POSTED` – blinds have been applied for the hand.
+- `DEAL_HOLE` – server reveals two cards to the specified `seat`.
+- `ACTION_PROMPT {actingIndex, betToCall, minRaise, timeLeftMs}` – notify the
+  next acting player.
+- `PLAYER_ACTION_APPLIED {playerId, action, amount?}` – a validated action was
+  processed.
+- `ROUND_END {street}` – current betting round completed.
+- `DEAL_FLOP` / `DEAL_TURN` / `DEAL_RIVER` – community cards dealt for each
+  street.
+- `SHOWDOWN {revealOrder}` – order of hand revelation at showdown.
+- `PAYOUT {potBreakdown}` – distribution of the pot(s).
+- `HAND_END` – hand concluded and state will reset shortly.
+- `BUTTON_MOVED {buttonIndex}` – dealer button advanced to the new position.
+- `ERROR {code,msg}` – any recoverable error. Clients should surface the
+  message to the user and resynchronise using the snapshot.
+
+## Client → Server Commands
+
+Every command must carry a `cmdId` field. If the server receives the same
+`cmdId` again it simply resends the latest `TABLE_SNAPSHOT` without applying the
+command.
+
+- `SIT {buyIn}` – take a seat with the provided buy‑in amount.
+- `LEAVE` – vacate the current seat.
+- `SIT_OUT` – mark the player sitting out next hand.
+- `SIT_IN` – return a previously sitting out player to action.
+- `POST_BLIND {type}` – post a small or big blind when prompted.
+- `ACTION {Fold|Check|Call|Bet|Raise|AllIn, amount}` – perform a betting action.
+- `REBUY {amount}` – add chips to the player's stack.

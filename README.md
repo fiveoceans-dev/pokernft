@@ -44,3 +44,5 @@ yarn vercel
 ```
 
 Environment variables such as `NEXT_PUBLIC_PROVIDER_URL` configure Starknet RPC endpoints. The app falls back to `NEXT_PUBLIC_DEVNET_PROVIDER_URL` when the primary endpoint is unavailable.
+
+For details on the WebSocket protocol between clients and the poker server, see [docs/networking-contract.md](docs/networking-contract.md).
