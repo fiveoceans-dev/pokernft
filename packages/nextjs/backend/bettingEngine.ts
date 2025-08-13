@@ -1,25 +1,20 @@
 import { Table, Player, PlayerState, PlayerAction, Round } from "./types";
 import { recomputePots } from "./potManager";
+import { isHeadsUp } from "./tableUtils";
 
 /** Initialize betting round and determine first to act */
 export function startBettingRound(table: Table, round: Round) {
   table.minRaise = table.bigBlindAmount;
   if (round === Round.PREFLOP) {
     // betToCall already equals big blind from blinds
-    const active = table.seats.filter(
-      (p) => p && p.state === PlayerState.ACTIVE,
-    );
-    if (active.length === 2) {
+    if (isHeadsUp(table)) {
       table.actingIndex = table.smallBlindIndex;
     } else {
       table.actingIndex = nextSeat(table, table.bigBlindIndex);
     }
   } else {
     table.betToCall = 0;
-    const active = table.seats.filter(
-      (p) => p && p.state === PlayerState.ACTIVE,
-    );
-    if (active.length === 2) {
+    if (isHeadsUp(table)) {
       table.actingIndex = table.bigBlindIndex;
     } else {
       table.actingIndex = nextSeat(table, table.buttonIndex);

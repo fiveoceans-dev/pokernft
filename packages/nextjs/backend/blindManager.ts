@@ -1,5 +1,6 @@
 import { GameRoom, Table, Player, PlayerState, PlayerAction } from "./types";
 import { recomputePots } from "./potManager";
+import { countActivePlayers, isHeadsUp } from "./tableUtils";
 
 /**
  * BlindManager computes small/big blind positions and posts the blinds.
@@ -83,10 +84,7 @@ export function assignBlindsAndButton(table: Table): boolean {
     return false;
   };
 
-  const activePlayers = table.seats.filter(
-    (p) => p && p.state === PlayerState.ACTIVE,
-  ).length;
-  if (activePlayers < 2) return false;
+  if (countActivePlayers(table) < 2) return false;
 
   const btn = activeSeat(table.buttonIndex + 1);
   if (btn === null) return false;
@@ -99,7 +97,7 @@ export function assignBlindsAndButton(table: Table): boolean {
   let bb: number | null;
 
   const computeBlinds = () => {
-    if (activePlayers === 2) {
+    if (isHeadsUp(table)) {
       sb = btn;
       bb = activeSeat(btn + 1);
     } else {
@@ -121,9 +119,7 @@ export function assignBlindsAndButton(table: Table): boolean {
     if (!sbPosted) sbPlayer.state = PlayerState.SITTING_OUT;
     if (!bbPosted) bbPlayer.state = PlayerState.SITTING_OUT;
 
-    const remaining = table.seats.filter(
-      (p) => p && p.state === PlayerState.ACTIVE,
-    ).length;
+    const remaining = countActivePlayers(table);
     if (remaining < 2) return false;
 
     computeBlinds();
@@ -136,7 +132,7 @@ export function assignBlindsAndButton(table: Table): boolean {
   table.bigBlindIndex = bb;
   table.betToCall = table.bigBlindAmount;
 
-  if (activePlayers === 2) {
+  if (isHeadsUp(table)) {
     table.actingIndex = sb;
   } else {
     const first = activeSeat(bb + 1);
