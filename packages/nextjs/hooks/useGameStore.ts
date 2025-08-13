@@ -158,7 +158,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     engine.startHand();
     machine.dispatch({ type: "DEAL_COMPLETE" });
     await get().reloadTableState();
-    get().addLog("Hand started");
+    get().addLog("Dealer: Hand started");
   },
 
   /** Reveal the flop */
@@ -172,7 +172,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       engine.progressStage();
       machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
-      get().addLog("Flop dealt");
+      get().addLog("Dealer: Flop dealt");
     }
   },
 
@@ -187,7 +187,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       engine.progressStage();
       machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
-      get().addLog("Turn dealt");
+      get().addLog("Dealer: Turn dealt");
     }
   },
 
@@ -202,7 +202,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       engine.progressStage();
       machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
-      get().addLog("River dealt");
+      get().addLog("Dealer: River dealt");
     }
   },
 
@@ -211,28 +211,62 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const room = engine.getState();
     const current = room.players[room.currentTurnIndex];
     engine.handleAction(current.id, action);
+    const roundComplete = engine.isRoundComplete();
     await get().reloadTableState();
-    get().addLog(`${current.nickname} ${action.type}`);
-    if (engine.isRoundComplete()) {
-      const remaining = room.players.filter((p) => !p.hasFolded).length;
+    const acted = engine.getState().players.find((p) => p.id === current.id)!;
+    let msg = "";
+    switch (action.type) {
+      case "fold":
+        msg = `${acted.nickname} folds`;
+        break;
+      case "check":
+        msg = `${acted.nickname} checks`;
+        break;
+      case "call":
+        msg = `${acted.nickname} calls ${acted.currentBet}`;
+        break;
+      case "raise":
+        msg = `${acted.nickname} bets ${action.amount ?? acted.currentBet}`;
+        break;
+    }
+    get().addLog(msg);
+    if (roundComplete) {
+      const remaining = engine
+        .getState()
+        .players.filter((p) => !p.hasFolded).length;
       machine.dispatch({ type: "BETTING_COMPLETE", remainingPlayers: remaining });
-      if (remaining <= 1) {
-        const winners = room.players.filter((p) => !p.hasFolded);
-        engine.payout(winners);
-        machine.dispatch({ type: "PAYOUT_COMPLETE" });
-        room.stage = "waiting";
-      } else if (room.stage === "river") {
-        engine.progressStage(); // move to showdown
-        const winners = engine.determineWinners();
-        machine.dispatch({ type: "SHOWDOWN_COMPLETE" });
-        engine.payout(winners);
-        machine.dispatch({ type: "PAYOUT_COMPLETE" });
-        room.stage = "waiting";
-      } else {
-        engine.progressStage();
-        machine.dispatch({ type: "DEAL_COMPLETE" });
-      }
-      await get().reloadTableState();
+      setTimeout(async () => {
+        const room2 = engine.getState();
+        if (remaining <= 1) {
+          const winners = room2.players.filter((p) => !p.hasFolded);
+          engine.payout(winners);
+          machine.dispatch({ type: "PAYOUT_COMPLETE" });
+          room2.stage = "waiting";
+          await get().reloadTableState();
+          get().addLog("Dealer: Hand complete");
+        } else if (room2.stage === "river") {
+          engine.progressStage();
+          const winners = engine.determineWinners();
+          machine.dispatch({ type: "SHOWDOWN_COMPLETE" });
+          engine.payout(winners);
+          machine.dispatch({ type: "PAYOUT_COMPLETE" });
+          room2.stage = "waiting";
+          await get().reloadTableState();
+          get().addLog("Dealer: Showdown");
+        } else {
+          engine.progressStage();
+          machine.dispatch({ type: "DEAL_COMPLETE" });
+          await get().reloadTableState();
+          const nextStage = engine.getState().stage;
+          const stageMsg =
+            nextStage === "flop"
+              ? "Dealer: Flop dealt"
+              : nextStage === "turn"
+              ? "Dealer: Turn dealt"
+              : "Dealer: River dealt";
+          get().addLog(stageMsg);
+        }
+      }, 1000);
     }
   },
 }));

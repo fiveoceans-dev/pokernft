@@ -3,11 +3,11 @@
 // Play poker interface with wallet connect
 
 import { useEffect, useState } from "react";
-import ActionBar from "../../components/ActionBar";
 import Table from "../../components/Table";
 import AnimatedTitle from "../../components/AnimatedTitle";
 import DealerWindow from "../../components/DealerWindow";
 import { CustomConnectButton } from "../../components/scaffold-stark/CustomConnectButton";
+import ActionBar from "../../components/ActionBar";
 import { useGameStore } from "../../hooks/useGameStore";
 
 export default function PlayPage() {
@@ -77,19 +77,21 @@ export default function PlayPage() {
       <header className="relative w-full flex items-center mt-6 mb-4 px-4">
         <AnimatedTitle text="Poker Night on Starknet" />
         <div className="flex flex-1 items-center justify-end gap-4">
-          <ActionBar
-            street={stageNames[street] ?? "preflop"}
-            onStart={handleStart}
-            onFlop={dealFlop}
-            onTurn={dealTurn}
-            onRiver={dealRiver}
-            hasHandStarted={handStarted}
-          />
           <CustomConnectButton />
         </div>
       </header>
       <div className="flex-1 flex items-center justify-center">
         <Table timer={timer} />
+      </div>
+      <div className="fixed bottom-4 right-4">
+        <ActionBar
+          street={stageNames[street] ?? "preflop"}
+          onStart={handleStart}
+          onFlop={dealFlop}
+          onTurn={dealTurn}
+          onRiver={dealRiver}
+          hasHandStarted={handStarted}
+        />
       </div>
       <DealerWindow />
     </main>
