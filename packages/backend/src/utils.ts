@@ -1,5 +1,6 @@
 import { RANKS, SUITS } from './constants';
 import type { Card } from './types';
+import { randomInt } from './rng';
 
 /* ─────── Random + Deck helpers ─────── */
 
@@ -15,7 +16,7 @@ export const dealDeck = freshDeck;
 /** Fisher-Yates in-place shuffle (returns same ref for convenience) */
 export function shuffle<T>(array: T[]): T[] {
   for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
@@ -40,27 +41,3 @@ export function cardToIndex(card: Card): number {
   return SUITS.indexOf(card.suit) * RANKS.length + RANKS.indexOf(card.rank);
 }
 
-/* ─────── Hand-ranking stub ─────── */
-export interface RankedHand {
-  rankValue: number; // lower = better (1 = Royal Flush)
-  bestCards: Card[]; // the 5-card best hand
-}
-
-/** Naïve fallback: high-card only.  Safe to replace later. */
-export function rankHand(sevenCards: Card[]): RankedHand {
-  const sorted = [...sevenCards].sort(
-    (a, b) => RANKS.indexOf(b.rank) - RANKS.indexOf(a.rank),
-  );
-  return { rankValue: 10, bestCards: sorted.slice(0, 5) }; // 10 = "high card"
-}
-
-/** Returns < 0 if A wins, > 0 if B wins, 0 = tie */
-export function compareHands(a: RankedHand, b: RankedHand): number {
-  if (a.rankValue !== b.rankValue) return a.rankValue - b.rankValue;
-  for (let i = 0; i < 5; i++) {
-    const diff =
-      RANKS.indexOf(b.bestCards[i].rank) - RANKS.indexOf(a.bestCards[i].rank);
-    if (diff !== 0) return diff;
-  }
-  return 0;
-}

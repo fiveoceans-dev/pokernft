@@ -25,7 +25,7 @@
     "next:lint": "yarn workspace @ss-2/nextjs lint",
     "prepare": "husky",
     "dev": "yarn workspace @ss-2/nextjs dev",
-    "build": "yarn workspace @ss-2/nextjs build",
+    "build": "yarn workspace @ss-2/backend build && yarn workspace @ss-2/nextjs build",
     "start": "yarn workspace @ss-2/nextjs start",
     "test": "yarn workspace @ss-2/snfoundry test",
     "test:nextjs": "yarn workspace @ss-2/nextjs test",

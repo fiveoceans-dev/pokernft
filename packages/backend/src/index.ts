@@ -13,3 +13,5 @@ export type {
 } from './types';
 export * from './utils';
 export * from './room';
+export * from './handEvaluator';
+export * from './rng';

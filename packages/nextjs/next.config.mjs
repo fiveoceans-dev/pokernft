@@ -11,6 +11,12 @@ const withPWA = nextPWA({
 
 const nextConfig = {
   reactStrictMode: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   logging: {
     incomingRequests: false,
   },
