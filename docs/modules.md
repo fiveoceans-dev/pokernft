@@ -11,7 +11,7 @@ betting rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md
 | Module                   | Responsibility                                                                                                                         |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | **TableManager**         | Orchestrates the hand lifecycle and table state machine, moves the dealer button and enforces the minimum number of active players.    |
-| **SeatingManager**       | Handles seat assignment, buy‑in/top‑up, sit‑out/return and leave actions; removes players with zero chips or marks them `SITTING_OUT`. |
+| **SeatingManager**       | Handles seat assignment, buy‑in/top‑up, sit‑out/return and leave actions; removes busted players or, if re-buy is enabled, parks them as `SITTING_OUT`. |
 | **BlindManager**         | Assigns the dealer button and blind positions, auto‑posts blinds (allowing all‑in when short), enforces heads‑up order and manages dead or missed blinds. |
 | **Dealer**               | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server.             |
 | **BettingEngine**        | Manages turn order, validates actions and raise sizes, tracks `betToCall`/`minRaise` and detects round completion.                     |

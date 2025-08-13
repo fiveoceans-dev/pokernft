@@ -113,6 +113,11 @@ export interface Player {
   totalCommitted: number;
   holeCards: Card[];
   lastAction: PlayerAction;
+  /**
+   * When true, player finishes the current hand then becomes SITTING_OUT for
+   * the next one. Cleared automatically after the transition.
+   */
+  sitOutNextHand?: boolean;
 }
 
 export enum TableState {
