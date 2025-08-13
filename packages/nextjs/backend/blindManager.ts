@@ -1,4 +1,10 @@
-import { GameRoom, Table, Player, PlayerState, PlayerAction } from "./types";
+import {
+  GameRoom,
+  Table,
+  Player,
+  PlayerState,
+  PlayerAction,
+} from "./types";
 import { recomputePots } from "./potManager";
 
 /**
@@ -118,8 +124,14 @@ export function assignBlindsAndButton(table: Table): boolean {
 
     if (sbPosted && bbPosted) break;
 
-    if (!sbPosted) sbPlayer.state = PlayerState.SITTING_OUT;
-    if (!bbPosted) bbPlayer.state = PlayerState.SITTING_OUT;
+    if (!sbPosted) {
+      sbPlayer.state = PlayerState.SITTING_OUT;
+      sbPlayer.missedSmallBlind = true;
+    }
+    if (!bbPosted) {
+      bbPlayer.state = PlayerState.SITTING_OUT;
+      bbPlayer.missedBigBlind = true;
+    }
 
     const remaining = table.seats.filter(
       (p) => p && p.state === PlayerState.ACTIVE,
@@ -152,4 +164,50 @@ export function assignBlindsAndButton(table: Table): boolean {
   }
 
   return true;
+}
+
+/** Move the dealer button to the next active seat clockwise */
+export function advanceButton(table: Table): void {
+  const len = table.seats.length;
+  for (let i = 1; i <= len; i++) {
+    const idx = (table.buttonIndex + i) % len;
+    const p = table.seats[idx];
+    if (p && p.state === PlayerState.ACTIVE) {
+      table.buttonIndex = idx;
+      table.seats.forEach((pl, j) => {
+        if (pl) pl.hasButton = j === idx;
+      });
+      break;
+    }
+  }
+}
+
+/**
+ * Handle a player returning to the table after missing blinds. Depending on
+ * `table.deadBlindRule`, either collect the missed blinds immediately or
+ * require the player to wait for the big blind.
+ */
+export function resolveMissedBlinds(table: Table, seatIndex: number): void {
+  const player = table.seats[seatIndex];
+  if (!player) return;
+
+  if (!player.missedSmallBlind && !player.missedBigBlind) {
+    player.state = PlayerState.ACTIVE;
+    return;
+  }
+
+  if (table.deadBlindRule === 'POST') {
+    let owed = 0;
+    if (player.missedBigBlind) owed += table.bigBlindAmount;
+    if (player.missedSmallBlind) owed += table.smallBlindAmount;
+    const pay = Math.min(owed, player.stack);
+    player.stack -= pay;
+    player.totalCommitted += pay;
+    player.missedBigBlind = false;
+    player.missedSmallBlind = false;
+    player.state = PlayerState.ACTIVE;
+  } else {
+    // WAIT: keep sitting out until the player reaches the big blind
+    player.state = PlayerState.SITTING_OUT;
+  }
 }

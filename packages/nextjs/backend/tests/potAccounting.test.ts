@@ -26,6 +26,8 @@ const createPlayer = (
   totalCommitted: committed,
   holeCards: [],
   lastAction: PlayerAction.NONE,
+  missedSmallBlind: false,
+  missedBigBlind: false,
 });
 
 const createTable = (players: Player[], extra: Partial<Table> = {}): Table => ({
@@ -48,6 +50,7 @@ const createTable = (players: Player[], extra: Partial<Table> = {}): Table => ({
   actionTimer: 0,
   interRoundDelayMs: 0,
   dealAnimationDelayMs: 0,
+  deadBlindRule: 'POST',
   ...extra,
 });
 

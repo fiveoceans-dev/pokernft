@@ -19,6 +19,8 @@ Represents a seat at the table.
 | `totalCommitted` | Total chips committed across all rounds of the hand                                              |
 | `holeCards`      | Up to two face-down cards                                                                        |
 | `lastAction`     | Last action taken: `NONE`, `FOLD`, `CHECK`, `CALL`, `BET`, `RAISE` or `ALL_IN`                   |
+| `missedSmallBlind` | Player owes a small blind from a previous hand                                               |
+| `missedBigBlind`   | Player owes a big blind from a previous hand                                                 |
 
 `SITTING_OUT` players remain seated but are not dealt until they buy in again. `LEAVING` denotes a player scheduled to be removed after the hand.
 
@@ -44,6 +46,7 @@ Describes the state of the table for the current hand.
 | `actionTimer`                                | Default action time in milliseconds                                                                                                        |
 | `interRoundDelayMs` / `dealAnimationDelayMs` | Timing helpers for UX                                                                                                                      |
 | `rakeConfig`                                 | Optional rake percentage, cap and minimum                                                                                                  |
+| `deadBlindRule`                              | How returning players settle missed blinds (`POST` or `WAIT`) |
 
 ## HandLog
 

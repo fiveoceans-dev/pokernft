@@ -113,6 +113,8 @@ export interface Player {
   totalCommitted: number;
   holeCards: Card[];
   lastAction: PlayerAction;
+  missedSmallBlind: boolean;
+  missedBigBlind: boolean;
 }
 
 export enum TableState {
@@ -148,6 +150,8 @@ export interface RakeConfig {
   min: number;
 }
 
+export type DeadBlindRule = 'POST' | 'WAIT';
+
 export interface Table {
   seats: Array<Player | null>;
   buttonIndex: number;
@@ -169,6 +173,7 @@ export interface Table {
   interRoundDelayMs: number;
   dealAnimationDelayMs: number;
   rakeConfig?: RakeConfig;
+  deadBlindRule: DeadBlindRule;
 }
 
 export interface HandAction {
