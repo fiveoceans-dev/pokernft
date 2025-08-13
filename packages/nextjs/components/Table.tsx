@@ -51,7 +51,7 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
 
 /* ─────────────────────────────────────────────────────── */
 
-export default function Table() {
+export default function Table({ timer }: { timer?: number | null }) {
   const { players, playerHands, community, joinSeat } = useGameStore();
   const [isMobile, setIsMobile] = useState(false);
   const [tableScale, setTableScale] = useState(1);
@@ -192,18 +192,14 @@ export default function Table() {
     </div>
   );
 
-  /* community cards – dead-centre via flexbox */
+  /* community cards – only reveal dealt streets */
+  const visibleCommunity = community.filter(
+    (c): c is number => c !== null,
+  );
   const communityRow = (
     <div className="absolute inset-0 flex items-center justify-center gap-2 w-full">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Card
-          key={i}
-          card={
-            community[i] !== null ? indexToCard(community[i] as number) : null
-          }
-          hidden={community[i] === null}
-          size={communityCardSize}
-        />
+      {visibleCommunity.map((code, i) => (
+        <Card key={i} card={indexToCard(code)} size={communityCardSize} />
       ))}
     </div>
   );
@@ -213,6 +209,11 @@ export default function Table() {
 
   return (
     <div className="relative flex flex-col items-center justify-center w-full h-full">
+      {typeof timer === "number" && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
+          {timer.toString().padStart(2, "0")}
+        </div>
+      )}
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
