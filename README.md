@@ -37,7 +37,7 @@ yarn test          # snfoundry tests
 
 ### Documentation
 
-Design notes and module interaction details live in the [docs](./docs) directory. See [module-interaction.md](./docs/module-interaction.md) for the server-authoritative event flow.
+Design notes and module interaction details live in the [docs](./docs) directory. See [module-interaction.md](./docs/module-interaction.md) for the server-authoritative event flow and [networking-contract.md](./docs/networking-contract.md) for the client/server messaging contract.
 
 ### Deployment
 
