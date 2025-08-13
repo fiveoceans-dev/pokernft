@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ScaffoldStarkAppWithProviders } from "~~/components/ScaffoldStarkAppWithProviders";
 import "~~/styles/globals.css";
 import { ThemeProvider } from "~~/components/ThemeProvider";
@@ -7,10 +7,11 @@ export const metadata: Metadata = {
   title: "PokerNFTs",
   description: "Fast track your starknet journey",
   icons: "/logo.ico",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
