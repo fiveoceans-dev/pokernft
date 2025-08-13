@@ -7,8 +7,6 @@ import {
 } from './types';
 import { recomputePots } from './potManager';
 
-import { recomputePots } from './potManager';
-
 /** Initialize betting round and determine first to act */
 export function startBettingRound(table: Table, round: Round) {
   table.minRaise = table.bigBlindAmount;
