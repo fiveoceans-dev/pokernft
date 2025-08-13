@@ -9,8 +9,8 @@ MVVM style used in the UI.
 
 | Module | Responsibility |
 | ------ | -------------- |
-| **State Machine** | Drives high level phases such as `WaitingForPlayers`, `Shuffling`, `Dealing`, `Betting`, `Showdown` and `Payout`.  Implemented in `@ss-2/backend`'s `stateMachine.ts` and consumed by the view‑model. |
-| **Room Engine** | Holds mutable hand data: seats, chips, deck, community cards and betting logic.  Provided by `@ss-2/backend`'s `room.ts`. |
+| **State Machine** | Drives high level phases such as `WaitingForPlayers`, `Shuffling`, `Dealing`, `Betting`, `Showdown` and `Payout`. Implemented in `packages/nextjs/backend/stateMachine.ts` and consumed by the view‑model. |
+| **Game Engine** | Holds mutable hand data: seats, chips, deck, community cards and betting logic. Exposed as the `GameEngine` class in `packages/nextjs/backend` for easy integration with hooks. |
 | **View Model** | Bridges the state machine and React components.  `useGameStore.ts` exposes observable state and actions for the UI. |
 | **UI Components** | Render the current table, players and action bar.  Components react to state changes emitted by the view model. |
 
@@ -19,7 +19,7 @@ MVVM style used in the UI.
 1. **WaitingForPlayers** – the table is idle.  When two or more players join,
    the view model dispatches `PLAYERS_READY` and moves to shuffling.
 2. **Shuffling/Dealing** – the deck is prepared and hole cards are dealt via the
-   room engine.
+   game engine.
 3. **Betting Rounds** – for each street (preflop, flop, turn, river) the state
    machine enters `Betting`.  The view model advances by calling
    `dealFlop/Turn/River` which dispatch `BETTING_COMPLETE` followed by
@@ -31,7 +31,7 @@ MVVM style used in the UI.
 
 ## Betting & Payout
 
-The room engine exposes helpers such as `handleAction`, `isRoundComplete` and
+The game engine exposes helpers such as `handleAction`, `isRoundComplete` and
 `payout`. The view model calls these after each player move to advance streets,
 reveal community cards and award the pot to the winning seat(s).
 
