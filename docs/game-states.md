@@ -108,7 +108,12 @@ During betting:
 
 Disconnection: **ACTIVE** → **DISCONNECTED** (timer); auto-fold when timer expires.
 
-Zero chips after payout: remain **SEATED** but **SITTING_OUT** (or **LEAVING** if user chose to leave).
+End of hand:
+
+- Stack == 0 & re-buy allowed → **SITTING_OUT** until stack ≥ minToPlay.
+- Stack == 0 & no re-buy → **LEAVING** and seat cleared.
+- Voluntary sit-out toggle → **SITTING_OUT** next hand.
+- **LEAVING** during hand → seat becomes **EMPTY**.
 
 ### Table State Machine (per hand)
 
