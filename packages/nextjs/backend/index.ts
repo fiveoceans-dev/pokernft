@@ -26,3 +26,4 @@ export * from './room';
 export * from './hashEvaluator';
 export * from './rng';
 export * from './gameEngine';
+export * from './blindManager';

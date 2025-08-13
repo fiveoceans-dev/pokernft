@@ -8,6 +8,7 @@ const {
   isRoundComplete,
   payout,
   startHand,
+  BlindManager,
 } = require('../dist');
 
 // startHand should only begin when more than two players are seated
@@ -21,6 +22,17 @@ addPlayer(startRoom, { id: 'c', nickname: 'C', seat: 2, chips: 100 });
 startHand(startRoom);
 assert.strictEqual(startRoom.stage, 'preflop');
 startRoom.players.forEach((p) => assert.strictEqual(p.hand.length, 2));
+
+// blinds should be posted and action starts after the big blind
+const bm = new BlindManager(startRoom.minBet / 2, startRoom.minBet);
+const { sb, bb } = bm.getBlindIndices(startRoom);
+assert.strictEqual(startRoom.players[sb].currentBet, startRoom.minBet / 2);
+assert.strictEqual(startRoom.players[bb].currentBet, startRoom.minBet);
+assert.strictEqual(startRoom.pot, startRoom.minBet + startRoom.minBet / 2);
+assert.strictEqual(
+  startRoom.currentTurnIndex,
+  bm.nextActiveIndex(startRoom, bb + 1),
+);
 
 const room = createRoom('r');
 const p1 = addPlayer(room, { id: 'p1', nickname: 'A', seat: 0, chips: 100 });
