@@ -34,3 +34,31 @@ Typical hand lifecycle:
 5. `TableManager` rotates the button and resets per‑hand state for the next hand.
 
 This separation keeps rendering, state management and game rules isolated and mirrors the architecture described in the design guidelines.
+
+## Module Interaction & APIs
+
+Server-side flow for a single hand:
+
+```
+TableManager.startHand()
+  → BlindManager.post()
+  → Dealer.dealHole()
+  → BettingEngine.startRound(PREFLOP)
+```
+
+Clients submit actions as:
+
+```
+PlayerAction { seatIndex, action: FOLD|CHECK|CALL|BET|RAISE|ALL_IN, amount? }
+```
+
+`BettingEngine.applyAction` validates turn order, legal moves and minimum raise sizing. It updates each player's commitments, adjusts `betToCall`/`minRaise` and advances the `actingIndex`. When an action pushes a player all‑in the `PotManager.rebuildPots` helper recalculates main and side pots.
+
+### Key Validation Rules
+
+- Only the player at `actingIndex` may act.
+- Bets must be within the player's stack and at least the minimum bet.
+- Raises consist of calling first, then raising by at least `minRaise` (unless all‑in for less).
+- Players marked `FOLDED`, `ALL_IN` or `DISCONNECTED` cannot act.
+
+These checks keep the server authoritative and ensure that illegal actions are rejected before state changes are broadcast to clients.

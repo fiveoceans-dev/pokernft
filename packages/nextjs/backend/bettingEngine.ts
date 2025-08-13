@@ -1,5 +1,5 @@
 import { Table, Player, PlayerState, PlayerAction, Round } from "./types";
-import { recomputePots } from "./potManager";
+import { rebuildPots } from "./potManager";
 import { isHeadsUp } from "./tableUtils";
 
 /** Initialize betting round and determine first to act */
@@ -117,7 +117,7 @@ export function applyAction(
 
   // if player is now all-in, recompute pots based on total commitments
   if (player.state === PlayerState.ALL_IN) {
-    recomputePots(table);
+    rebuildPots(table);
   }
 
   // advance turn
@@ -140,11 +140,25 @@ function nextToAct(table: Table, from: number): number | null {
 
 /** Determine if betting round is complete */
 export function isRoundComplete(table: Table): boolean {
-  const live = table.seats.filter(
-    (p) => p && p.state !== PlayerState.FOLDED,
-  ) as Player[];
-  if (live.length <= 1) return true;
-  return live.every(
-    (p) => p.state === PlayerState.ALL_IN || p.betThisRound === table.betToCall,
+  const active = table.seats.filter(
+    (p): p is Player =>
+      !!p && (p.state === PlayerState.ACTIVE || p.state === PlayerState.ALL_IN),
   );
+  if (active.length <= 1) return true;
+  if (active.every((p) => p.state === PlayerState.ALL_IN)) return true;
+
+  const maxCommit = Math.max(
+    0,
+    ...active
+      .filter((p) => p.state === PlayerState.ACTIVE)
+      .map((p) => p.betThisRound),
+  );
+  const allMatched = active.every(
+    (p) =>
+      p.state !== PlayerState.ACTIVE ||
+      p.betThisRound === maxCommit ||
+      (maxCommit === 0 && p.lastAction === PlayerAction.CHECK),
+  );
+  const canAct = nextToAct(table, table.actingIndex ?? -1) !== null;
+  return allMatched && !canAct;
 }

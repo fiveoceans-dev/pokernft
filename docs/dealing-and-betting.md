@@ -42,3 +42,35 @@ A betting round ends when any of the following occurs:
 - All active players either fold or match the highest commitment (calls or checks), and no further action is possible.
 - Only one player remains; the hand ends immediately without dealing remaining board cards.
 - All players are all‑in; the remaining board cards are dealt without further betting and the hand proceeds to showdown.
+
+```pseudo
+function isRoundComplete():
+  active = players.filter(p => p.state in {ACTIVE, ALL_IN})
+  if active.count <= 1: return true
+  if active.every(p => p.state == ALL_IN): return true
+  maxCommit = max(p.betThisRound for p in active if p.state == ACTIVE)
+  canAct = nextActorExists()
+  allMatched = active.every(p =>
+      p.state != ACTIVE || p.betThisRound == maxCommit ||
+      (maxCommit == 0 && p.lastAction in {CHECK}))
+  return allMatched && !canAct
+```
+
+## Side-Pot Construction
+
+Any time a player goes all‑in, pot layers are rebuilt based on total commitments:
+
+```pseudo
+function rebuildPots():
+  live = players.filter(p => p.state != FOLDED)
+  byCommit = sortAsc(unique(live.map(p => p.totalCommitted)))
+  prev = 0
+  pots = []
+  for t in byCommit:
+    tierContribPlayers = live.filter(p => p.totalCommitted >= t)
+    if tierContribPlayers.length >= 2 and t > prev:
+      amount = (t - prev) * tierContribPlayers.length
+      pots.push({ amountAccumulated += amount,
+                  eligible: set(tierContribPlayers.map(p => p.seatIndex)) })
+      prev = t
+```
