@@ -184,8 +184,21 @@ export function isRoundComplete(room: GameRoom): boolean {
 export function payout(room: GameRoom, winners: PlayerSession[]) {
   if (winners.length === 0) return;
   const share = Math.floor(room.pot / winners.length);
+  const remainder = room.pot - share * winners.length;
   winners.forEach((w) => {
     w.chips += share;
   });
+  if (remainder > 0) {
+    const ordered: PlayerSession[] = [];
+    for (let i = 1; i <= room.players.length; i++) {
+      const idx = (room.dealerIndex + i) % room.players.length;
+      const player = room.players[idx];
+      if (winners.includes(player)) ordered.push(player);
+    }
+    for (let i = 0; i < remainder; i++) {
+      ordered[i % ordered.length].chips += 1;
+    }
+  }
   room.pot = 0;
+  room.players = room.players.filter((p) => p.chips > 0);
 }

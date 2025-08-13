@@ -139,6 +139,8 @@ export enum Round {
 export interface Pot {
   amount: number;
   eligibleSeatSet: number[];
+  /** rake taken from this pot */
+  rake?: number;
 }
 
 export interface RakeConfig {
