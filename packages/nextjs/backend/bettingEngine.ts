@@ -5,6 +5,7 @@ import {
   PlayerAction,
   Round,
 } from './types';
+import { recomputePots } from './potManager';
 
 /** Initialize betting round and determine first to act */
 export function startBettingRound(table: Table, round: Round) {
@@ -119,6 +120,11 @@ export function applyAction(
       player.lastAction = PlayerAction.ALL_IN;
       break;
     }
+  }
+
+  // if player is now all-in, recompute pots based on total commitments
+  if (player.state === PlayerState.ALL_IN) {
+    recomputePots(table);
   }
 
   // advance turn

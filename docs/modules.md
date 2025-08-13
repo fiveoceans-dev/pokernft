@@ -14,7 +14,7 @@ MVVM style used in the UI.
 | **BlindManager**         | Determines small/big blind positions, posts blinds (auto or prompt) and manages dead or missed blinds.                                 |
 | **Dealer**               | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server.             |
 | **BettingEngine**        | Manages turn order, validates actions and raise sizes, tracks `betToCall`/`minRaise` and detects round completion.                     |
-| **PotManager**           | Tracks commitments, builds main and side pots on all‑ins, applies rake and settles payouts.                                            |
+| **PotManager**           | Tracks per‑round and total commitments, rebuilds main and side pots on all‑ins, applies rake and settles payouts.                                            |
 | **HandEvaluator**        | Ranks seven‑card hands, resolves ties and supports split pots.                                                                         |
 | **TimerService**         | Runs per‑action countdowns with optional timebank and disconnect grace; triggers auto‑fold or check on expiry.                         |
 | **EventBus**             | Emits state changes to clients and queues validated commands to the server.                                                            |
