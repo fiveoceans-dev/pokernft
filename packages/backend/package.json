@@ -8,8 +8,8 @@
     "test": "tsc -p . && node tests/stateMachine.test.js && node tests/room.test.js"
   },
   "devDependencies": {
-    "@types/node": "^20.11.30",
+    "@types/node": "^20",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.9.2"
   }
 }

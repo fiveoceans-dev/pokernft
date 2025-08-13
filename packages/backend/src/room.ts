@@ -41,10 +41,13 @@ export function addPlayer(
 
 /** Start a new hand and deal cards */
 export function startHand(room: GameRoom) {
+  if (room.players.length <= 2) {
+    room.stage = 'waiting';
+    return;
+  }
   room.deck = dealDeck();
   room.communityCards = [];
   room.pot = 0;
-  if (room.players.length === 0) return;
   if (room.stage === 'waiting') {
     room.dealerIndex = randomInt(room.players.length);
   } else {

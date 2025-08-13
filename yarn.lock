@@ -3753,9 +3753,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@ss-2/backend@workspace:packages/backend"
   dependencies:
-    "@types/node": ^20.11.30
+    "@types/node": ^20
     ts-node: ^10.9.2
-    typescript: ^5.3.3
+    typescript: ^5.9.2
   languageName: unknown
   linkType: soft
 
@@ -3819,7 +3819,7 @@ __metadata:
     tailwindcss: ^3.3.0
     ts-node: ^10.9.2
     type-fest: ^4.6.0
-    typescript: ^5
+    typescript: ^5.9.2
     usehooks-ts: ^2.13.0
     vercel: ^33.7.1
     vite: ^6.2.3
@@ -3852,7 +3852,7 @@ __metadata:
     toml: ^3.0.0
     ts-node: ^10.9.2
     tslib: ^2.6.2
-    typescript: ^5
+    typescript: ^5.9.2
     typescript-eslint: ^7.16.1
     yargs: ^17.7.2
   peerDependencies:
@@ -4268,15 +4268,6 @@ __metadata:
   dependencies:
     undici-types: ~6.21.0
   checksum: 3e3948ee0507ad079c20a335c492e6a1638bc362534fd7083e1d54237e72cbd422a4f24f170669a998b66d17214c8a03ea52d4dc02ba61fc0aed252f667b270e
-  languageName: node
-  linkType: hard
-
-"@types/node@npm:^20.11.30":
-  version: 20.19.10
-  resolution: "@types/node@npm:20.19.10"
-  dependencies:
-    undici-types: ~6.21.0
-  checksum: e294ec0d37ce5a1ae9e4c255ef837b584d793a4d2f89472d580024a4c008de0d5df595c919e96e95fcdf56bf55d567213f90c0c5874b369a30526bedfaa3f418
   languageName: node
   linkType: hard
 
@@ -13308,7 +13299,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5, typescript@npm:^5.3.3, typescript@npm:^5.9.2":
+"typescript@npm:^5.9.2":
   version: 5.9.2
   resolution: "typescript@npm:5.9.2"
   bin:
@@ -13328,7 +13319,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@^5#~builtin<compat/typescript>, typescript@patch:typescript@^5.3.3#~builtin<compat/typescript>, typescript@patch:typescript@^5.9.2#~builtin<compat/typescript>":
+"typescript@patch:typescript@^5.9.2#~builtin<compat/typescript>":
   version: 5.9.2
   resolution: "typescript@patch:typescript@npm%3A5.9.2#~builtin<compat/typescript>::version=5.9.2&hash=29ae49"
   bin:
