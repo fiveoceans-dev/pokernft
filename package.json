@@ -39,10 +39,13 @@
     "starknet": "^7.6.4"
   },
   "devDependencies": {
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
     "daisyui": "^4.7.3",
     "husky": "^9.0.11",
     "pinst": "^3.0.0",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
   },
   "packageManager": "yarn@3.6.4"
 }
