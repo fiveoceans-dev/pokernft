@@ -114,6 +114,12 @@ Zero chips after payout:
 - If re-buy not allowed → marked **LEAVING** and removed once the hand ends.
 
 Voluntary sit-out toggles: player finishes current hand then becomes **SITTING_OUT** and is skipped from dealing until they return.
+End of hand:
+
+- Stack == 0 & re-buy allowed → **SITTING_OUT** until stack ≥ minToPlay.
+- Stack == 0 & no re-buy → **LEAVING** and seat cleared.
+- Voluntary sit-out toggle → **SITTING_OUT** next hand.
+- **LEAVING** during hand → seat becomes **EMPTY**.
 
 ### Table State Machine (per hand)
 
