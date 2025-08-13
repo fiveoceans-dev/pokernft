@@ -124,10 +124,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       setActionTimer(null);
       return;
     }
-    const id = setTimeout(
-      () => setActionTimer((t) => (t as number) - 1),
-      1000,
-    );
+    const id = setTimeout(() => setActionTimer((t) => (t as number) - 1), 1000);
     return () => clearTimeout(id);
   }, [actionTimer, playerBets, playerAction, currentTurn]);
 
@@ -241,7 +238,7 @@ export default function Table({ timer }: { timer?: number | null }) {
         {betAmount > 0 && (
           <div
             style={betStyle}
-            className={`absolute w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${betBg}`}
+            className={`absolute w-6 h-6 rounded-full border-2 border-black flex items-center justify-center text-xs text-white font-semibold ${betBg}`}
           >
             ${betAmount}
           </div>
@@ -261,9 +258,7 @@ export default function Table({ timer }: { timer?: number | null }) {
   );
 
   /* community cards – only reveal dealt streets */
-  const visibleCommunity = community.filter(
-    (c): c is number => c !== null,
-  );
+  const visibleCommunity = community.filter((c): c is number => c !== null);
   const communityRow = (
     <div className="absolute inset-0 flex items-center justify-center gap-2 w-full">
       {visibleCommunity.map((code, i) => (
