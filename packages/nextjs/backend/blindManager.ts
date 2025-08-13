@@ -5,7 +5,7 @@ import {
   PlayerState,
   PlayerAction,
 } from "./types";
-import { recomputePots } from "./potManager";
+import { rebuildPots } from "./potManager";
 
 /**
  * BlindManager computes small/big blind positions and posts the blinds.
@@ -160,7 +160,7 @@ export function assignBlindsAndButton(table: Table): boolean {
     table.seats[sb]?.state === PlayerState.ALL_IN ||
     table.seats[bb]?.state === PlayerState.ALL_IN
   ) {
-    recomputePots(table);
+    rebuildPots(table);
   }
 
   return true;

@@ -7,7 +7,7 @@ import {
   TableState,
   Round,
 } from '../types';
-import { recomputePots, applyRake, resetForNextRound } from '../potManager';
+import { rebuildPots, applyRake, resetForNextRound } from '../potManager';
 
 const createPlayer = (
   id: string,
@@ -61,7 +61,7 @@ describe('pot accounting', () => {
       createPlayer('b', 1, 200),
       createPlayer('c', 2, 300),
     ]);
-    recomputePots(table);
+    rebuildPots(table);
     expect(table.pots).toEqual([
       { amount: 300, eligibleSeatSet: [0, 1, 2] },
       { amount: 200, eligibleSeatSet: [1, 2] },
@@ -75,7 +75,7 @@ describe('pot accounting', () => {
       createPlayer('b', 1, 200),
       createPlayer('c', 2, 100, PlayerState.FOLDED),
     ]);
-    recomputePots(table);
+    rebuildPots(table);
     expect(table.pots).toEqual([
       { amount: 300, eligibleSeatSet: [0, 1] },
       { amount: 100, eligibleSeatSet: [1] },
@@ -87,7 +87,7 @@ describe('pot accounting', () => {
       [createPlayer('a', 0, 100), createPlayer('b', 1, 100)],
       { rakeConfig: { percentage: 0.1, cap: 5, min: 0 } },
     );
-    recomputePots(table);
+    rebuildPots(table);
     const total = applyRake(table);
     expect(total).toBe(5);
     expect(table.pots[0].amount).toBe(195);
