@@ -37,3 +37,8 @@ command.
 - `POST_BLIND {type}` – post a small or big blind when prompted.
 - `ACTION {Fold|Check|Call|Bet|Raise|AllIn, amount}` – perform a betting action.
 - `REBUY {amount}` – add chips to the player's stack.
+
+## Additional Guarantees
+
+- The server processes incoming commands in the order they are received and validates that the sender matches the current `actingIndex`. Out‑of‑turn actions are rejected with an `ERROR` response and do not reset any timers.
+- If a player disconnects while it is their turn, the action timer continues to run. On expiry the server automatically issues a `Fold` or `Check` on their behalf.

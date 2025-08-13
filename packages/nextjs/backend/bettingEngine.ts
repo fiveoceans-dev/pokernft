@@ -5,6 +5,7 @@ import { isHeadsUp } from "./tableUtils";
 /** Initialize betting round and determine first to act */
 export function startBettingRound(table: Table, round: Round) {
   table.minRaise = table.bigBlindAmount;
+  table.lastFullRaise = null;
   if (round === Round.PREFLOP) {
     // betToCall already equals big blind from blinds
     if (isHeadsUp(table)) {
@@ -74,6 +75,7 @@ export function applyAction(
       player.totalCommitted += commit;
       table.betToCall = player.betThisRound;
       table.minRaise = commit;
+      table.lastFullRaise = seatIndex;
       player.lastAction =
         commit < amount ? PlayerAction.ALL_IN : PlayerAction.BET;
       if (player.stack === 0) player.state = PlayerState.ALL_IN;
@@ -81,8 +83,11 @@ export function applyAction(
     }
     case PlayerAction.RAISE: {
       if (table.betToCall === 0) throw new Error("nothing to raise");
+      if (table.lastFullRaise === seatIndex)
+        throw new Error("action not reopened");
       const callAmt = table.betToCall - player.betThisRound;
       const raiseAmt = action.amount ?? 0;
+      if (raiseAmt < table.minRaise) throw new Error("raise too small");
       const total = callAmt + raiseAmt;
       const commit = Math.min(total, player.stack);
       player.stack -= commit;
@@ -92,6 +97,7 @@ export function applyAction(
         table.betToCall = player.betThisRound;
         if (commit - callAmt >= table.minRaise) {
           table.minRaise = commit - callAmt;
+          table.lastFullRaise = seatIndex;
         }
       }
       player.lastAction =
@@ -100,6 +106,8 @@ export function applyAction(
       break;
     }
     case PlayerAction.ALL_IN: {
+      if (table.lastFullRaise === seatIndex && player.betThisRound < table.betToCall)
+        throw new Error("action not reopened");
       const commit = player.stack;
       player.stack = 0;
       player.betThisRound += commit;
@@ -107,7 +115,10 @@ export function applyAction(
       if (player.betThisRound > table.betToCall) {
         const diff = player.betThisRound - table.betToCall;
         table.betToCall = player.betThisRound;
-        if (diff >= table.minRaise) table.minRaise = diff;
+        if (diff >= table.minRaise) {
+          table.minRaise = diff;
+          table.lastFullRaise = seatIndex;
+        }
       }
       player.state = PlayerState.ALL_IN;
       player.lastAction = PlayerAction.ALL_IN;

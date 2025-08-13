@@ -47,6 +47,7 @@ describe("startBettingRound", () => {
       actingIndex: null,
       betToCall: 0,
       minRaise: 0,
+      lastFullRaise: null,
       actionTimer: 0,
       interRoundDelayMs: 0,
       dealAnimationDelayMs: 0,

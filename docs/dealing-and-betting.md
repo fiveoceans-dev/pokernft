@@ -70,7 +70,16 @@ function rebuildPots():
     tierContribPlayers = live.filter(p => p.totalCommitted >= t)
     if tierContribPlayers.length >= 2 and t > prev:
       amount = (t - prev) * tierContribPlayers.length
-      pots.push({ amountAccumulated += amount,
+  pots.push({ amountAccumulated += amount,
                   eligible: set(tierContribPlayers.map(p => p.seatIndex)) })
       prev = t
 ```
+
+## Consistency & Edge Cases
+
+- If all but one player folds at any point, that player wins the pot immediately and no further streets are dealt.
+- Short all-in raises that do not meet the current `minRaise` never reopen the betting; players who already acted may only call or fold.
+- Invalid actions (for example, trying to check when `betToCall > 0`) are rejected without advancing the turn timer.
+- The server processes actions sequentially and ignores out-of-turn commands.
+- When a player disconnects during their turn, the action timer continues and results in an automatic fold or check when it expires.
+- In heads-up play the button posts the small blind, the opposing player posts the big blind, and acting order follows those positions.
