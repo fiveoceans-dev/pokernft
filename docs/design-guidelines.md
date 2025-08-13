@@ -17,6 +17,7 @@ These guidelines describe architectural principles for the poker backend to ensu
 ## Resilience
 
 - **Timeout Handling**: Every player action is bounded by a timer; default resolutions (auto-check/fold) occur when it expires.
+- **Timebank**: A per-player reserve extends the action timer automatically before a forced action is applied.
 - **Disconnect Recovery**: Persist user state so that reconnecting clients can resume seamlessly. Disconnected players are treated as passive until the timer expires.
 - **Graceful Degradation**: Critical failures move the table to a Paused state while allowing unaffected tables to continue.
 
