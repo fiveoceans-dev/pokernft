@@ -34,3 +34,4 @@ export * from "./dealer";
 export * from "./bettingEngine";
 export * from "./potManager";
 export * from "./timerService";
+export * from "./handReset";
