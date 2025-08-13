@@ -107,6 +107,8 @@ describe('Dealer & BettingEngine', () => {
     expect(table.minRaise).toBe(20);
     applyAction(table,1,{type:PlayerAction.CALL});
     expect(isRoundComplete(table)).toBe(true);
+    expect(table.board.length).toBe(5);
+    expect(table.currentRound).toBe(Round.RIVER);
     expect(table.actingIndex).toBeNull();
   });
 });

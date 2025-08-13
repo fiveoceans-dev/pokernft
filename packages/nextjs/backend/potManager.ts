@@ -1,11 +1,11 @@
 import { Table, Player, PlayerState, Pot } from './types';
 
 /**
- * Recompute main and side pots based on each player's total commitment.
+ * Rebuild main and side pots based on each player's total commitment.
  * Players are sorted by their committed amounts to build threshold layers
  * where each layer represents a new pot.
  */
-export function recomputePots(table: Table) {
+export function rebuildPots(table: Table) {
   const players = table.seats.filter((p): p is Player => !!p && p.totalCommitted > 0);
   if (players.length === 0) {
     table.pots = [];
@@ -66,7 +66,7 @@ export function applyRake(table: Table): number {
 }
 
 export default {
-  recomputePots,
+  rebuildPots,
   resetForNextRound,
   applyRake,
 };

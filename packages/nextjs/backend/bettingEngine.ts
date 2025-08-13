@@ -1,5 +1,6 @@
 import { Table, Player, PlayerState, PlayerAction, Round } from "./types";
-import { recomputePots } from "./potManager";
+import { rebuildPots, resetForNextRound } from "./potManager";
+import { dealBoard } from "./dealer";
 
 /** Initialize betting round and determine first to act */
 export function startBettingRound(table: Table, round: Round) {
@@ -122,11 +123,14 @@ export function applyAction(
 
   // if player is now all-in, recompute pots based on total commitments
   if (player.state === PlayerState.ALL_IN) {
-    recomputePots(table);
+    rebuildPots(table);
   }
 
   // advance turn
   table.actingIndex = nextToAct(table, seatIndex);
+  if (table.actingIndex === null && isRoundComplete(table)) {
+    finishRound(table);
+  }
 }
 
 function nextToAct(table: Table, from: number): number | null {
@@ -143,13 +147,65 @@ function nextToAct(table: Table, from: number): number | null {
   return null;
 }
 
+function nextRound(round: Round): Round | null {
+  switch (round) {
+    case Round.PREFLOP:
+      return Round.FLOP;
+    case Round.FLOP:
+      return Round.TURN;
+    case Round.TURN:
+      return Round.RIVER;
+    default:
+      return null;
+  }
+}
+
+function finishRound(table: Table) {
+  const live = table.seats.filter(
+    (p): p is Player => p !== null && p.state !== PlayerState.FOLDED,
+  );
+  const active = live.filter((p) => p.state === PlayerState.ACTIVE);
+  if (live.length <= 1 || active.length <= 1) {
+    const order = [Round.PREFLOP, Round.FLOP, Round.TURN, Round.RIVER];
+    const idx = order.indexOf(table.currentRound);
+    for (let i = idx + 1; i < order.length; i++) {
+      dealBoard(table, order[i]);
+    }
+    table.currentRound = Round.RIVER;
+    resetForNextRound(table);
+    table.actingIndex = null;
+    return;
+  }
+  const next = nextRound(table.currentRound);
+  if (!next) {
+    table.actingIndex = null;
+    return;
+  }
+  resetForNextRound(table);
+  dealBoard(table, next);
+  table.currentRound = next;
+  startBettingRound(table, next);
+}
+
 /** Determine if betting round is complete */
 export function isRoundComplete(table: Table): boolean {
-  const live = table.seats.filter(
-    (p) => p && p.state !== PlayerState.FOLDED,
-  ) as Player[];
-  if (live.length <= 1) return true;
-  return live.every(
-    (p) => p.state === PlayerState.ALL_IN || p.betThisRound === table.betToCall,
+  const active = table.seats.filter(
+    (p): p is Player =>
+      !!p && (p.state === PlayerState.ACTIVE || p.state === PlayerState.ALL_IN),
   );
+  if (active.length <= 1) return true;
+  if (active.every((p) => p.state === PlayerState.ALL_IN)) return true;
+  const activeNotAllIn = active.filter((p) => p.state === PlayerState.ACTIVE);
+  const maxCommit = Math.max(
+    0,
+    ...activeNotAllIn.map((p) => p.betThisRound),
+  );
+  const canAct = activeNotAllIn.some((p) => p.betThisRound < maxCommit);
+  const allMatched = active.every(
+    (p) =>
+      p.state !== PlayerState.ACTIVE ||
+      p.betThisRound === maxCommit ||
+      (maxCommit === 0 && p.lastAction === PlayerAction.CHECK),
+  );
+  return allMatched && !canAct;
 }

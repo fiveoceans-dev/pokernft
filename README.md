@@ -35,6 +35,10 @@ yarn test:nextjs
 yarn test          # snfoundry tests
 ```
 
+### Documentation
+
+Design notes and module interaction details live in the [docs](./docs) directory. See [module-interaction.md](./docs/module-interaction.md) for the server-authoritative event flow.
+
 ### Deployment
 
 Deployments to Vercel use [`packages/nextjs/vercel.json`](packages/nextjs/vercel.json), which pins the Node version and build command. Trigger a build with:
