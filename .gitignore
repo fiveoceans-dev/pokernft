@@ -1,20 +1,25 @@
-.vscode/**
-node_modules
-package-lock.json
-.idea
+# Editor directories and files
+.vscode/
+.idea/
 
-# yarn / eslint
+# Node dependencies
+node_modules/
+package-lock.json
+
+# Yarn Berry
+.pnp.cjs
+.pnp.loader.mjs
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+.yarnrc.yml
 .eslintcache
+
+# OS files
 .DS_Store
-.vercel
-.pnp.cjs
-.pnp.loader.mjs
 
 # Environment files
 .env
@@ -23,20 +28,24 @@ package-lock.json
 .env.test.local
 .env.production.local
 
-# build output
-packages/nextjs/.next/
-packages/nextjs/out/
-packages/nextjs/.turbo/
-node_modules/
-coverage/
+# Build output
+.next/
+out/
+.turbo/
 dist/
 build/
+coverage/
+.vercel/
 .vercel/output/
 
-# logs and debug
-yarn-error.log
+# StarkNet Foundry
+target/
+.snfoundry_cache/
+
+# Logs and debug
+yarn-debug.log*
+yarn-error.log*
 npm-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-.yarnrc.yml
-
-.next/

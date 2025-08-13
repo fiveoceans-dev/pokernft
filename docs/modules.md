@@ -3,7 +3,8 @@
 This document complements [`game-states.md`](./game-states.md) by mapping the
 state machine to the main modules that drive the table. Each module has a
 clear responsibility and can be swapped without affecting others, following the
-MVVM style used in the UI.
+MVVM style used in the UI. For an in-depth look at how cards are dealt and
+betting rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md).
 
 ## Core Modules
 
@@ -16,7 +17,7 @@ MVVM style used in the UI.
 | **BettingEngine**        | Manages turn order, validates actions and raise sizes, tracks `betToCall`/`minRaise` and detects round completion.                     |
 | **PotManager**           | Tracks commitments, builds main and side pots on all‑ins, applies rake and settles payouts.                                            |
 | **HandEvaluator**        | Ranks seven‑card hands, resolves ties and supports split pots.                                                                         |
-| **TimerService**         | Runs per‑action countdowns with optional timebank and disconnect grace; triggers auto‑fold or check on expiry.                         |
+| **TimerService**         | Runs per‑action countdowns with optional timebank and disconnect grace; triggers auto‑fold or check on expiry and provides deal/inter‑round delay helpers. |
 | **EventBus**             | Emits state changes to clients and queues validated commands to the server.                                                            |
 | **Persistence/Audit**    | Records immutable hand and action logs for settlements and anti‑fraud analysis.                                                        |
 | **RulesConfig**          | Defines game parameters such as blinds, rake and buy‑in limits.                                                                        |
