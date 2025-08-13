@@ -7,7 +7,20 @@ const {
   determineWinners,
   isRoundComplete,
   payout,
+  startHand,
 } = require('../dist');
+
+// startHand should only begin when more than two players are seated
+const startRoom = createRoom('start');
+addPlayer(startRoom, { id: 'a', nickname: 'A', seat: 0, chips: 100 });
+addPlayer(startRoom, { id: 'b', nickname: 'B', seat: 1, chips: 100 });
+startHand(startRoom);
+assert.strictEqual(startRoom.stage, 'waiting');
+
+addPlayer(startRoom, { id: 'c', nickname: 'C', seat: 2, chips: 100 });
+startHand(startRoom);
+assert.strictEqual(startRoom.stage, 'preflop');
+startRoom.players.forEach((p) => assert.strictEqual(p.hand.length, 2));
 
 const room = createRoom('r');
 const p1 = addPlayer(room, { id: 'p1', nickname: 'A', seat: 0, chips: 100 });
