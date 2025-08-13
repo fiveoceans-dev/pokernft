@@ -1,41 +1,35 @@
 # Poker Modules
 
 This document complements [`game-states.md`](./game-states.md) by mapping the
-state machine to the main modules that drive the table.  Each module has a
+state machine to the main modules that drive the table. Each module has a
 clear responsibility and can be swapped without affecting others, following the
 MVVM style used in the UI.
 
 ## Core Modules
 
-| Module | Responsibility |
-| ------ | -------------- |
-| **State Machine** | Drives high level phases such as `WaitingForPlayers`, `Shuffling`, `Dealing`, `Betting`, `Showdown` and `Payout`. Implemented in `packages/nextjs/backend/stateMachine.ts` and consumed by the view‑model. |
-| **Game Engine** | Holds mutable hand data: seats, chips, deck, community cards and betting logic. Exposed as the `GameEngine` class in `packages/nextjs/backend` for easy integration with hooks. |
-| **Hand Evaluator** | Ranks 5–7 card combinations via a perfect hash algorithm. Included in `packages/nextjs/backend/hashEvaluator.ts` with precomputed tables derived from HenryRLee's PokerHandEvaluator project. |
+| Module                   | Responsibility                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **TableManager**         | Orchestrates the hand lifecycle and table state machine, moves the dealer button and enforces the minimum number of active players.    |
+| **SeatingManager**       | Handles seat assignment, buy‑in/top‑up, sit‑out/return and leave actions; removes players with zero chips or marks them `SITTING_OUT`. |
+| **BlindManager**         | Determines small/big blind positions, posts blinds (auto or prompt) and manages dead or missed blinds.                                 |
+| **Dealer**               | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server.             |
+| **BettingEngine**        | Manages turn order, validates actions and raise sizes, tracks `betToCall`/`minRaise` and detects round completion.                     |
+| **PotManager**           | Tracks commitments, builds main and side pots on all‑ins, applies rake and settles payouts.                                            |
+| **HandEvaluator**        | Ranks seven‑card hands, resolves ties and supports split pots.                                                                         |
+| **TimerService**         | Runs per‑action countdowns with optional timebank and disconnect grace; triggers auto‑fold or check on expiry.                         |
+| **EventBus**             | Emits state changes to clients and queues validated commands to the server.                                                            |
+| **Persistence/Audit**    | Records immutable hand and action logs for settlements and anti‑fraud analysis.                                                        |
+| **RulesConfig**          | Defines game parameters such as blinds, rake and buy‑in limits.                                                                        |
+| **Integrity/Anti‑Abuse** | Optional hooks for rate limiting and collusion detection.                                                                              |
 
-| **View Model** | Bridges the state machine and React components.  `useGameStore.ts` exposes observable state and actions for the UI. |
-| **UI Components** | Render the current table, players and action bar.  Components react to state changes emitted by the view model. |
+## Interaction Flow
 
-## Progression
+Typical hand lifecycle:
 
-1. **WaitingForPlayers** – the table is idle.  When two or more players join,
-   the view model dispatches `PLAYERS_READY` and moves to shuffling.
-2. **Shuffling/Dealing** – the deck is prepared and hole cards are dealt via the
-   game engine.
-3. **Betting Rounds** – for each street (preflop, flop, turn, river) the state
-   machine enters `Betting`.  The view model advances by calling
-   `dealFlop/Turn/River` which dispatch `BETTING_COMPLETE` followed by
-   `DEAL_COMPLETE`.
-4. **Showdown** – after the final `BETTING_COMPLETE`, the machine resolves to
-   `Showdown` where winners are evaluated.
-5. **Payout** – chips are awarded and the machine transitions back to
-   `WaitingForPlayers` ready for the next hand.
+1. `TableManager.startHand` assigns blinds via `BlindManager` and deals hole cards through the `Dealer`.
+2. `BettingEngine` prompts the acting player. After each action it updates commitments and asks `PotManager` to rebuild pots on all‑ins.
+3. When a round completes, `BettingEngine` signals the `Dealer` to deal the next street or proceeds to showdown.
+4. At showdown, `HandEvaluator` ranks hands and `PotManager` awards pots, applying rake if configured.
+5. `TableManager` rotates the button and resets per‑hand state for the next hand.
 
-## Betting & Payout
-
-The game engine exposes helpers such as `handleAction`, `isRoundComplete` and
-`payout`. The view model calls these after each player move to advance streets,
-reveal community cards and award the pot to the winning seat(s).
-
-This separation keeps rendering, state management and game rules isolated and
-mirrors the architecture described in the design guidelines.
+This separation keeps rendering, state management and game rules isolated and mirrors the architecture described in the design guidelines.

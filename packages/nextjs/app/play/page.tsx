@@ -59,7 +59,7 @@ export default function PlayPage() {
     return () => clearTimeout(id);
   }, [timer, handStarted, startHand]);
 
-  const handleStart = async () => {
+  const handleActivate = async () => {
     setTimer(null);
     await startHand();
   };
@@ -86,7 +86,7 @@ export default function PlayPage() {
       <div className="fixed bottom-4 right-4">
         <ActionBar
           street={stageNames[street] ?? "preflop"}
-          onStart={handleStart}
+          onActivate={handleActivate}
           onFlop={dealFlop}
           onTurn={dealTurn}
           onRiver={dealRiver}
