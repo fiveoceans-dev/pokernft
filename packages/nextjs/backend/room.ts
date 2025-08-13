@@ -2,6 +2,7 @@ import { GameRoom, PlayerSession, Stage } from "./types";
 import { dealDeck, draw } from "./utils";
 import { randomInt } from "./rng";
 import { evaluateHand } from "./hashEvaluator";
+import { BlindManager } from "./blindManager";
 
 /** Create an empty game room */
 export function createRoom(id: string, minBet = 10): GameRoom {
@@ -64,8 +65,13 @@ export function startHand(room: GameRoom) {
     p.isTurn = false;
   });
   room.players[room.dealerIndex].isDealer = true;
-  room.currentTurnIndex = (room.dealerIndex + 1) % room.players.length;
-  room.players[room.currentTurnIndex].isTurn = true;
+
+  // post blinds and set first player to act
+  const blindMgr = new BlindManager(room.minBet / 2, room.minBet);
+  const { bb } = blindMgr.postBlinds(room);
+  const firstToAct = blindMgr.nextActiveIndex(room, bb + 1);
+  room.currentTurnIndex = firstToAct;
+  room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
 }
 
 function maxBet(room: GameRoom): number {
