@@ -110,3 +110,22 @@ Zero chips after payout: remain **SEATED** but **SITTING_OUT** (or **LEAVING** i
 - **PAYOUT** (rank, resolve side pots, split, rake)
 - **ROTATE** (move button to next active seat)
 - **CLEANUP** (reset per-hand fields) → back to **WAITING** or **BLINDS**
+
+## Starting & Ending a Hand
+
+### Start Conditions
+
+- At least two active players who can post blinds or are allowed to post all-in blinds.
+- Button assigned to the next active seat from the previous hand; for the first hand, choose a random active seat.
+
+### End Conditions
+
+- If all but one player fold, the remaining player immediately receives the entire pot or pots.
+- After a showdown, payouts are completed based on hand evaluation.
+
+### Cleanup
+
+- Clear the board, pots, `betToCall`, `minRaise`, and per-round commitments.
+- Reset each player's `lastAction`, `betThisRound`, and `holeCards`.
+- Move to **ROTATE** to advance the button to the next active seat.
+- Proceed to **BLINDS** if at least two active players remain; otherwise return to **WAITING**.
