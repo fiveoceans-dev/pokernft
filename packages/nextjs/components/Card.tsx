@@ -1,7 +1,7 @@
 // src/components/Card.tsx
 import Image from "next/image";
 import clsx from "clsx";
-import type { Card as TCard } from "../game/types"; // type-only ✔
+import type { Card as TCard } from "@ss-2/backend"; // type-only ✔
 import cardStarknet from "../assets/svg-cards/card-pokernfts.svg";
 // import cardPokerBoots from '../assets/svg-cards/card-pokerboots.svg';
 

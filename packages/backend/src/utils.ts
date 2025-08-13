@@ -1,8 +1,7 @@
-// src/game/utils.ts
-import { RANKS, SUITS } from "./constants";
-import type { Card } from "./types";
+import { RANKS, SUITS } from './constants';
+import type { Card } from './types';
 
-/* ─────────── Random + Deck helpers ─────────── */
+/* ─────── Random + Deck helpers ─────── */
 
 export function freshDeck(): Card[] {
   const deck: Card[] = [];
@@ -25,7 +24,7 @@ export function shuffle<T>(array: T[]): T[] {
 /** Draws & returns the **top** card (mutates deck) */
 export function draw(deck: Card[]): Card {
   const card = deck.pop();
-  if (!card) throw new Error("Deck underflow");
+  if (!card) throw new Error('Deck underflow');
   return card;
 }
 
@@ -41,13 +40,7 @@ export function cardToIndex(card: Card): number {
   return SUITS.indexOf(card.suit) * RANKS.length + RANKS.indexOf(card.rank);
 }
 
-/* ─────────── Hand-ranking stub ───────────
-   For production, wire in a proper evaluator like:
-   npm i poker-evaluator
-   import { evalHand } from 'poker-evaluator';
-   Then replace rankHand() below.
-   ---------------------------------------- */
-
+/* ─────── Hand-ranking stub ─────── */
 export interface RankedHand {
   rankValue: number; // lower = better (1 = Royal Flush)
   bestCards: Card[]; // the 5-card best hand
@@ -64,7 +57,6 @@ export function rankHand(sevenCards: Card[]): RankedHand {
 /** Returns < 0 if A wins, > 0 if B wins, 0 = tie */
 export function compareHands(a: RankedHand, b: RankedHand): number {
   if (a.rankValue !== b.rankValue) return a.rankValue - b.rankValue;
-  // tie-breaker: compare best card ranks
   for (let i = 0; i < 5; i++) {
     const diff =
       RANKS.indexOf(b.bestCards[i].rank) - RANKS.indexOf(a.bestCards[i].rank);

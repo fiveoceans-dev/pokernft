@@ -9,13 +9,11 @@ import {
   determineWinners,
   payout,
   isRoundComplete,
-} from "../game/room";
-import { cardToIndex } from "../game/utils";
-import type { Stage } from "../game/types";
-import {
+  cardToIndex,
   PokerStateMachine,
   GameState as EnginePhase,
-} from "../game/stateMachine";
+} from "@ss-2/backend";
+import type { Stage } from "@ss-2/backend";
 
 /** Map Stage strings to numeric street indices used by the UI */
 const stageToStreet: Record<Stage, number> = {

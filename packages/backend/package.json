@@ -5,7 +5,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p .",
-    "test": "tsc -p . && node tests/stateMachine.test.js"
+    "test": "tsc -p . && node tests/stateMachine.test.js && node tests/room.test.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",

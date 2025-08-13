@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import Card from "./Card";
-import type { Player, Card as TCard } from "../game/types";
+import type { Player, Card as TCard } from "@ss-2/backend";
 
 interface PlayerSeatProps {
   player: Player; // player object from your Zustand store

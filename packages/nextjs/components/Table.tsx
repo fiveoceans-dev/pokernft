@@ -3,9 +3,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
-import { indexToCard } from "../game/utils";
+import { indexToCard } from "@ss-2/backend";
 import PlayerSeat from "./PlayerSeat";
-import type { Player, Card as TCard } from "../game/types";
+import type { Player, Card as TCard } from "@ss-2/backend";
 
 interface SeatPos {
   x: string;
