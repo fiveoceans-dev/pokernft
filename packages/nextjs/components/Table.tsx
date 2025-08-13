@@ -142,7 +142,7 @@ export default function Table() {
 
     const player: Player = {
       name: nickname,
-      chips: 111110,
+      chips: 0,
       hand,
       folded: false,
       currentBet: 0,
