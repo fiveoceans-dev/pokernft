@@ -52,6 +52,11 @@ interface GameStoreState {
   logs: string[];
   addLog: (msg: string) => void;
 
+  /** small and big blind amounts */
+  smallBlind: number;
+  bigBlind: number;
+  startBlindTimer: () => void;
+
   // Actions --------------------------------------------------------------
   reloadTableState: () => Promise<void>;
   joinSeat: (seatIdx: number) => Promise<void>;
@@ -78,6 +83,19 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   error: null,
   logs: [],
   addLog: (msg) => set((s) => ({ logs: [...s.logs, msg] })),
+  smallBlind: 25,
+  bigBlind: 50,
+  startBlindTimer: () => {
+    const increase = () =>
+      set((s) => ({
+        smallBlind: s.smallBlind * 2,
+        bigBlind: s.bigBlind * 2,
+      }));
+    setTimeout(function tick() {
+      increase();
+      setTimeout(tick, 10 * 60 * 1000);
+    }, 10 * 60 * 1000);
+  },
 
   /** Sync Zustand state from the current room object */
   reloadTableState: async () => {
@@ -119,7 +137,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       id: `p${seatIdx}`,
       nickname: `Player ${seatIdx + 1}`,
       seat: seatIdx,
-      chips: 1000,
+      chips: 10000,
     });
     await get().reloadTableState();
     get().addLog(`Player ${seatIdx + 1} joined`);
