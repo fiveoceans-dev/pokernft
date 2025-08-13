@@ -75,8 +75,8 @@ This document describes the server-side `TableState` lifecycle for a single no-l
 ### 11. **CLEANUP**
 
 - **Entry**: Rotation complete.
-- **Actions**: Board, pots and per-hand metadata are reset.
-- **Exit**: Table returns to **WAITING** for the next hand.
+- **Actions**: Board, pots and per-hand metadata are reset. Players marked **LEAVING** are removed and, if the button seat becomes empty, the button advances to the next active player.
+- **Exit**: If at least two active players can post the blinds, the table waits `interRoundDelayMs` then returns to **BLINDS**. Otherwise it falls back to **WAITING**.
 
 ### **PAUSED** _(optional)_
 

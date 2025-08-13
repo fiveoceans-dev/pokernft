@@ -43,7 +43,7 @@ Describes the state of the table for the current hand.
 | `betToCall` | Highest commitment to match in the current round |
 | `minRaise` | Minimum raise size per no‑limit rules |
 | `actionTimer` | Default action time in milliseconds |
-| `interRoundDelayMs` / `dealAnimationDelayMs` | Timing helpers for UX |
+| `interRoundDelayMs` / `dealAnimationDelayMs` | Delay before starting the next hand / card deal animation timing |
 | `rakeConfig` | Optional rake percentage, cap and minimum |
 | `deadBlindRule` | Strategy for handling missed blinds: `POST` or `WAIT` |
 
