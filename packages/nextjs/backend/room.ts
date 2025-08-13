@@ -168,7 +168,7 @@ export function determineWinners(room: GameRoom): PlayerSession[] {
   return evaluated
     .filter((e) => e.score === best)
     .map((e) => e.player);
-}
+
 
 /** Check if the current betting round is complete */
 export function isRoundComplete(room: GameRoom): boolean {
