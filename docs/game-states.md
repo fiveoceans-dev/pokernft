@@ -67,3 +67,37 @@ This state repeats for each betting phase (Pre-Flop, Flop, Turn, River).
 - **Modularity**: RNG, evaluation, networking, and persistence are separate modules communicating via defined interfaces. This enables upgrading any component without redefining game flow.
 - **Security**: Sensitive operations (e.g., deck shuffling, card dealing) happen server-side; clients only receive information they are authorized to view.
 
+## Seat, Player & Table States
+
+### Player State Machine (per hand)
+
+SEATED → (ACTIVE | SITTING_OUT)
+
+On new hand:
+
+- If stack ≥ BB (or allowed to post short/all-in blind), and not sitting out → **ACTIVE**.
+- Else → **SITTING_OUT**.
+
+During betting:
+
+- **ACTIVE** → **FOLDED** on Fold.
+- **ACTIVE** → **ALL_IN** if action commits all chips.
+
+Disconnection: **ACTIVE** → **DISCONNECTED** (timer); auto-fold when timer expires.
+
+Zero chips after payout: remain **SEATED** but **SITTING_OUT** (or **LEAVING** if user chose to leave).
+
+### Table State Machine (per hand)
+
+- **WAITING** (need ≥2 active seats)
+- **BLINDS** (assign button/SB/BB; collect blinds)
+- **DEALING_HOLE** (2 cards each in order starting SB → …)
+- **PRE_FLOP** (betting round)
+- **FLOP** (deal 3; betting)
+- **TURN** (deal 1; betting)
+- **RIVER** (deal 1; betting)
+- **SHOWDOWN** (if ≥2 players not folded and not all folded earlier)
+- **PAYOUT** (rank, resolve side pots, split, rake)
+- **ROTATE** (move button to next active seat)
+- **CLEANUP** (reset per-hand fields) → back to **WAITING** or **BLINDS**
+
