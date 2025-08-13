@@ -8,22 +8,18 @@ interface PlayerSeatProps {
   player: Player; // player object from your Zustand store
   isDealer?: boolean; // show “D” marker if true
   isActive?: boolean; // highlight border when it's this player's turn
-  bet?: number; // amount currently bet by this player
   revealCards?: boolean; // if true, show hole cards face-up
   cardSize?: "xs" | "sm" | "md" | "lg"; // size of player's hole cards
   dealerOffset?: { x: number; y: number }; // offset dealer button toward centre
-  betOffset?: { x: number; y: number }; // offset bet toward table centre
 }
 
 export default function PlayerSeat({
   player,
   isDealer = false,
   isActive = false,
-  bet = 0,
   revealCards = false,
   cardSize = "sm",
   dealerOffset = { x: 0, y: -20 },
-  betOffset = { x: 0, y: 20 },
 }: PlayerSeatProps) {
   // If `player.hand` is null, treat as not yet dealt
   const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [
@@ -35,14 +31,16 @@ export default function PlayerSeat({
     <div
       className={clsx("relative w-24 h-8", player.folded && "opacity-60")}
     >
-      {/* Hole cards positioned above the seat box without shifting it */}
-      <div
-        className="absolute w-full flex justify-center gap-1"
-        style={{ bottom: "150%", marginBottom: "0.5rem" }}
-      >
-        <Card card={hole1} hidden={!revealCards} size={cardSize} />
-        <Card card={hole2} hidden={!revealCards} size={cardSize} />
-      </div>
+      {/* Hole cards are rendered only after the dealer deals them */}
+      {player.hand && (
+        <div
+          className="absolute w-full flex justify-center gap-1"
+          style={{ bottom: "150%", marginBottom: "0.5rem" }}
+        >
+          <Card card={hole1} hidden={!revealCards} size={cardSize} />
+          <Card card={hole2} hidden={!revealCards} size={cardSize} />
+        </div>
+      )}
 
       {/* Seat box with player name */}
       <div
@@ -75,19 +73,6 @@ export default function PlayerSeat({
       </div>
       </div>
 
-      {/* Bet displayed below the seat */}
-      {bet > 0 && (
-        <div
-          className="absolute px-2 py-0.5 bg-green-700 rounded text-xs text-white"
-          style={{
-            left: "50%",
-            top: "50%",
-            transform: `translate(-50%, -50%) translate(${betOffset.x}px, ${betOffset.y}px)`,
-          }}
-        >
-          Bet {bet}
-        </div>
-      )}
     </div>
   );
 }

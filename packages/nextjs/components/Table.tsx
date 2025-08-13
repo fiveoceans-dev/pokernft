@@ -1,6 +1,7 @@
 // src/components/Table.tsx
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Fragment } from "react";
+import type { CSSProperties } from "react";
 import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
 import { indexToCard } from "../backend";
@@ -146,14 +147,13 @@ export default function Table({ timer }: { timer?: number | null }) {
       left: pos.x,
       top: pos.y,
       transform: `translate(${pos.t})`,
-    } as React.CSSProperties;
+    } as CSSProperties;
 
     const dx = 50 - parseFloat(pos.x);
     const dy = 50 - parseFloat(pos.y);
     const mag = Math.sqrt(dx * dx + dy * dy) || 1;
     const offset = 40;
     const dealerOffset = { x: (dx / mag) * offset, y: (dy / mag) * offset };
-    const betOffset = { x: (dx / mag) * (offset - 10), y: (dy / mag) * (offset - 10) };
     /* ── empty seat → button ─────────────────────────────── */
     if (!nickname) {
       const badge = (
@@ -207,24 +207,46 @@ export default function Table({ timer }: { timer?: number | null }) {
       </span>
     );
 
+    const betX = (parseFloat(pos.x) + 50) / 2;
+    const betY = (parseFloat(pos.y) + 50) / 2;
+    const betStyle = {
+      left: `${betX}%`,
+      top: `${betY}%`,
+      transform: "translate(-50%, -50%)",
+    } as CSSProperties;
+    const betAmount = player.currentBet;
+    let betBg = "bg-yellow-500";
+    if (betAmount > 1000) betBg = "bg-black";
+    else if (betAmount > 500) betBg = "bg-blue-500";
+    else if (betAmount > 250) betBg = "bg-red-500";
+    else if (betAmount > 100) betBg = "bg-green-500";
+
     return (
-      <div key={idx} style={posStyle} className="absolute">
-        <div className="relative">
-          {badge}
-          <div style={{ transform: `rotate(${pos.r}deg)` }}>
-            <PlayerSeat
-              player={player}
-              isDealer={isDealer}
-              isActive={isActive}
-              revealCards={reveal}
-              bet={player.currentBet}
-              cardSize={holeCardSize}
-              dealerOffset={dealerOffset}
-              betOffset={betOffset}
-            />
+      <Fragment key={idx}>
+        <div style={posStyle} className="absolute">
+          <div className="relative">
+            {badge}
+            <div style={{ transform: `rotate(${pos.r}deg)` }}>
+              <PlayerSeat
+                player={player}
+                isDealer={isDealer}
+                isActive={isActive}
+                revealCards={reveal}
+                cardSize={holeCardSize}
+                dealerOffset={dealerOffset}
+              />
+            </div>
           </div>
         </div>
-      </div>
+        {betAmount > 0 && (
+          <div
+            style={betStyle}
+            className={`absolute w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${betBg}`}
+          >
+            ${betAmount}
+          </div>
+        )}
+      </Fragment>
     );
   };
 
@@ -297,59 +319,61 @@ export default function Table({ timer }: { timer?: number | null }) {
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
-      <div className="mt-12 flex flex-col items-center gap-2">
-        <div className="flex gap-2">
-          {["Fold", "Check", "Call", "Bet", "Raise"].map((action) => (
+      {currentTurn === localIdx && (
+        <div className="mt-12 flex flex-col items-center gap-2">
+          <div className="flex gap-2">
+            {["Fold", "Check", "Call", "Bet", "Raise"].map((action) => (
+              <button
+                key={action}
+                className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
+                onClick={() => handleActionClick(action)}
+              >
+                {action}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center mt-1">
+            <input
+              type="range"
+              min={bigBlind}
+              max={maxBet}
+              value={bet}
+              onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
+              className="w-40"
+            />
+            <input
+              type="number"
+              min={bigBlind}
+              max={maxBet}
+              value={bet}
+              onChange={(e) =>
+                setBet(Math.min(Number(e.target.value), maxBet))
+              }
+              className="w-16 ml-2 text-black rounded"
+            />
+          </div>
+          <div className="flex gap-2 mt-2">
             <button
-              key={action}
               className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
-              onClick={() => handleActionClick(action)}
+              onClick={() => setBet(Math.min(bet * 2, maxBet))}
             >
-              {action}
+              2x
             </button>
-          ))}
+            <button
+              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
+              onClick={() => setBet(Math.min(bet * 3, maxBet))}
+            >
+              3x
+            </button>
+            <button
+              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
+              onClick={() => setBet(maxBet)}
+            >
+              All In
+            </button>
+          </div>
         </div>
-        <div className="flex items-center mt-1">
-          <input
-            type="range"
-            min={bigBlind}
-            max={maxBet}
-            value={bet}
-            onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
-            className="w-40"
-          />
-          <input
-            type="number"
-            min={bigBlind}
-            max={maxBet}
-            value={bet}
-            onChange={(e) =>
-              setBet(Math.min(Number(e.target.value), maxBet))
-            }
-            className="w-16 ml-2 text-black rounded"
-          />
-        </div>
-        <div className="flex gap-2 mt-2">
-          <button
-            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
-            onClick={() => setBet(Math.min(bet * 2, maxBet))}
-          >
-            2x
-          </button>
-          <button
-            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
-            onClick={() => setBet(Math.min(bet * 3, maxBet))}
-          >
-            3x
-          </button>
-          <button
-            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
-            onClick={() => setBet(maxBet)}
-          >
-            All In
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
