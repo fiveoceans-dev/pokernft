@@ -6,20 +6,6 @@ The backend exposes strongly typed interfaces that describe the state of a poker
 
 Represents a seat at the table.
 
-| Field | Description |
-| --- | --- |
-| `id` | Unique player identifier |
-| `seatIndex` | Seat position in the table array |
-| `stack` | Chips currently available |
-| `state` | One of `EMPTY`, `SEATED`, `SITTING_OUT`, `ACTIVE`, `FOLDED`, `ALL_IN`, `DISCONNECTED`, `LEAVING` |
-| `hasButton` | Player holds the dealer button this hand |
-| `autoPostBlinds` | Automatically post blinds when required |
-| `timebankMs` | Accumulated extra action time in milliseconds |
-| `betThisRound` | Chips committed in the current betting round |
-| `totalCommitted` | Total chips committed across all rounds of the hand |
-| `holeCards` | Up to two face-down cards |
-| `lastAction` | Last action taken: `NONE`, `FOLD`, `CHECK`, `CALL`, `BET`, `RAISE` or `ALL_IN` |
-| `sitOutNextHand?` | Flag to finish the current hand then become `SITTING_OUT` |
 | Field            | Description                                                                                      |
 | ---------------- | ------------------------------------------------------------------------------------------------ |
 | `id`             | Unique player identifier                                                                         |

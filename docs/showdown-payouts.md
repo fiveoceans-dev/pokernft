@@ -24,5 +24,4 @@ For each pot that still has contenders:
 ## Payout
 
 - Transfer chips from each pot to its winning players and update their stacks.
-- A player reduced to zero chips cannot post blinds on the next hand. If re-buy is allowed they are marked `SITTING_OUT` until they top up; otherwise they leave the table.
 - A player reduced to zero chips cannot post blinds on the next hand. If re-buy is allowed, they are marked `SITTING_OUT` and must buy in again before playing. Otherwise they are marked `LEAVING` and their seat is cleared.
