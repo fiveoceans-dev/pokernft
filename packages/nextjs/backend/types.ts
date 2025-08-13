@@ -113,6 +113,10 @@ export interface Player {
   totalCommitted: number;
   holeCards: Card[];
   lastAction: PlayerAction;
+  /** Player has missed the small blind while sitting out */
+  missedSmallBlind?: boolean;
+  /** Player has missed the big blind while sitting out */
+  missedBigBlind?: boolean;
 }
 
 export enum TableState {
@@ -148,6 +152,13 @@ export interface RakeConfig {
   min: number;
 }
 
+export enum DeadBlindRule {
+  /** Returning players must post any missed blinds immediately */
+  POST = 'POST',
+  /** Returning players must wait until the big blind to resume */
+  WAIT = 'WAIT',
+}
+
 export interface Table {
   seats: Array<Player | null>;
   buttonIndex: number;
@@ -169,6 +180,8 @@ export interface Table {
   interRoundDelayMs: number;
   dealAnimationDelayMs: number;
   rakeConfig?: RakeConfig;
+  /** Behaviour for players who missed blinds while sitting out */
+  deadBlindRule?: DeadBlindRule;
 }
 
 export interface HandAction {
