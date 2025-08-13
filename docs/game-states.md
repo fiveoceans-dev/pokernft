@@ -28,6 +28,7 @@ The game is represented as a deterministic state machine. Each state has well-de
 
 - **Entry**: Deck ready.
 - **Actions**: Dealer distributes cards to players and board as required for the variant.
+- **Timing**: Each card is dealt with `dealAnimationDelayMs` between events to pace animations.
 - **Exit**: All required cards are dealt.
 - **Edge Cases**:
   - Player disconnects while receiving cards: cards remain face down; if the player does not reconnect before their first action, they are folded.
@@ -40,8 +41,8 @@ This state repeats for each betting phase (Pre-Flop, Flop, Turn, River).
 - **Actions**: In turn order, each active player can _fold_, _check/call_, or _bet/raise_.
 - **Exit**: Betting is closed when all active players have matched the highest bet or folded.
 - **Edge Cases**:
-  - **Disconnect**: A disconnected player is treated as “timebanked”. If the action timer expires, the backend auto-folds or checks based on game rules.
-  - **Timeout**: Each player action is limited by a configurable timer. Expiration triggers auto-fold/check and records a timeout event.
+  - **Disconnect**: A disconnected player receives a separate grace timer. On expiry the backend applies the same resolution as a normal timeout.
+  - **Timeout**: Each player action is limited by a configurable timer. When it expires the player's timebank is consumed automatically; if none remains the backend auto-checks or folds based on game rules.
   - **Insufficient Funds**: All-in rules apply automatically; side pots are created by the backend.
 
 ### 5. **Showdown**
@@ -57,7 +58,7 @@ This state repeats for each betting phase (Pre-Flop, Flop, Turn, River).
 
 - **Entry**: Winners determined.
 - **Actions**: Chips are awarded, pots are cleared, and statistics updated.
-- **Exit**: Payout complete.
+- **Exit**: Payout complete. The table then pauses for `interRoundDelayMs` before the next hand.
 - **Edge Cases**:
   - Transfer failure triggers retry logic; if unresolved, the table enters a Paused state pending admin resolution.
 
