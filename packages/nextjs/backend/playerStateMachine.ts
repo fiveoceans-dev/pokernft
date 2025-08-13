@@ -1,7 +1,14 @@
 import { PlayerState } from "./types";
 
 export type PlayerEvent =
-  | { type: "NEW_HAND"; stack: number; bigBlind: number; sittingOut: boolean }
+  | {
+      type: "NEW_HAND";
+      stack: number;
+      bigBlind: number;
+      sittingOut: boolean;
+      /** Minimum stack required to be dealt in. Defaults to big blind. */
+      minToPlay?: number;
+    }
   | { type: "FOLD" }
   | { type: "BET_ALL_IN" }
   | { type: "DISCONNECT" }
@@ -20,10 +27,8 @@ export function playerStateReducer(
   switch (event.type) {
     case "NEW_HAND": {
       if (event.sittingOut) return PlayerState.SITTING_OUT;
-      if (event.stack >= event.bigBlind || event.stack > 0) {
-        return PlayerState.ACTIVE;
-      }
-      return PlayerState.SITTING_OUT;
+      const min = event.minToPlay ?? event.bigBlind;
+      return event.stack >= min ? PlayerState.ACTIVE : PlayerState.SITTING_OUT;
     }
     case "FOLD":
       return state === PlayerState.ACTIVE ? PlayerState.FOLDED : state;
@@ -34,11 +39,14 @@ export function playerStateReducer(
     case "RECONNECT":
       return state === PlayerState.DISCONNECTED ? PlayerState.ACTIVE : state;
     case "HAND_END":
-      if (state === PlayerState.LEAVING) return PlayerState.EMPTY;
+      if (
+        state === PlayerState.LEAVING ||
+        (event.stack === 0 && !event.reBuyAllowed)
+      ) {
+        return PlayerState.EMPTY;
+      }
       if (event.stack === 0) {
-        return event.reBuyAllowed
-          ? PlayerState.SITTING_OUT
-          : PlayerState.LEAVING;
+        return PlayerState.SITTING_OUT;
       }
       return state;
     case "LEAVE":

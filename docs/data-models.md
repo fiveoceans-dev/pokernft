@@ -20,7 +20,7 @@ Represents a seat at the table.
 | `holeCards`      | Up to two face-down cards                                                                        |
 | `lastAction`     | Last action taken: `NONE`, `FOLD`, `CHECK`, `CALL`, `BET`, `RAISE` or `ALL_IN`                   |
 
-`SITTING_OUT` players remain seated but are not dealt until they buy in again. `LEAVING` denotes a player scheduled to be removed after the hand.
+`SITTING_OUT` players remain seated but are not dealt until their stack reaches `minToPlay` (big blind by default). `LEAVING` denotes a player scheduled to be removed after the hand.
 
 ## Table
 
