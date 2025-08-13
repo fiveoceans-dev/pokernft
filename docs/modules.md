@@ -3,7 +3,8 @@
 This document complements [`game-states.md`](./game-states.md) by mapping the
 state machine to the main modules that drive the table. Each module has a
 clear responsibility and can be swapped without affecting others, following the
-MVVM style used in the UI.
+MVVM style used in the UI. For an in-depth look at how cards are dealt and
+betting rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md).
 
 ## Core Modules
 
