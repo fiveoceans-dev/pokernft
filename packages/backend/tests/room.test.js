@@ -69,7 +69,7 @@ const showdownRoom = {
     { rank: '3', suit: '\u2663' },
     { rank: '4', suit: '\u2663' },
     { rank: '5', suit: '\u2663' },
-    { rank: '7', suit: '\u2663' },
+    { rank: '7', suit: '\u2666' },
   ],
   minBet: 0,
   deck: [],

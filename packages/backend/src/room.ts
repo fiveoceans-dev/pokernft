@@ -1,5 +1,7 @@
 import { GameRoom, PlayerSession, Stage } from './types';
-import { dealDeck, draw, rankHand, compareHands } from './utils';
+import { dealDeck, draw } from './utils';
+import { randomInt } from './rng';
+import { rankHand, compareHands } from './handEvaluator';
 
 /** Create an empty game room */
 export function createRoom(id: string, minBet = 10): GameRoom {
@@ -44,7 +46,7 @@ export function startHand(room: GameRoom) {
   room.pot = 0;
   if (room.players.length === 0) return;
   if (room.stage === 'waiting') {
-    room.dealerIndex = Math.floor(Math.random() * room.players.length);
+    room.dealerIndex = randomInt(room.players.length);
   } else {
     room.dealerIndex = (room.dealerIndex + 1) % room.players.length;
   }
