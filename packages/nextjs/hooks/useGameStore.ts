@@ -5,9 +5,17 @@ import {
   addPlayer,
   startHand as startHandGame,
   progressStage,
+  handleAction,
+  determineWinners,
+  payout,
+  isRoundComplete,
 } from "../game/room";
 import { cardToIndex } from "../game/utils";
 import type { Stage } from "../game/types";
+import {
+  PokerStateMachine,
+  GameState as EnginePhase,
+} from "../game/stateMachine";
 
 /** Map Stage strings to numeric street indices used by the UI */
 const stageToStreet: Record<Stage, number> = {
@@ -21,16 +29,25 @@ const stageToStreet: Record<Stage, number> = {
 
 // Single in-memory room used for local demo / frontend state
 const room = createRoom("local");
+const machine = new PokerStateMachine();
 
-interface GameState {
+interface GameStoreState {
   /** player nicknames occupying each of the 9 seats */
   players: (string | null)[];
   /** optional hole cards for each seat represented as numeric codes */
   playerHands: ([number, number] | null)[];
   /** community card codes (0..51) */
   community: (number | null)[];
+  /** chips for each seat */
+  chips: number[];
+  /** total chips in the pot */
+  pot: number;
+  /** seat index whose turn it is, or null */
+  currentTurn: number | null;
   /** preflop=0, flop=1, turn=2, river=3, showdown=4 */
   street: number;
+  /** high-level engine phase */
+  phase: EnginePhase;
   loading: boolean;
   error: string | null;
 
@@ -41,13 +58,21 @@ interface GameState {
   dealFlop: () => Promise<void>;
   dealTurn: () => Promise<void>;
   dealRiver: () => Promise<void>;
+  playerAction: (action: {
+    type: "fold" | "call" | "raise" | "check";
+    amount?: number;
+  }) => Promise<void>;
 }
 
-export const useGameStore = create<GameState>((set, get) => ({
+export const useGameStore = create<GameStoreState>((set, get) => ({
   players: Array(9).fill(null),
   playerHands: Array(9).fill(null),
   community: Array(5).fill(null),
+  chips: Array(9).fill(0),
+  pot: 0,
+  currentTurn: null,
   street: 0,
+  phase: machine.state,
   loading: false,
   error: null,
 
@@ -55,11 +80,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   reloadTableState: async () => {
     const seats = Array(9).fill(null) as (string | null)[];
     const hands = Array(9).fill(null) as ([number, number] | null)[];
+    const chips = Array(9).fill(0) as number[];
     room.players.forEach((p) => {
       seats[p.seat] = p.nickname;
       if (p.hand.length === 2) {
         hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
       }
+      chips[p.seat] = p.chips;
     });
 
     const comm = Array(5).fill(null) as (number | null)[];
@@ -71,7 +98,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       players: seats,
       playerHands: hands,
       community: comm,
+      chips,
+      pot: room.pot,
+      currentTurn: room.players.length ? room.players[room.currentTurnIndex].seat : null,
       street: stageToStreet[room.stage],
+      phase: machine.state,
       loading: false,
       error: null,
     });
@@ -88,22 +119,35 @@ export const useGameStore = create<GameState>((set, get) => ({
       chips: 1000,
     });
     await get().reloadTableState();
-    if (room.players.length >= 2 && room.stage === "waiting") {
-      startHandGame(room);
-      await get().reloadTableState();
+    if (room.players.length >= 2 && machine.state === EnginePhase.WaitingForPlayers) {
+      await get().startHand();
     }
   },
 
   /** Deal new hole cards to all players */
   startHand: async () => {
+    const live = room.players.filter((p) => !p.hasFolded).length;
+    if (machine.state !== EnginePhase.WaitingForPlayers) {
+      machine.dispatch({ type: "BETTING_COMPLETE", remainingPlayers: live });
+      machine.dispatch({ type: "SHOWDOWN_COMPLETE" });
+      machine.dispatch({ type: "PAYOUT_COMPLETE" });
+    }
+    machine.dispatch({ type: "PLAYERS_READY" });
+    machine.dispatch({ type: "SHUFFLE_COMPLETE" });
     startHandGame(room);
+    machine.dispatch({ type: "DEAL_COMPLETE" });
     await get().reloadTableState();
   },
 
   /** Reveal the flop */
   dealFlop: async () => {
     if (room.stage === "preflop") {
+      machine.dispatch({
+        type: "BETTING_COMPLETE",
+        remainingPlayers: room.players.filter((p) => !p.hasFolded).length,
+      });
       progressStage(room);
+      machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
     }
   },
@@ -111,7 +155,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   /** Reveal the turn */
   dealTurn: async () => {
     if (room.stage === "flop") {
+      machine.dispatch({
+        type: "BETTING_COMPLETE",
+        remainingPlayers: room.players.filter((p) => !p.hasFolded).length,
+      });
       progressStage(room);
+      machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
     }
   },
@@ -119,7 +168,40 @@ export const useGameStore = create<GameState>((set, get) => ({
   /** Reveal the river */
   dealRiver: async () => {
     if (room.stage === "turn") {
+      machine.dispatch({
+        type: "BETTING_COMPLETE",
+        remainingPlayers: room.players.filter((p) => !p.hasFolded).length,
+      });
       progressStage(room);
+      machine.dispatch({ type: "DEAL_COMPLETE" });
+      await get().reloadTableState();
+    }
+  },
+
+  /** Apply a betting action for the current turn player */
+  playerAction: async (action) => {
+    const current = room.players[room.currentTurnIndex];
+    handleAction(room, current.id, action);
+    await get().reloadTableState();
+    if (isRoundComplete(room)) {
+      const remaining = room.players.filter((p) => !p.hasFolded).length;
+      machine.dispatch({ type: "BETTING_COMPLETE", remainingPlayers: remaining });
+      if (remaining <= 1) {
+        const winners = room.players.filter((p) => !p.hasFolded);
+        payout(room, winners);
+        machine.dispatch({ type: "PAYOUT_COMPLETE" });
+        room.stage = "waiting";
+      } else if (room.stage === "river") {
+        progressStage(room); // move to showdown
+        const winners = determineWinners(room);
+        machine.dispatch({ type: "SHOWDOWN_COMPLETE" });
+        payout(room, winners);
+        machine.dispatch({ type: "PAYOUT_COMPLETE" });
+        room.stage = "waiting";
+      } else {
+        progressStage(room);
+        machine.dispatch({ type: "DEAL_COMPLETE" });
+      }
       await get().reloadTableState();
     }
   },
