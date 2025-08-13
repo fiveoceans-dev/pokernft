@@ -154,5 +154,5 @@ End of hand:
 - Attempt to auto-post the small and big blinds:
   - If a stack covers the blind, deduct it and mark the bet for this round.
   - Short stacks may post all-in for their remaining chips.
-- Players unable to post are marked sitting out and blinds are reassigned. If only one player can post, the table returns to **WAITING**.
+- Players unable to post are marked sitting out and blinds are reassigned. Returning players with missed blinds either post them as dead chips or wait for the big blind depending on `deadBlindRule`. If only one player can post, the table returns to **WAITING**.
 - Pre-flop action begins left of the big blind, except heads-up where the button acts first and the big blind acts first on later streets.

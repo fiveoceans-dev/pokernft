@@ -1,4 +1,11 @@
-import { GameRoom, Table, Player, PlayerState, PlayerAction } from "./types";
+import {
+  GameRoom,
+  Table,
+  Player,
+  PlayerState,
+  PlayerAction,
+  DeadBlindRule,
+} from "./types";
 import { recomputePots } from "./potManager";
 import { countActivePlayers, isHeadsUp } from "./tableUtils";
 
@@ -48,6 +55,22 @@ export class BlindManager {
   }
 }
 
+/** Move the dealer button to the next active seat clockwise */
+export function advanceButton(table: Table) {
+  const len = table.seats.length;
+  for (let i = 1; i <= len; i++) {
+    const idx = (table.buttonIndex + i) % len;
+    const p = table.seats[idx];
+    if (p && p.state === PlayerState.ACTIVE) {
+      table.buttonIndex = idx;
+      table.seats.forEach((s, j) => {
+        if (s) s.hasButton = j === idx;
+      });
+      return;
+    }
+  }
+}
+
 /**
  * Assign button, small blind and big blind for a {@link Table} and attempt to
  * post the blinds according to player stacks. Returns `true` when both blinds
@@ -55,26 +78,60 @@ export class BlindManager {
  * start.
  */
 export function assignBlindsAndButton(table: Table): boolean {
-  const activeSeat = (start: number): number | null => {
+  if (countActivePlayers(table) < 2) return false;
+
+  const activeSeat = (start: number, blind: "SB" | "BB"): number | null => {
     const len = table.seats.length;
     for (let i = 0; i < len; i++) {
       const idx = (start + i) % len;
       const p = table.seats[idx];
-      if (p && p.state === PlayerState.ACTIVE) return idx;
+      if (!p) continue;
+      if (p.state === PlayerState.ACTIVE) {
+        if (
+          table.deadBlindRule === DeadBlindRule.WAIT &&
+          (p.missedBigBlind || p.missedSmallBlind)
+        ) {
+          if (blind === "SB") p.missedSmallBlind = true;
+          else p.missedBigBlind = true;
+          continue;
+        }
+        return idx;
+      } else {
+        if (blind === "SB") p.missedSmallBlind = true;
+        else p.missedBigBlind = true;
+      }
     }
     return null;
   };
 
+  const collectMissed = (player: Player) => {
+    if (table.deadBlindRule === DeadBlindRule.POST) {
+      if (player.missedSmallBlind) {
+        const amt = Math.min(table.smallBlindAmount, player.stack);
+        player.stack -= amt;
+        player.missedSmallBlind = false;
+      }
+      if (player.missedBigBlind) {
+        const amt = Math.min(table.bigBlindAmount, player.stack);
+        player.stack -= amt;
+        player.betThisRound += amt;
+        player.totalCommitted += amt;
+        player.missedBigBlind = false;
+      }
+    }
+  };
+
   const postBlind = (player: Player, amount: number): boolean => {
+    collectMissed(player);
     if (player.stack >= amount) {
       player.stack -= amount;
-      player.betThisRound = amount;
+      player.betThisRound += amount;
       player.totalCommitted += amount;
       player.lastAction = PlayerAction.BET;
       return true;
     }
     if (player.stack > 0) {
-      player.betThisRound = player.stack;
+      player.betThisRound += player.stack;
       player.totalCommitted += player.stack;
       player.stack = 0;
       player.state = PlayerState.ALL_IN;
@@ -84,11 +141,7 @@ export function assignBlindsAndButton(table: Table): boolean {
     return false;
   };
 
-  if (countActivePlayers(table) < 2) return false;
-
-  const btn = activeSeat(table.buttonIndex + 1);
-  if (btn === null) return false;
-  table.buttonIndex = btn;
+  const btn = table.buttonIndex;
   table.seats.forEach((p, i) => {
     if (p) p.hasButton = i === btn;
   });
@@ -99,10 +152,10 @@ export function assignBlindsAndButton(table: Table): boolean {
   const computeBlinds = () => {
     if (isHeadsUp(table)) {
       sb = btn;
-      bb = activeSeat(btn + 1);
+      bb = activeSeat(btn + 1, "BB");
     } else {
-      sb = activeSeat(btn + 1);
-      bb = sb !== null ? activeSeat(sb + 1) : null;
+      sb = activeSeat(btn + 1, "SB");
+      bb = sb !== null ? activeSeat(sb + 1, "BB") : null;
     }
   };
 
@@ -135,11 +188,10 @@ export function assignBlindsAndButton(table: Table): boolean {
   if (isHeadsUp(table)) {
     table.actingIndex = sb;
   } else {
-    const first = activeSeat(bb + 1);
+    const first = activeSeat(bb + 1, "BB");
     table.actingIndex = first ?? sb;
   }
 
-  // recompute pots if any blind went all-in
   if (
     table.seats[sb]?.state === PlayerState.ALL_IN ||
     table.seats[bb]?.state === PlayerState.ALL_IN
