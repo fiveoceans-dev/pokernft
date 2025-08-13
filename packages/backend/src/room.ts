@@ -1,5 +1,5 @@
-import { GameRoom, PlayerSession, Stage } from "./types";
-import { dealDeck, draw, rankHand, compareHands } from "./utils";
+import { GameRoom, PlayerSession, Stage } from './types';
+import { dealDeck, draw, rankHand, compareHands } from './utils';
 
 /** Create an empty game room */
 export function createRoom(id: string, minBet = 10): GameRoom {
@@ -8,7 +8,7 @@ export function createRoom(id: string, minBet = 10): GameRoom {
     players: [],
     dealerIndex: 0,
     currentTurnIndex: 0,
-    stage: "waiting",
+    stage: 'waiting',
     pot: 0,
     communityCards: [],
     minBet,
@@ -21,7 +21,7 @@ export function addPlayer(
   room: GameRoom,
   player: Omit<
     PlayerSession,
-    "isDealer" | "isTurn" | "hand" | "hasFolded" | "currentBet" | "tableId"
+    'isDealer' | 'isTurn' | 'hand' | 'hasFolded' | 'currentBet' | 'tableId'
   >,
 ): PlayerSession {
   const session: PlayerSession = {
@@ -42,15 +42,14 @@ export function startHand(room: GameRoom) {
   room.deck = dealDeck();
   room.communityCards = [];
   room.pot = 0;
-  // rotate dealer (random on first hand)
   if (room.players.length === 0) return;
-  if (room.stage === "waiting") {
+  if (room.stage === 'waiting') {
     room.dealerIndex = Math.floor(Math.random() * room.players.length);
   } else {
     room.dealerIndex = (room.dealerIndex + 1) % room.players.length;
   }
 
-  room.stage = "preflop";
+  room.stage = 'preflop';
 
   room.players.forEach((p) => {
     p.hand = [draw(room.deck), draw(room.deck)];
@@ -72,20 +71,20 @@ function maxBet(room: GameRoom): number {
 export function handleAction(
   room: GameRoom,
   playerId: string,
-  action: { type: "fold" | "call" | "raise" | "check"; amount?: number },
+  action: { type: 'fold' | 'call' | 'raise' | 'check'; amount?: number },
 ) {
   const idx = room.players.findIndex((p) => p.id === playerId);
-  if (idx === -1) throw new Error("player not found");
+  if (idx === -1) throw new Error('player not found');
   const player = room.players[idx];
   player.isTurn = false;
 
   const currentMax = maxBet(room);
 
   switch (action.type) {
-    case "fold":
+    case 'fold':
       player.hasFolded = true;
       break;
-    case "call": {
+    case 'call': {
       const toCall = currentMax - player.currentBet;
       const callAmt = Math.min(toCall, player.chips);
       player.chips -= callAmt;
@@ -93,18 +92,18 @@ export function handleAction(
       room.pot += callAmt;
       break;
     }
-    case "raise": {
+    case 'raise': {
       const raiseAmt = action.amount ?? 0;
-      if (raiseAmt <= 0) throw new Error("raise must be > 0");
+      if (raiseAmt <= 0) throw new Error('raise must be > 0');
       player.chips -= raiseAmt;
       player.currentBet += raiseAmt;
       room.pot += raiseAmt;
       room.minBet = player.currentBet;
       break;
     }
-    case "check":
+    case 'check':
       if (player.currentBet !== currentMax)
-        throw new Error("cannot check when behind on bets");
+        throw new Error('cannot check when behind on bets');
       break;
   }
 
@@ -125,12 +124,12 @@ export function nextTurn(room: GameRoom) {
 /** Progress to the next betting street and deal community cards */
 export function progressStage(room: GameRoom) {
   const order: Stage[] = [
-    "waiting",
-    "preflop",
-    "flop",
-    "turn",
-    "river",
-    "showdown",
+    'waiting',
+    'preflop',
+    'flop',
+    'turn',
+    'river',
+    'showdown',
   ];
   const pos = order.indexOf(room.stage);
   if (pos === -1 || pos === order.length - 1) return;
@@ -138,9 +137,9 @@ export function progressStage(room: GameRoom) {
 
   // burn card
   if (room.deck.length) draw(room.deck);
-  if (next === "flop") {
+  if (next === 'flop') {
     room.communityCards.push(draw(room.deck), draw(room.deck), draw(room.deck));
-  } else if (next === "turn" || next === "river") {
+  } else if (next === 'turn' || next === 'river') {
     room.communityCards.push(draw(room.deck));
   }
 
@@ -188,4 +187,3 @@ export function payout(room: GameRoom, winners: PlayerSession[]) {
   });
   room.pot = 0;
 }
-

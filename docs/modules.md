@@ -9,8 +9,8 @@ MVVM style used in the UI.
 
 | Module | Responsibility |
 | ------ | -------------- |
-| **State Machine** | Drives high level phases such as `WaitingForPlayers`, `Shuffling`, `Dealing`, `Betting`, `Showdown` and `Payout`.  Implemented in `game/stateMachine.ts` and consumed by the view‑model. |
-| **Room Engine** | Holds mutable hand data: seats, chips, deck, community cards and betting logic.  Located in `game/room.ts`. |
+| **State Machine** | Drives high level phases such as `WaitingForPlayers`, `Shuffling`, `Dealing`, `Betting`, `Showdown` and `Payout`.  Implemented in `@ss-2/backend`'s `stateMachine.ts` and consumed by the view‑model. |
+| **Room Engine** | Holds mutable hand data: seats, chips, deck, community cards and betting logic.  Provided by `@ss-2/backend`'s `room.ts`. |
 | **View Model** | Bridges the state machine and React components.  `useGameStore.ts` exposes observable state and actions for the UI. |
 | **UI Components** | Render the current table, players and action bar.  Components react to state changes emitted by the view model. |
 

@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { createRoom, addPlayer, handleAction, startHand } from "../game/room";
-import type { GameRoom } from "../game/types";
+import { createRoom, addPlayer, handleAction, startHand } from "@ss-2/backend";
+import type { GameRoom } from "@ss-2/backend";
 
 function shortAddress(addr: string): string {
   if (addr.length <= 8) return addr;
