@@ -13,6 +13,6 @@ export type {
 } from './types';
 export * from './utils';
 export * from './room';
-export * from './handEvaluator';
+export * from './hashEvaluator';
 export * from './rng';
 export * from './gameEngine';

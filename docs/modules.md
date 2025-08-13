@@ -11,6 +11,8 @@ MVVM style used in the UI.
 | ------ | -------------- |
 | **State Machine** | Drives high level phases such as `WaitingForPlayers`, `Shuffling`, `Dealing`, `Betting`, `Showdown` and `Payout`. Implemented in `packages/nextjs/backend/stateMachine.ts` and consumed by the view‑model. |
 | **Game Engine** | Holds mutable hand data: seats, chips, deck, community cards and betting logic. Exposed as the `GameEngine` class in `packages/nextjs/backend` for easy integration with hooks. |
+| **Hand Evaluator** | Ranks 5–7 card combinations via a perfect hash algorithm. Included in `packages/nextjs/backend/hashEvaluator.ts` with precomputed tables derived from HenryRLee's PokerHandEvaluator project. |
+
 | **View Model** | Bridges the state machine and React components.  `useGameStore.ts` exposes observable state and actions for the UI. |
 | **UI Components** | Render the current table, players and action bar.  Components react to state changes emitted by the view model. |
 
