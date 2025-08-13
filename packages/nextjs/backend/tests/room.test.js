@@ -1,4 +1,4 @@
-const assert = require('node:assert');
+const assert = require("node:assert");
 const {
   createRoom,
   addPlayer,
@@ -8,26 +8,38 @@ const {
   isRoundComplete,
   payout,
   startHand,
-} = require('../dist');
+  BlindManager,
+} = require("../dist");
 
 // startHand should only begin when more than two players are seated
-const startRoom = createRoom('start');
-addPlayer(startRoom, { id: 'a', nickname: 'A', seat: 0, chips: 100 });
-addPlayer(startRoom, { id: 'b', nickname: 'B', seat: 1, chips: 100 });
+const startRoom = createRoom("start");
+addPlayer(startRoom, { id: "a", nickname: "A", seat: 0, chips: 100 });
+addPlayer(startRoom, { id: "b", nickname: "B", seat: 1, chips: 100 });
 startHand(startRoom);
-assert.strictEqual(startRoom.stage, 'waiting');
+assert.strictEqual(startRoom.stage, "waiting");
 
-addPlayer(startRoom, { id: 'c', nickname: 'C', seat: 2, chips: 100 });
+addPlayer(startRoom, { id: "c", nickname: "C", seat: 2, chips: 100 });
 startHand(startRoom);
-assert.strictEqual(startRoom.stage, 'preflop');
+assert.strictEqual(startRoom.stage, "preflop");
 startRoom.players.forEach((p) => assert.strictEqual(p.hand.length, 2));
 
-const room = createRoom('r');
-const p1 = addPlayer(room, { id: 'p1', nickname: 'A', seat: 0, chips: 100 });
-const p2 = addPlayer(room, { id: 'p2', nickname: 'B', seat: 1, chips: 100 });
+// blinds should be posted and action starts after the big blind
+const bm = new BlindManager(startRoom.minBet / 2, startRoom.minBet);
+const { sb, bb } = bm.getBlindIndices(startRoom);
+assert.strictEqual(startRoom.players[sb].currentBet, startRoom.minBet / 2);
+assert.strictEqual(startRoom.players[bb].currentBet, startRoom.minBet);
+assert.strictEqual(startRoom.pot, startRoom.minBet + startRoom.minBet / 2);
+assert.strictEqual(
+  startRoom.currentTurnIndex,
+  bm.nextActiveIndex(startRoom, bb + 1),
+);
 
-handleAction(room, p1.id, { type: 'raise', amount: 20 });
-handleAction(room, p2.id, { type: 'call' });
+const room = createRoom("r");
+const p1 = addPlayer(room, { id: "p1", nickname: "A", seat: 0, chips: 100 });
+const p2 = addPlayer(room, { id: "p2", nickname: "B", seat: 1, chips: 100 });
+
+handleAction(room, p1.id, { type: "raise", amount: 20 });
+handleAction(room, p2.id, { type: "call" });
 assert.strictEqual(room.pot, 40);
 assert.strictEqual(p1.chips, 80);
 assert.strictEqual(p2.chips, 80);
@@ -40,34 +52,34 @@ assert.strictEqual(room.players[0].isTurn, true);
 
 // showdown winner test
 const showdownRoom = {
-  id: 'r',
+  id: "r",
   players: [
     {
-      id: 'a',
-      nickname: 'A',
-      tableId: 'r',
+      id: "a",
+      nickname: "A",
+      tableId: "r",
       seat: 0,
       chips: 0,
       isDealer: false,
       isTurn: false,
       hand: [
-        { rank: 'A', suit: '\u2660' },
-        { rank: 'K', suit: '\u2666' },
+        { rank: "A", suit: "\u2660" },
+        { rank: "K", suit: "\u2666" },
       ],
       hasFolded: false,
       currentBet: 0,
     },
     {
-      id: 'b',
-      nickname: 'B',
-      tableId: 'r',
+      id: "b",
+      nickname: "B",
+      tableId: "r",
       seat: 1,
       chips: 0,
       isDealer: false,
       isTurn: false,
       hand: [
-        { rank: 'Q', suit: '\u2660' },
-        { rank: 'J', suit: '\u2666' },
+        { rank: "Q", suit: "\u2660" },
+        { rank: "J", suit: "\u2666" },
       ],
       hasFolded: false,
       currentBet: 0,
@@ -75,14 +87,14 @@ const showdownRoom = {
   ],
   dealerIndex: 0,
   currentTurnIndex: 0,
-  stage: 'showdown',
+  stage: "showdown",
   pot: 100,
   communityCards: [
-    { rank: '2', suit: '\u2663' },
-    { rank: '3', suit: '\u2663' },
-    { rank: '4', suit: '\u2663' },
-    { rank: '5', suit: '\u2663' },
-    { rank: '7', suit: '\u2666' },
+    { rank: "2", suit: "\u2663" },
+    { rank: "3", suit: "\u2663" },
+    { rank: "4", suit: "\u2663" },
+    { rank: "5", suit: "\u2663" },
+    { rank: "7", suit: "\u2666" },
   ],
   minBet: 0,
   deck: [],
@@ -90,7 +102,7 @@ const showdownRoom = {
 
 const winners = determineWinners(showdownRoom);
 assert.strictEqual(winners.length, 1);
-assert.strictEqual(winners[0].id, 'a');
+assert.strictEqual(winners[0].id, "a");
 
 payout(showdownRoom, winners);
 assert.strictEqual(showdownRoom.pot, 0);
@@ -98,4 +110,116 @@ assert.strictEqual(winners[0].chips, 100);
 
 assert.ok(isRoundComplete(room));
 
-console.log('Room tests passed');
+// payout remainder test
+const remainderRoom = {
+  id: "r",
+  players: [
+    {
+      id: "a",
+      nickname: "A",
+      tableId: "r",
+      seat: 0,
+      chips: 0,
+      isDealer: false,
+      isTurn: false,
+      hand: [],
+      hasFolded: false,
+      currentBet: 0,
+    },
+    {
+      id: "b",
+      nickname: "B",
+      tableId: "r",
+      seat: 1,
+      chips: 0,
+      isDealer: false,
+      isTurn: false,
+      hand: [],
+      hasFolded: false,
+      currentBet: 0,
+    },
+    {
+      id: "c",
+      nickname: "C",
+      tableId: "r",
+      seat: 2,
+      chips: 0,
+      isDealer: false,
+      isTurn: false,
+      hand: [],
+      hasFolded: false,
+      currentBet: 0,
+    },
+  ],
+  dealerIndex: 0,
+  currentTurnIndex: 0,
+  stage: "showdown",
+  pot: 5,
+  communityCards: [],
+  minBet: 0,
+  deck: [],
+};
+
+const remainderWinners = [remainderRoom.players[1], remainderRoom.players[2]];
+payout(remainderRoom, remainderWinners);
+assert.strictEqual(remainderRoom.pot, 0);
+assert.strictEqual(remainderRoom.players[1].chips, 3);
+assert.strictEqual(remainderRoom.players[2].chips, 2);
+
+// players with zero chips are removed before the next hand
+const bustRoom = {
+  id: "br",
+  players: [
+    {
+      id: "a",
+      nickname: "A",
+      tableId: "br",
+      seat: 0,
+      chips: 0,
+      isDealer: false,
+      isTurn: false,
+      hand: [],
+      hasFolded: false,
+      currentBet: 0,
+    },
+    {
+      id: "b",
+      nickname: "B",
+      tableId: "br",
+      seat: 1,
+      chips: 0,
+      isDealer: false,
+      isTurn: false,
+      hand: [],
+      hasFolded: false,
+      currentBet: 0,
+    },
+    {
+      id: "c",
+      nickname: "C",
+      tableId: "br",
+      seat: 2,
+      chips: 0,
+      isDealer: false,
+      isTurn: false,
+      hand: [],
+      hasFolded: false,
+      currentBet: 0,
+    },
+  ],
+  dealerIndex: 0,
+  currentTurnIndex: 0,
+  stage: "showdown",
+  pot: 30,
+  communityCards: [],
+  minBet: 0,
+  deck: [],
+};
+
+const bustWinners = [bustRoom.players[2]];
+payout(bustRoom, bustWinners);
+assert.strictEqual(bustRoom.players.length, 1);
+assert.strictEqual(bustRoom.players[0].id, "c");
+assert.strictEqual(bustRoom.players[0].chips, 30);
+
+console.log("Room tests passed");

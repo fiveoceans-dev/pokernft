@@ -2,6 +2,7 @@ import { GameRoom, PlayerSession, Stage } from "./types";
 import { dealDeck, draw } from "./utils";
 import { randomInt } from "./rng";
 import { evaluateHand } from "./hashEvaluator";
+import { BlindManager } from "./blindManager";
 
 /** Create an empty game room */
 export function createRoom(id: string, minBet = 10): GameRoom {
@@ -64,8 +65,13 @@ export function startHand(room: GameRoom) {
     p.isTurn = false;
   });
   room.players[room.dealerIndex].isDealer = true;
-  room.currentTurnIndex = (room.dealerIndex + 1) % room.players.length;
-  room.players[room.currentTurnIndex].isTurn = true;
+
+  // post blinds and set first player to act
+  const blindMgr = new BlindManager(room.minBet / 2, room.minBet);
+  const { bb } = blindMgr.postBlinds(room);
+  const firstToAct = blindMgr.nextActiveIndex(room, bb + 1);
+  room.currentTurnIndex = firstToAct;
+  room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
 }
 
 function maxBet(room: GameRoom): number {
@@ -178,8 +184,21 @@ export function isRoundComplete(room: GameRoom): boolean {
 export function payout(room: GameRoom, winners: PlayerSession[]) {
   if (winners.length === 0) return;
   const share = Math.floor(room.pot / winners.length);
+  const remainder = room.pot - share * winners.length;
   winners.forEach((w) => {
     w.chips += share;
   });
+  if (remainder > 0) {
+    const ordered: PlayerSession[] = [];
+    for (let i = 1; i <= room.players.length; i++) {
+      const idx = (room.dealerIndex + i) % room.players.length;
+      const player = room.players[idx];
+      if (winners.includes(player)) ordered.push(player);
+    }
+    for (let i = 0; i < remainder; i++) {
+      ordered[i % ordered.length].chips += 1;
+    }
+  }
   room.pot = 0;
+  room.players = room.players.filter((p) => p.chips > 0);
 }
