@@ -5,6 +5,7 @@ import {
   PlayerAction,
   Round,
 } from './types';
+import { recomputePots } from './potManager';
 
 import { recomputePots } from './potManager';
 

@@ -38,6 +38,12 @@ The game is represented as a deterministic state machine. Each state has well-de
 This state repeats for each betting phase (Pre-Flop, Flop, Turn, River).
 
 - **Entry**: Dealing phase or previous betting round completed.
+- **Actions**: In turn order, each active player can *fold*, *check/call*, or *bet/raise*.
+- **Exit**: Betting is closed when all active players have matched the highest bet or folded. When a round ends, each player's `betThisRound` resets while `totalCommitted` persists for pot calculations.
+  - **Edge Cases**:
+  - **Disconnect**: A disconnected player is treated as “timebanked”. If the action timer expires, the backend auto-folds or checks based on game rules.
+  - **Timeout**: Each player action is limited by a configurable timer. Expiration triggers auto-fold/check and records a timeout event.
+  - **Insufficient Funds**: All-in rules apply automatically; the `PotManager` tracks commitments and rebuilds pots as thresholds are reached.
 - **Actions**: In turn order, each active player can _fold_, _check/call_, or _bet/raise_.
 - **Exit**: Betting is closed when all active players have matched the highest bet or folded.
 - **Edge Cases**:
@@ -57,6 +63,9 @@ This state repeats for each betting phase (Pre-Flop, Flop, Turn, River).
 ### 6. **Payout**
 
 - **Entry**: Winners determined.
+- **Actions**: The `PotManager` sorts total commitments into threshold layers, builds main and side pots, optionally rakes each pot, then awards chips and clears state.
+- **Exit**: Payout complete.
+- **Edge Cases**: 
 - **Actions**: Chips are awarded, pots are cleared, and statistics updated.
 - **Exit**: Payout complete. The table then pauses for `interRoundDelayMs` before the next hand.
 - **Edge Cases**:
