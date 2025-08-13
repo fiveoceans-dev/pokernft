@@ -176,6 +176,8 @@ export interface Table {
   actingIndex: number | null;
   betToCall: number;
   minRaise: number;
+  /** Seat index of the last player to make a full bet/raise */
+  lastFullRaise: number | null;
   actionTimer: number;
   interRoundDelayMs: number;
   dealAnimationDelayMs: number;

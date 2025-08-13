@@ -238,4 +238,21 @@ describe("room helpers", () => {
     assert.strictEqual(bustRoom.players[0].id, "c");
     assert.strictEqual(bustRoom.players[0].chips, 30);
   });
+
+  it("awards pot immediately when all but one fold", () => {
+    const room = createRoom("foldwin");
+    const p1 = addPlayer(room, { id: "p1", nickname: "A", seat: 0, chips: 100 });
+    const p2 = addPlayer(room, { id: "p2", nickname: "B", seat: 1, chips: 100 });
+    const p3 = addPlayer(room, { id: "p3", nickname: "C", seat: 2, chips: 100 });
+    room.stage = "preflop";
+    room.pot = 30;
+    room.currentTurnIndex = 0;
+    room.players[0].isTurn = true;
+    handleAction(room, p1.id, { type: "fold" });
+    handleAction(room, p2.id, { type: "fold" });
+    assert.strictEqual(room.stage, "waiting");
+    assert.strictEqual(room.pot, 0);
+    const winner = room.players.find((p) => p.id === p3.id)!;
+    assert.strictEqual(winner.chips, 130);
+  });
 });

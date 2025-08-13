@@ -87,6 +87,7 @@ export function handleAction(
   const idx = room.players.findIndex((p) => p.id === playerId);
   if (idx === -1) throw new Error("player not found");
   const player = room.players[idx];
+  if (idx !== room.currentTurnIndex) throw new Error("not players turn");
   player.isTurn = false;
 
   const currentMax = maxBet(room);
@@ -116,6 +117,12 @@ export function handleAction(
       if (player.currentBet !== currentMax)
         throw new Error("cannot check when behind on bets");
       break;
+  }
+  const active = room.players.filter((p) => !p.hasFolded);
+  if (active.length === 1) {
+    payout(room, [active[0]]);
+    room.stage = "waiting";
+    return;
   }
 
   nextTurn(room);
