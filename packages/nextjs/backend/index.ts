@@ -7,9 +7,19 @@ export type {
   Stage,
   PlayerSession,
   GameRoom,
-  Player,
+  UiPlayer,
   GameState as EngineGameState,
   CardShape,
+  PlayerState,
+  PlayerAction,
+  Player,
+  TableState,
+  Round,
+  Pot,
+  RakeConfig,
+  Table,
+  HandAction,
+  HandLog,
 } from './types';
 export * from './utils';
 export * from './room';

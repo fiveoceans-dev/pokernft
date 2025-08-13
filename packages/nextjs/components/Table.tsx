@@ -6,7 +6,7 @@ import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
 import { indexToCard } from "../backend";
 import PlayerSeat from "./PlayerSeat";
-import type { Player, Card as TCard } from "../backend";
+import type { UiPlayer, Card as TCard } from "../backend";
 
 interface SeatPos {
   x: string;
@@ -182,7 +182,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       ? [indexToCard(handCodes[0]), indexToCard(handCodes[1])]
       : null;
 
-    const player: Player = {
+    const player: UiPlayer = {
       name: nickname,
       chips: chips[idx] ?? 0,
       hand,

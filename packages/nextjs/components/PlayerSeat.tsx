@@ -2,10 +2,10 @@
 
 import clsx from "clsx";
 import Card from "./Card";
-import type { Player, Card as TCard } from "../backend";
+import type { UiPlayer, Card as TCard } from "../backend";
 
 interface PlayerSeatProps {
-  player: Player; // player object from your Zustand store
+  player: UiPlayer; // player object from your Zustand store
   isDealer?: boolean; // show “D” marker if true
   isActive?: boolean; // highlight border when it's this player's turn
   revealCards?: boolean; // if true, show hole cards face-up
