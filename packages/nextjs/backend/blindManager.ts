@@ -1,4 +1,5 @@
 import { GameRoom, Table, Player, PlayerState, PlayerAction } from "./types";
+import { recomputePots } from "./potManager";
 
 /**
  * BlindManager computes small/big blind positions and posts the blinds.
@@ -140,6 +141,14 @@ export function assignBlindsAndButton(table: Table): boolean {
   } else {
     const first = activeSeat(bb + 1);
     table.actingIndex = first ?? sb;
+  }
+
+  // recompute pots if any blind went all-in
+  if (
+    table.seats[sb]?.state === PlayerState.ALL_IN ||
+    table.seats[bb]?.state === PlayerState.ALL_IN
+  ) {
+    recomputePots(table);
   }
 
   return true;
