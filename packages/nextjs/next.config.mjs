@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 import webpack from "webpack";
 import nextPWA from "next-pwa";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const withPWA = nextPWA({
   dest: "public",
@@ -37,6 +41,10 @@ const nextConfig = {
   },
   webpack: (config, { dev, isServer }) => {
     config.resolve.fallback = { fs: false, net: false, tls: false };
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@ss-2/backend": path.resolve(__dirname, "../backend/src"),
+    };
     config.externals.push("pino-pretty", "lokijs", "encoding");
     config.plugins.push(
       new webpack.NormalModuleReplacementPlugin(/^node:(.*)$/, (resource) => {
