@@ -63,13 +63,13 @@ export default function PlayerSeat({
 
       <div
         className={clsx(
-          "absolute inset-0 flex items-center justify-center rounded border text-white font-semibold text-center truncate px-1 transition-colors",
+          "absolute inset-0 flex items-center justify-center rounded border font-semibold text-center truncate px-1 transition-colors",
           isActive
-            ? "bg-[var(--color-accent)] text-black border-[var(--color-accent)]"
+            ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
             : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
         )}
       >
-        {player.name}
+        <span className="text-[var(--color-highlight)]">{player.name}</span>
       </div>
       </div>
 

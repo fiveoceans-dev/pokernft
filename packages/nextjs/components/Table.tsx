@@ -60,10 +60,13 @@ export default function Table({ timer }: { timer?: number | null }) {
     bigBlind,
     chips,
     currentTurn,
+    playerBets,
+    playerAction,
   } = useGameStore();
   const [isMobile, setIsMobile] = useState(false);
   const [tableScale, setTableScale] = useState(1);
   const [bet, setBet] = useState(bigBlind);
+  const [actionTimer, setActionTimer] = useState<number | null>(null);
 
   useEffect(() => {
     setBet(bigBlind);
@@ -98,6 +101,34 @@ export default function Table({ timer }: { timer?: number | null }) {
     }
     return max;
   }, [layout]);
+
+  useEffect(() => {
+    if (currentTurn === localIdx) {
+      setActionTimer(10);
+    } else {
+      setActionTimer(null);
+    }
+  }, [currentTurn, localIdx]);
+
+  useEffect(() => {
+    if (actionTimer === null) return;
+    if (actionTimer === 0) {
+      const highest = Math.max(...playerBets);
+      const myBet = playerBets[localIdx] ?? 0;
+      if (highest > myBet) {
+        playerAction({ type: "fold" });
+      } else {
+        playerAction({ type: "check" });
+      }
+      setActionTimer(null);
+      return;
+    }
+    const id = setTimeout(
+      () => setActionTimer((t) => (t as number) - 1),
+      1000,
+    );
+    return () => clearTimeout(id);
+  }, [actionTimer, playerBets, playerAction, localIdx]);
 
   const communityCardSize = useMemo(() => {
     return tableScale < 0.75 ? "xs" : tableScale < 1 ? "sm" : "md";
@@ -158,7 +189,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       chips: chips[idx] ?? 0,
       hand,
       folded: false,
-      currentBet: 0,
+      currentBet: playerBets[idx] ?? 0,
     };
     const isDealer = idx === 1;
     const isActive = idx === currentTurn;
@@ -171,7 +202,7 @@ export default function Table({ timer }: { timer?: number | null }) {
                   font-mono tabular-nums whitespace-nowrap pointer-events-none"
       >
         {/* show bet if you prefer: `$${player.currentBet}` */}
-        {`$${player.chips}`}
+        {`$${player.chips.toLocaleString()}`}
       </span>
     );
 
@@ -221,11 +252,32 @@ export default function Table({ timer }: { timer?: number | null }) {
   const baseH = isMobile ? 680 : 520;
   const maxBet = chips[localIdx] ?? bigBlind;
 
+  const displayTimer = actionTimer ?? timer;
+
+  const handleActionClick = (action: string) => {
+    switch (action) {
+      case "Fold":
+        playerAction({ type: "fold" });
+        break;
+      case "Check":
+        playerAction({ type: "check" });
+        break;
+      case "Call":
+        playerAction({ type: "call" });
+        break;
+      case "Bet":
+      case "Raise":
+        playerAction({ type: "raise", amount: bet });
+        break;
+    }
+    setActionTimer(null);
+  };
+
   return (
     <div className="relative flex flex-col items-center justify-center w-full h-full">
-      {typeof timer === "number" && (
+      {typeof displayTimer === "number" && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
-          {timer.toString().padStart(2, "0")}
+          {displayTimer.toString().padStart(2, "0")}
         </div>
       )}
       {/* poker-table oval */}
@@ -249,6 +301,7 @@ export default function Table({ timer }: { timer?: number | null }) {
             <button
               key={action}
               className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
+              onClick={() => handleActionClick(action)}
             >
               {action}
             </button>

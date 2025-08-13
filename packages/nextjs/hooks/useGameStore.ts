@@ -38,6 +38,8 @@ interface GameStoreState {
   community: (number | null)[];
   /** chips for each seat */
   chips: number[];
+  /** current bet for each seat */
+  playerBets: number[];
   /** total chips in the pot */
   pot: number;
   /** seat index whose turn it is, or null */
@@ -75,6 +77,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   playerHands: Array(9).fill(null),
   community: Array(5).fill(null),
   chips: Array(9).fill(0),
+  playerBets: Array(9).fill(0),
   pot: 0,
   currentTurn: null,
   street: 0,
@@ -102,12 +105,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const seats = Array(9).fill(null) as (string | null)[];
     const hands = Array(9).fill(null) as ([number, number] | null)[];
     const chips = Array(9).fill(0) as number[];
+    const bets = Array(9).fill(0) as number[];
     room.players.forEach((p) => {
       seats[p.seat] = p.nickname;
       if (p.hand.length === 2) {
         hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
       }
       chips[p.seat] = p.chips;
+      bets[p.seat] = p.currentBet;
     });
 
     const comm = Array(5).fill(null) as (number | null)[];
@@ -120,6 +125,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       playerHands: hands,
       community: comm,
       chips,
+      playerBets: bets,
       pot: room.pot,
       currentTurn: room.players.length ? room.players[room.currentTurnIndex].seat : null,
       street: stageToStreet[room.stage],
