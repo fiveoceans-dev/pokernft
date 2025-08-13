@@ -171,3 +171,21 @@ export function determineWinners(room: GameRoom): PlayerSession[] {
     }, []);
 }
 
+/** Check if the current betting round is complete */
+export function isRoundComplete(room: GameRoom): boolean {
+  const active = room.players.filter((p) => !p.hasFolded);
+  if (active.length <= 1) return true;
+  const highest = Math.max(...active.map((p) => p.currentBet));
+  return active.every((p) => p.currentBet === highest);
+}
+
+/** Split the pot equally amongst winners */
+export function payout(room: GameRoom, winners: PlayerSession[]) {
+  if (winners.length === 0) return;
+  const share = Math.floor(room.pot / winners.length);
+  winners.forEach((w) => {
+    w.chips += share;
+  });
+  room.pot = 0;
+}
+
