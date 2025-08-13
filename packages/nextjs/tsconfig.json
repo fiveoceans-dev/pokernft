@@ -15,7 +15,9 @@
     "jsx": "preserve",
     "incremental": true,
     "paths": {
-      "~~/*": ["./*"]
+      "~~/*": ["./*"],
+      "@ss-2/backend": ["../backend/src"],
+      "@ss-2/backend/*": ["../backend/src/*"]
     },
     "plugins": [
       {
