@@ -1,11 +1,5 @@
-import {
-  Table,
-  Player,
-  PlayerState,
-  PlayerAction,
-  Round,
-} from './types';
-import { recomputePots } from './potManager';
+import { Table, Player, PlayerState, PlayerAction, Round } from "./types";
+import { recomputePots } from "./potManager";
 
 /** Initialize betting round and determine first to act */
 export function startBettingRound(table: Table, round: Round) {
@@ -49,9 +43,10 @@ export function applyAction(
   seatIndex: number,
   action: { type: PlayerAction; amount?: number },
 ) {
-  if (table.actingIndex !== seatIndex) throw new Error('not players turn');
+  if (table.actingIndex !== seatIndex) throw new Error("not players turn");
   const player = table.seats[seatIndex];
-  if (!player || player.state !== PlayerState.ACTIVE) throw new Error('invalid');
+  if (!player || player.state !== PlayerState.ACTIVE)
+    throw new Error("invalid");
 
   switch (action.type) {
     case PlayerAction.FOLD:
@@ -60,7 +55,7 @@ export function applyAction(
       break;
     case PlayerAction.CHECK:
       if (player.betThisRound !== table.betToCall)
-        throw new Error('cannot check');
+        throw new Error("cannot check");
       player.lastAction = PlayerAction.CHECK;
       break;
     case PlayerAction.CALL: {
@@ -69,26 +64,28 @@ export function applyAction(
       player.stack -= commit;
       player.betThisRound += commit;
       player.totalCommitted += commit;
-      player.lastAction = commit < toCall ? PlayerAction.ALL_IN : PlayerAction.CALL;
+      player.lastAction =
+        commit < toCall ? PlayerAction.ALL_IN : PlayerAction.CALL;
       if (player.stack === 0) player.state = PlayerState.ALL_IN;
       break;
     }
     case PlayerAction.BET: {
-      if (table.betToCall !== 0) throw new Error('cannot bet');
+      if (table.betToCall !== 0) throw new Error("cannot bet");
       const amount = action.amount ?? 0;
-      if (amount < table.minRaise) throw new Error('bet too small');
+      if (amount < table.minRaise) throw new Error("bet too small");
       const commit = Math.min(amount, player.stack);
       player.stack -= commit;
       player.betThisRound += commit;
       player.totalCommitted += commit;
       table.betToCall = player.betThisRound;
       table.minRaise = commit;
-      player.lastAction = commit < amount ? PlayerAction.ALL_IN : PlayerAction.BET;
+      player.lastAction =
+        commit < amount ? PlayerAction.ALL_IN : PlayerAction.BET;
       if (player.stack === 0) player.state = PlayerState.ALL_IN;
       break;
     }
     case PlayerAction.RAISE: {
-      if (table.betToCall === 0) throw new Error('nothing to raise');
+      if (table.betToCall === 0) throw new Error("nothing to raise");
       const callAmt = table.betToCall - player.betThisRound;
       const raiseAmt = action.amount ?? 0;
       const total = callAmt + raiseAmt;
@@ -102,7 +99,8 @@ export function applyAction(
           table.minRaise = commit - callAmt;
         }
       }
-      player.lastAction = commit < total ? PlayerAction.ALL_IN : PlayerAction.RAISE;
+      player.lastAction =
+        commit < total ? PlayerAction.ALL_IN : PlayerAction.RAISE;
       if (player.stack === 0) player.state = PlayerState.ALL_IN;
       break;
     }
@@ -152,7 +150,6 @@ export function isRoundComplete(table: Table): boolean {
   ) as Player[];
   if (live.length <= 1) return true;
   return live.every(
-    (p) =>
-      p.state === PlayerState.ALL_IN || p.betThisRound === table.betToCall,
+    (p) => p.state === PlayerState.ALL_IN || p.betThisRound === table.betToCall,
   );
 }
