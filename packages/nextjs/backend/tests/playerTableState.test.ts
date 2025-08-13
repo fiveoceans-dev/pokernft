@@ -14,6 +14,27 @@ describe("playerStateReducer", () => {
     expect(state).toBe(PlayerState.ACTIVE);
   });
 
+  it("sits player out when stack below minToPlay", () => {
+    const state = playerStateReducer(PlayerState.SEATED, {
+      type: "NEW_HAND",
+      stack: 5,
+      bigBlind: 10,
+      sittingOut: false,
+    });
+    expect(state).toBe(PlayerState.SITTING_OUT);
+  });
+
+  it("allows short-buy when minToPlay lower than big blind", () => {
+    const state = playerStateReducer(PlayerState.SEATED, {
+      type: "NEW_HAND",
+      stack: 5,
+      bigBlind: 10,
+      minToPlay: 5,
+      sittingOut: false,
+    });
+    expect(state).toBe(PlayerState.ACTIVE);
+  });
+
   it("sits player out when toggled", () => {
     const state = playerStateReducer(PlayerState.SEATED, {
       type: "NEW_HAND",
@@ -38,13 +59,13 @@ describe("playerStateReducer", () => {
     expect(state).toBe(PlayerState.SITTING_OUT);
   });
 
-  it("marks player leaving when broke and rebuy disallowed", () => {
+  it("removes player when broke and rebuy disallowed", () => {
     const state = playerStateReducer(PlayerState.ACTIVE, {
       type: "HAND_END",
       stack: 0,
       reBuyAllowed: false,
     });
-    expect(state).toBe(PlayerState.LEAVING);
+    expect(state).toBe(PlayerState.EMPTY);
   });
 
   it("removes player who chose to leave", () => {

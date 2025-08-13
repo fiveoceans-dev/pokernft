@@ -98,7 +98,7 @@ SEATED → (ACTIVE | SITTING_OUT)
 
 On new hand:
 
-- If stack ≥ BB (or allowed to post short/all-in blind), and not sitting out → **ACTIVE**.
+- If stack ≥ `minToPlay` (≥ BB by default) and not sitting out → **ACTIVE**.
 - Else → **SITTING_OUT**.
 
 During betting:
@@ -110,8 +110,8 @@ Disconnection: **ACTIVE** → **DISCONNECTED** (timer); auto-fold when timer exp
 
 End of hand:
 
-- Stack == 0 & re-buy allowed → **SITTING_OUT** until stack ≥ minToPlay.
-- Stack == 0 & no re-buy → **LEAVING** and seat cleared.
+- Stack == 0 & re-buy allowed → **SITTING_OUT** until stack ≥ `minToPlay`.
+- Stack == 0 & no re-buy → seat cleared immediately.
 - Voluntary sit-out toggle → **SITTING_OUT** next hand.
 - **LEAVING** during hand → seat becomes **EMPTY**.
 
