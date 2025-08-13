@@ -40,9 +40,9 @@ export function addPlayer(
   return session;
 }
 
-/** Start a new hand and deal cards */
+/** Start a new hand and deal cards. Requires at least two players. */
 export function startHand(room: GameRoom) {
-  if (room.players.length <= 2) {
+  if (room.players.length < 2) {
     room.stage = "waiting";
     return;
   }
