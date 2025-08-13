@@ -71,7 +71,7 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   useEffect(() => {
     setBet(bigBlind);
-  }, [bigBlind]);
+  }, [bigBlind, currentTurn]);
 
   useEffect(() => {
     const handle = () => {
@@ -104,18 +104,18 @@ export default function Table({ timer }: { timer?: number | null }) {
   }, [layout]);
 
   useEffect(() => {
-    if (currentTurn === localIdx) {
+    if (currentTurn !== null) {
       setActionTimer(10);
     } else {
       setActionTimer(null);
     }
-  }, [currentTurn, localIdx]);
+  }, [currentTurn]);
 
   useEffect(() => {
-    if (actionTimer === null) return;
+    if (actionTimer === null || currentTurn === null) return;
     if (actionTimer === 0) {
       const highest = Math.max(...playerBets);
-      const myBet = playerBets[localIdx] ?? 0;
+      const myBet = playerBets[currentTurn] ?? 0;
       if (highest > myBet) {
         playerAction({ type: "fold" });
       } else {
@@ -129,7 +129,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       1000,
     );
     return () => clearTimeout(id);
-  }, [actionTimer, playerBets, playerAction, localIdx]);
+  }, [actionTimer, playerBets, playerAction, currentTurn]);
 
   const communityCardSize = useMemo(() => {
     return tableScale < 0.75 ? "xs" : tableScale < 1 ? "sm" : "md";
@@ -274,9 +274,9 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   const baseW = isMobile ? 420 : 820;
   const baseH = isMobile ? 680 : 520;
-  const maxBet = chips[localIdx] ?? bigBlind;
+  const maxBet = chips[currentTurn ?? localIdx] ?? bigBlind;
 
-  const displayTimer = actionTimer ?? timer;
+  const displayTimer = actionTimer ?? timer ?? 0;
 
   const handleActionClick = (action: string) => {
     switch (action) {
@@ -297,13 +297,13 @@ export default function Table({ timer }: { timer?: number | null }) {
     setActionTimer(null);
   };
 
+  const actionDisabled = currentTurn === null;
+
   return (
     <div className="relative flex flex-col items-center justify-center w-full h-full">
-      {typeof displayTimer === "number" && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
-          {displayTimer.toString().padStart(2, "0")}
-        </div>
-      )}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
+        {displayTimer.toString().padStart(2, "0")}
+      </div>
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
@@ -319,61 +319,63 @@ export default function Table({ timer }: { timer?: number | null }) {
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
-      {currentTurn === localIdx && (
-        <div className="mt-12 flex flex-col items-center gap-2">
-          <div className="flex gap-2">
-            {["Fold", "Check", "Call", "Bet", "Raise"].map((action) => (
-              <button
-                key={action}
-                className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
-                onClick={() => handleActionClick(action)}
-              >
-                {action}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center mt-1">
-            <input
-              type="range"
-              min={bigBlind}
-              max={maxBet}
-              value={bet}
-              onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
-              className="w-40"
-            />
-            <input
-              type="number"
-              min={bigBlind}
-              max={maxBet}
-              value={bet}
-              onChange={(e) =>
-                setBet(Math.min(Number(e.target.value), maxBet))
-              }
-              className="w-16 ml-2 text-black rounded"
-            />
-          </div>
-          <div className="flex gap-2 mt-2">
+      <div className="mt-12 flex flex-col items-center gap-2">
+        <div className="flex gap-2">
+          {["Fold", "Check", "Call", "Bet", "Raise"].map((action) => (
             <button
-              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
-              onClick={() => setBet(Math.min(bet * 2, maxBet))}
+              key={action}
+              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => handleActionClick(action)}
+              disabled={actionDisabled}
             >
-              2x
+              {action}
             </button>
-            <button
-              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
-              onClick={() => setBet(Math.min(bet * 3, maxBet))}
-            >
-              3x
-            </button>
-            <button
-              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500"
-              onClick={() => setBet(maxBet)}
-            >
-              All In
-            </button>
-          </div>
+          ))}
         </div>
-      )}
+        <div className="flex items-center mt-1">
+          <input
+            type="range"
+            min={bigBlind}
+            max={maxBet}
+            value={bet}
+            onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
+            className="w-40"
+            disabled={actionDisabled}
+          />
+          <input
+            type="number"
+            min={bigBlind}
+            max={maxBet}
+            value={bet}
+            onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
+            className="w-16 ml-2 text-black rounded"
+            disabled={actionDisabled}
+          />
+        </div>
+        <div className="flex gap-2 mt-2">
+          <button
+            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setBet(Math.min(bet * 2, maxBet))}
+            disabled={actionDisabled}
+          >
+            2x
+          </button>
+          <button
+            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setBet(Math.min(bet * 3, maxBet))}
+            disabled={actionDisabled}
+          >
+            3x
+          </button>
+          <button
+            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setBet(maxBet)}
+            disabled={actionDisabled}
+          >
+            All In
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
