@@ -113,10 +113,8 @@ export interface Player {
   totalCommitted: number;
   holeCards: Card[];
   lastAction: PlayerAction;
-  /**
-   * When true, player finishes the current hand then becomes SITTING_OUT for
-   * the next one. Cleared automatically after the transition.
-   */
+  missedSmallBlind: boolean;
+  missedBigBlind: boolean;
   sitOutNextHand?: boolean;
 }
 
@@ -153,6 +151,8 @@ export interface RakeConfig {
   min: number;
 }
 
+export type DeadBlindRule = 'POST' | 'WAIT';
+
 export interface Table {
   seats: Array<Player | null>;
   buttonIndex: number;
@@ -174,6 +174,7 @@ export interface Table {
   interRoundDelayMs: number;
   dealAnimationDelayMs: number;
   rakeConfig?: RakeConfig;
+  deadBlindRule: DeadBlindRule;
 }
 
 export interface HandAction {

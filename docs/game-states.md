@@ -69,7 +69,7 @@ This document describes the server-side `TableState` lifecycle for a single no-l
 ### 10. **ROTATE**
 
 - **Entry**: Payout complete.
-- **Actions**: Dealer button and blinds move to the next eligible players.
+- **Actions**: Dealer button advances to the next active seat clockwise. Small/big blind positions skip empty seats and may require returning players to post missed blinds or wait for the big blind depending on table rules.
 - **Exit**: Rotation finished.
 
 ### 11. **CLEANUP**
@@ -161,4 +161,5 @@ End of hand:
   - If a stack covers the blind, deduct it and mark the bet for this round.
   - Short stacks may post all-in for their remaining chips.
 - Players unable to post are marked sitting out and blinds are reassigned. If only one player can post, the table returns to **WAITING**.
+- Returning players who missed blinds may either post the missed big blind (and small blind if required) or wait for the big blind, depending on the table's `deadBlindRule`.
 - Pre-flop action begins left of the big blind, except heads-up where the button acts first and the big blind acts first on later streets.

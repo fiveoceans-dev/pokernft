@@ -24,6 +24,8 @@ const createPlayer = (id: string, seatIndex: number, stack: number): Player => (
   totalCommitted: 0,
   holeCards: [],
   lastAction: PlayerAction.NONE,
+  missedSmallBlind: false,
+  missedBigBlind: false,
 });
 
 describe('Dealer & BettingEngine', () => {
@@ -55,6 +57,7 @@ describe('Dealer & BettingEngine', () => {
       actionTimer: 0,
       interRoundDelayMs: 0,
       dealAnimationDelayMs: 0,
+      deadBlindRule: 'POST',
     };
     dealHoleCards(table);
     expect(table.seats[1]?.holeCards).toEqual([card('1','s'), card('4','s')]);
@@ -87,6 +90,7 @@ describe('Dealer & BettingEngine', () => {
       actionTimer: 0,
       interRoundDelayMs: 0,
       dealAnimationDelayMs: 0,
+      deadBlindRule: 'POST',
     };
 
     const ok = assignBlindsAndButton(table);

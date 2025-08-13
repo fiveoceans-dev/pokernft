@@ -26,6 +26,8 @@ const createPlayer = (
   totalCommitted: 0,
   holeCards: [],
   lastAction: PlayerAction.NONE,
+  missedSmallBlind: false,
+  missedBigBlind: false,
 });
 
 describe("startBettingRound", () => {
@@ -50,6 +52,7 @@ describe("startBettingRound", () => {
       actionTimer: 0,
       interRoundDelayMs: 0,
       dealAnimationDelayMs: 0,
+      deadBlindRule: 'POST',
     };
 
     assignBlindsAndButton(table);
