@@ -1,4 +1,4 @@
-import { GameRoom } from './types';
+import { GameRoom, Table, Player, PlayerState, PlayerAction } from "./types";
 
 /**
  * BlindManager computes small/big blind positions and posts the blinds.
@@ -44,4 +44,103 @@ export class BlindManager {
     }
     return idx;
   }
+}
+
+/**
+ * Assign button, small blind and big blind for a {@link Table} and attempt to
+ * post the blinds according to player stacks. Returns `true` when both blinds
+ * were posted successfully, otherwise `false` indicating the hand cannot
+ * start.
+ */
+export function assignBlindsAndButton(table: Table): boolean {
+  const activeSeat = (start: number): number | null => {
+    const len = table.seats.length;
+    for (let i = 0; i < len; i++) {
+      const idx = (start + i) % len;
+      const p = table.seats[idx];
+      if (p && p.state === PlayerState.ACTIVE) return idx;
+    }
+    return null;
+  };
+
+  const postBlind = (player: Player, amount: number): boolean => {
+    if (player.stack >= amount) {
+      player.stack -= amount;
+      player.betThisRound = amount;
+      player.totalCommitted += amount;
+      player.lastAction = PlayerAction.BET;
+      return true;
+    }
+    if (player.stack > 0) {
+      player.betThisRound = player.stack;
+      player.totalCommitted += player.stack;
+      player.stack = 0;
+      player.state = PlayerState.ALL_IN;
+      player.lastAction = PlayerAction.ALL_IN;
+      return true;
+    }
+    return false;
+  };
+
+  const activePlayers = table.seats.filter(
+    (p) => p && p.state === PlayerState.ACTIVE,
+  ).length;
+  if (activePlayers < 2) return false;
+
+  const btn = activeSeat(table.buttonIndex + 1);
+  if (btn === null) return false;
+  table.buttonIndex = btn;
+  table.seats.forEach((p, i) => {
+    if (p) p.hasButton = i === btn;
+  });
+
+  let sb: number | null;
+  let bb: number | null;
+
+  const computeBlinds = () => {
+    if (activePlayers === 2) {
+      sb = btn;
+      bb = activeSeat(btn + 1);
+    } else {
+      sb = activeSeat(btn + 1);
+      bb = sb !== null ? activeSeat(sb + 1) : null;
+    }
+  };
+
+  computeBlinds();
+
+  while (sb !== null && bb !== null) {
+    const sbPlayer = table.seats[sb]!;
+    const bbPlayer = table.seats[bb]!;
+    const sbPosted = postBlind(sbPlayer, table.smallBlindAmount);
+    const bbPosted = postBlind(bbPlayer, table.bigBlindAmount);
+
+    if (sbPosted && bbPosted) break;
+
+    if (!sbPosted) sbPlayer.state = PlayerState.SITTING_OUT;
+    if (!bbPosted) bbPlayer.state = PlayerState.SITTING_OUT;
+
+    const remaining = table.seats.filter(
+      (p) => p && p.state === PlayerState.ACTIVE,
+    ).length;
+    if (remaining < 2) return false;
+
+    computeBlinds();
+    if (sb === null || bb === null) return false;
+  }
+
+  if (sb === null || bb === null) return false;
+
+  table.smallBlindIndex = sb;
+  table.bigBlindIndex = bb;
+  table.betToCall = table.bigBlindAmount;
+
+  if (activePlayers === 2) {
+    table.actingIndex = sb;
+  } else {
+    const first = activeSeat(bb + 1);
+    table.actingIndex = first ?? sb;
+  }
+
+  return true;
 }

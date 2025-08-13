@@ -101,3 +101,12 @@ Zero chips after payout: remain **SEATED** but **SITTING_OUT** (or **LEAVING** i
 - **ROTATE** (move button to next active seat)
 - **CLEANUP** (reset per-hand fields) → back to **WAITING** or **BLINDS**
 
+#### BLINDS
+
+- Dealer button moves to the next seated player clockwise. In heads-up, the button also posts the small blind.
+- Attempt to auto-post the small and big blinds:
+  - If a stack covers the blind, deduct it and mark the bet for this round.
+  - Short stacks may post all-in for their remaining chips.
+- Players unable to post are marked sitting out and blinds are reassigned. If only one player can post, the table returns to **WAITING**.
+- Pre-flop action begins left of the big blind, except heads-up where the button acts first and the big blind acts first on later streets.
+
