@@ -43,7 +43,6 @@ const nextConfig = {
     config.resolve.fallback = { fs: false, net: false, tls: false };
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@ss-2/backend": path.resolve(__dirname, "../backend/src"),
     };
     config.externals.push("pino-pretty", "lokijs", "encoding");
     config.plugins.push(

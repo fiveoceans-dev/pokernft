@@ -1,19 +1,12 @@
 // src/hooks/useGameStore.ts
 import { create } from "zustand";
 import {
-  createRoom,
-  addPlayer,
-  startHand as startHandGame,
-  progressStage,
-  handleAction,
-  determineWinners,
-  payout,
-  isRoundComplete,
+  GameEngine,
   cardToIndex,
   PokerStateMachine,
   GameState as EnginePhase,
-} from "@ss-2/backend";
-import type { Stage } from "@ss-2/backend";
+} from "../backend";
+import type { Stage } from "../backend";
 
 /** Map Stage strings to numeric street indices used by the UI */
 const stageToStreet: Record<Stage, number> = {
@@ -25,8 +18,8 @@ const stageToStreet: Record<Stage, number> = {
   showdown: 4,
 };
 
-// Single in-memory room used for local demo / frontend state
-const room = createRoom("local");
+// Single in-memory engine used for local demo / frontend state
+const engine = new GameEngine("local");
 const machine = new PokerStateMachine();
 
 interface GameStoreState {
@@ -102,6 +95,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   /** Sync Zustand state from the current room object */
   reloadTableState: async () => {
+    const room = engine.getState();
     const seats = Array(9).fill(null) as (string | null)[];
     const hands = Array(9).fill(null) as ([number, number] | null)[];
     const chips = Array(9).fill(0) as number[];
@@ -137,9 +131,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   /** Seat a demo player at the given index */
   joinSeat: async (seatIdx: number) => {
+    const room = engine.getState();
     // prevent double seating
     if (room.players.some((p) => p.seat === seatIdx)) return;
-    addPlayer(room, {
+    engine.addPlayer({
       id: `p${seatIdx}`,
       nickname: `Player ${seatIdx + 1}`,
       seat: seatIdx,
@@ -151,6 +146,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   /** Deal new hole cards to all players */
   startHand: async () => {
+    const room = engine.getState();
     const live = room.players.filter((p) => !p.hasFolded).length;
     if (machine.state !== EnginePhase.WaitingForPlayers) {
       machine.dispatch({ type: "BETTING_COMPLETE", remainingPlayers: live });
@@ -159,7 +155,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
     machine.dispatch({ type: "PLAYERS_READY" });
     machine.dispatch({ type: "SHUFFLE_COMPLETE" });
-    startHandGame(room);
+    engine.startHand();
     machine.dispatch({ type: "DEAL_COMPLETE" });
     await get().reloadTableState();
     get().addLog("Hand started");
@@ -167,12 +163,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   /** Reveal the flop */
   dealFlop: async () => {
+    const room = engine.getState();
     if (room.stage === "preflop") {
       machine.dispatch({
         type: "BETTING_COMPLETE",
         remainingPlayers: room.players.filter((p) => !p.hasFolded).length,
       });
-      progressStage(room);
+      engine.progressStage();
       machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
       get().addLog("Flop dealt");
@@ -181,12 +178,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   /** Reveal the turn */
   dealTurn: async () => {
+    const room = engine.getState();
     if (room.stage === "flop") {
       machine.dispatch({
         type: "BETTING_COMPLETE",
         remainingPlayers: room.players.filter((p) => !p.hasFolded).length,
       });
-      progressStage(room);
+      engine.progressStage();
       machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
       get().addLog("Turn dealt");
@@ -195,12 +193,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   /** Reveal the river */
   dealRiver: async () => {
+    const room = engine.getState();
     if (room.stage === "turn") {
       machine.dispatch({
         type: "BETTING_COMPLETE",
         remainingPlayers: room.players.filter((p) => !p.hasFolded).length,
       });
-      progressStage(room);
+      engine.progressStage();
       machine.dispatch({ type: "DEAL_COMPLETE" });
       await get().reloadTableState();
       get().addLog("River dealt");
@@ -209,27 +208,28 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   /** Apply a betting action for the current turn player */
   playerAction: async (action) => {
+    const room = engine.getState();
     const current = room.players[room.currentTurnIndex];
-    handleAction(room, current.id, action);
+    engine.handleAction(current.id, action);
     await get().reloadTableState();
     get().addLog(`${current.nickname} ${action.type}`);
-    if (isRoundComplete(room)) {
+    if (engine.isRoundComplete()) {
       const remaining = room.players.filter((p) => !p.hasFolded).length;
       machine.dispatch({ type: "BETTING_COMPLETE", remainingPlayers: remaining });
       if (remaining <= 1) {
         const winners = room.players.filter((p) => !p.hasFolded);
-        payout(room, winners);
+        engine.payout(winners);
         machine.dispatch({ type: "PAYOUT_COMPLETE" });
         room.stage = "waiting";
       } else if (room.stage === "river") {
-        progressStage(room); // move to showdown
-        const winners = determineWinners(room);
+        engine.progressStage(); // move to showdown
+        const winners = engine.determineWinners();
         machine.dispatch({ type: "SHOWDOWN_COMPLETE" });
-        payout(room, winners);
+        engine.payout(winners);
         machine.dispatch({ type: "PAYOUT_COMPLETE" });
         room.stage = "waiting";
       } else {
-        progressStage(room);
+        engine.progressStage();
         machine.dispatch({ type: "DEAL_COMPLETE" });
       }
       await get().reloadTableState();

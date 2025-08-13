@@ -1,7 +1,7 @@
 import { GameRoom, PlayerSession, Stage } from './types';
 import { dealDeck, draw } from './utils';
 import { randomInt } from './rng';
-import { rankHand, compareHands } from './handEvaluator';
+import { evaluateHand } from './hashEvaluator';
 
 /** Create an empty game room */
 export function createRoom(id: string, minBet = 10): GameRoom {
@@ -162,17 +162,12 @@ export function determineWinners(room: GameRoom): PlayerSession[] {
   if (live.length === 0) return [];
   const evaluated = live.map((p) => ({
     player: p,
-    score: rankHand([...p.hand, ...room.communityCards]),
+    score: evaluateHand([...p.hand, ...room.communityCards]),
   }));
-  const best = Math.min(...evaluated.map((e) => e.score.rankValue));
+  const best = Math.min(...evaluated.map((e) => e.score));
   return evaluated
-    .filter((e) => e.score.rankValue === best)
-    .sort((a, b) => compareHands(a.score, b.score))
-    .reduce<PlayerSession[]>((acc, cur, idx, arr) => {
-      if (idx === 0) return [cur.player];
-      if (compareHands(cur.score, arr[0].score) === 0) acc.push(cur.player);
-      return acc;
-    }, []);
+    .filter((e) => e.score === best)
+    .map((e) => e.player);
 }
 
 /** Check if the current betting round is complete */
