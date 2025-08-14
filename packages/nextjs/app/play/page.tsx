@@ -83,7 +83,7 @@ export default function PlayPage() {
       <div className="flex-1 flex items-center justify-center">
         <Table timer={timer} />
       </div>
-      <div className="fixed bottom-4 right-4">
+      <div id="action-buttons" className="fixed bottom-4 right-4">
         <ActionBar
           street={stageNames[street] ?? "preflop"}
           onActivate={handleActivate}
