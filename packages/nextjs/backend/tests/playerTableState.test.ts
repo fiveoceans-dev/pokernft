@@ -50,6 +50,11 @@ describe("playerStateReducer", () => {
     expect(state).toBe(PlayerState.FOLDED);
   });
 
+  it("auto folds disconnected player on timeout", () => {
+    const state = playerStateReducer(PlayerState.DISCONNECTED, { type: "FOLD" });
+    expect(state).toBe(PlayerState.FOLDED);
+  });
+
   it("marks player sitting out when broke and rebuy allowed", () => {
     const state = playerStateReducer(PlayerState.ACTIVE, {
       type: "HAND_END",
@@ -103,5 +108,18 @@ describe("TableStateMachine", () => {
     expect(sm.state).toBe(TableState.CLEANUP);
     sm.dispatch({ type: "CLEANUP_COMPLETE", activeSeats: 2 });
     expect(sm.state).toBe(TableState.BLINDS);
+  });
+
+  it("returns to waiting when fewer than two players remain", () => {
+    const sm = new TableStateMachine();
+    sm.dispatch({ type: "START_HAND", activeSeats: 2 });
+    sm.dispatch({ type: "BLINDS_POSTED" });
+    sm.dispatch({ type: "DEALING_COMPLETE" });
+    sm.dispatch({ type: "BETTING_COMPLETE", remainingPlayers: 1 });
+    expect(sm.state).toBe(TableState.PAYOUT);
+    sm.dispatch({ type: "PAYOUT_COMPLETE" });
+    sm.dispatch({ type: "ROTATION_COMPLETE" });
+    sm.dispatch({ type: "CLEANUP_COMPLETE", activeSeats: 1 });
+    expect(sm.state).toBe(TableState.WAITING);
   });
 });

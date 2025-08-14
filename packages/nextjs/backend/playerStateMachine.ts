@@ -31,7 +31,9 @@ export function playerStateReducer(
       return event.stack >= min ? PlayerState.ACTIVE : PlayerState.SITTING_OUT;
     }
     case "FOLD":
-      return state === PlayerState.ACTIVE ? PlayerState.FOLDED : state;
+      return state === PlayerState.ACTIVE || state === PlayerState.DISCONNECTED
+        ? PlayerState.FOLDED
+        : state;
     case "BET_ALL_IN":
       return state === PlayerState.ACTIVE ? PlayerState.ALL_IN : state;
     case "DISCONNECT":
