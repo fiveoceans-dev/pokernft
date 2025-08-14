@@ -28,6 +28,8 @@ export * from "./hashEvaluator";
 export * from "./rng";
 export * from "./gameEngine";
 export * from "./blindManager";
+export * from "./seatingManager";
+export * from "./eventBus";
 export * from "./playerStateMachine";
 export * from "./tableStateMachine";
 export * from "./dealer";
