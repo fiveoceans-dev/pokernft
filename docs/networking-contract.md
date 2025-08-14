@@ -41,4 +41,4 @@ command.
 ## Additional Guarantees
 
 - The server processes incoming commands in the order they are received and validates that the sender matches the current `actingIndex`. Out‑of‑turn actions are rejected with an `ERROR` response and do not reset any timers.
-- If a player disconnects while it is their turn, the action timer continues to run. On expiry the server automatically issues a `Fold` or `Check` on their behalf.
+- If a player disconnects while it is their turn, a separate grace timer runs. When it expires the player's `timebankMs` is consumed before the server issues an automatic `Fold` or `Check`.

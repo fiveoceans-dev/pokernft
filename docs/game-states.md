@@ -106,7 +106,7 @@ During betting:
 - **ACTIVE** → **FOLDED** on Fold.
 - **ACTIVE** → **ALL_IN** if action commits all chips.
 
-Disconnection: **ACTIVE** → **DISCONNECTED** (timer); auto-fold when timer expires.
+  Disconnection: **ACTIVE** → **DISCONNECTED** (grace timer); on expiry any remaining `timebankMs` is consumed before an automatic fold or check.
 
 End of hand:
 

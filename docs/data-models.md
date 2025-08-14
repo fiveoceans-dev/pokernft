@@ -43,8 +43,8 @@ Describes the state of the table for the current hand.
 | `actingIndex` | Seat whose turn it is or `null` when idle |
 | `betToCall` | Highest commitment to match in the current round |
 | `minRaise` | Minimum raise size per no‑limit rules |
-| `actionTimer` | Default action time in milliseconds |
-| `interRoundDelayMs` / `dealAnimationDelayMs` | Delay before starting the next hand / card deal animation timing |
+| `actionTimer` | Default action time in milliseconds (≈15,000 by default) |
+| `interRoundDelayMs` / `dealAnimationDelayMs` | Delay before starting the next hand (≈1–3s) / card deal animation timing (≈400–800ms) |
 | `rakeConfig` | Optional rake percentage, cap and minimum |
 | `deadBlindRule` | Strategy for handling missed blinds: `POST` or `WAIT` |
 

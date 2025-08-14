@@ -53,12 +53,26 @@ export class TimerService {
   /** Handle player disconnection with a grace timer */
   handleDisconnect(player: Player) {
     this.clearDisconnectTimer(player.id);
-    const timer = setTimeout(() => {
-      const action =
-        this.table.betToCall > 0 ? PlayerAction.FOLD : PlayerAction.CHECK;
-      this.handlers.onAutoAction(player.id, action);
-      this.disconnectTimers.delete(player.id);
-    }, this.disconnectGraceMs);
+
+    const expire = () => {
+      const forceAction = () => {
+        const action =
+          this.table.betToCall > 0 ? PlayerAction.FOLD : PlayerAction.CHECK;
+        this.handlers.onAutoAction(player.id, action);
+        this.disconnectTimers.delete(player.id);
+      };
+
+      if (player.timebankMs > 0) {
+        const extra = player.timebankMs;
+        player.timebankMs = 0;
+        const tbTimer = setTimeout(forceAction, extra);
+        this.disconnectTimers.set(player.id, tbTimer);
+      } else {
+        forceAction();
+      }
+    };
+
+    const timer = setTimeout(expire, this.disconnectGraceMs);
     this.disconnectTimers.set(player.id, timer);
   }
 

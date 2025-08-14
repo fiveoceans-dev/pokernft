@@ -10,6 +10,8 @@ This document describes how cards are dealt and betting rounds proceed in a noâ€
   - **Turn**: one community card
   - **River**: one community card
 
+Between individual deal events the server pauses `dealAnimationDelayMs` milliseconds so clients can animate the action.
+
 ## Betting Rounds & Acting Order
 
 - **Preflop**: the first active player to the left of the big blind acts first. In headsâ€‘up play the small blind acts first.
@@ -80,6 +82,8 @@ function rebuildPots():
 - If all but one player folds at any point, that player wins the pot immediately and no further streets are dealt.
 - Short all-in raises that do not meet the current `minRaise` never reopen the betting; players who already acted may only call or fold.
 - Invalid actions (for example, trying to check when `betToCall > 0`) are rejected without advancing the turn timer.
+- When a player's `actionTimer` (typically around 15s) expires, they automatically check if `betToCall` is `0` or fold otherwise.
 - The server processes actions sequentially and ignores out-of-turn commands.
-- When a player disconnects during their turn, the action timer continues and results in an automatic fold or check when it expires.
+- When a player disconnects during their turn, a separate grace timer runs. When it elapses the player's remaining `timebankMs` is consumed before an automatic fold or check is applied.
+- After payouts the table waits `interRoundDelayMs` before the next hand begins.
 - In heads-up play the button posts the small blind, the opposing player posts the big blind, and acting order follows those positions.
