@@ -9,16 +9,19 @@ export default function DealerWindow() {
     const el = containerRef.current;
     if (el) {
       el.scrollTop = el.scrollHeight;
+      el.scrollLeft = el.scrollWidth;
     }
   }, [logs]);
 
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-4 left-4 w-64 h-40 bg-black/50 text-white p-2 rounded overflow-y-auto text-xs flex flex-col justify-end space-y-1"
+      className="fixed left-4 bottom-4 w-64 bg-black/50 text-white p-2 rounded text-xs flex flex-row flex-nowrap space-x-2 overflow-x-auto md:top-1/2 md:bottom-auto md:h-40 md:flex-col md:justify-end md:space-y-1 md:space-x-0 md:overflow-y-auto md:overflow-x-hidden md:-translate-y-1/2"
     >
       {logs.map((msg, i) => (
-        <div key={i}>{msg}</div>
+        <div key={i} className="whitespace-nowrap">
+          {msg}
+        </div>
       ))}
     </div>
   );
