@@ -17,6 +17,8 @@ Between individual deal events the server pauses `dealAnimationDelayMs` millisec
 - **Preflop**: the first active player to the left of the big blind acts first. In heads‑up play the small blind acts first.
 - **Flop / Turn / River**: the first active player to the left of the button acts first. In heads‑up play the big blind acts first.
 
+- **Side pots**: when heads‑up, side‑pot construction and all‑in handling work the same as in multi‑way pots.
+
 See [Heads-Up Specifics](./heads-up.md) for a concise summary of the two-player rules.
 
 ## Legal Actions
