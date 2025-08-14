@@ -19,9 +19,11 @@ For each pot that still has contenders:
 1. Consider only non-folded players whose chips make them eligible for that pot.
 2. From each player's two hole cards and the five community cards, compute the best five-card hand.
 3. Rank hands and identify any ties.
-4. Split the pot equally among the winning players. If the chips cannot be divided evenly, award the leftover chip(s) by house rule (e.g. first winner clockwise from the button).
+4. Split the pot equally among the winning players. If the chips cannot be divided evenly, award the leftover chip(s) by house rule
+   (e.g. first winner clockwise from the button).
 
 ## Payout
 
 - Transfer chips from each pot to its winning players and update their stacks.
+- Remainder chips from split pots are given one at a time starting with the first winning seat clockwise from the button.
 - A player reduced to zero chips cannot post blinds on the next hand. If re-buy is allowed, they are marked `SITTING_OUT` and must reload to at least the `minToPlay` amount (big blind by default) before being dealt in again. Otherwise their seat is cleared immediately.

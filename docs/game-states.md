@@ -55,14 +55,14 @@ This document describes the server-side `TableState` lifecycle for a single no-l
 ### 8. **SHOWDOWN**
 
 - **Entry**: Final betting round completed with more than one player remaining.
-- **Actions**: Remaining hands are revealed and ranked.
+- **Actions**: Remaining hands are revealed and ranked. If the river was checked down, the first player left of the button shows first; otherwise the last aggressor reveals first. Other eligible players may muck or show to claim a share.
 - **Exit**: Winners determined and pot shares calculated.
 - **Edge Cases**: Disconnected players' hands are revealed automatically; ties and split pots handled by the evaluator.
 
 ### 9. **PAYOUT**
 
 - **Entry**: Winners resolved.
-- **Actions**: Chips are distributed, rake is applied and pots cleared.
+- **Actions**: Chips are distributed, rake is applied, remainder chips from split pots are awarded clockwise from the button and pots cleared. Players reduced to zero chips are marked **SITTING_OUT** or removed when re-buy is disallowed.
 - **Exit**: Stacks updated and pots emptied.
 - **Edge Cases**: Transfer failures pause the table until resolved.
 

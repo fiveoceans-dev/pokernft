@@ -1,4 +1,5 @@
-import { Table, Player, PlayerState, Pot } from './types';
+import { Table, Player, PlayerState, Pot } from "./types";
+import { rankHand, compareHands } from "./handEvaluator";
 
 /**
  * Rebuild main and side pots based on each player's total commitment.
@@ -70,8 +71,66 @@ export function applyRake(table: Table): number {
   return total;
 }
 
+/**
+ * Distribute chips from all pots to the winning players. Each pot considers
+ * only its eligible seats and ignores folded players. Hands are ranked using
+ * {@link rankHand} and ties are split evenly with any remainder awarded
+ * clockwise from the dealer button. Players who end up with zero chips are
+ * marked {@link PlayerState.SITTING_OUT}.
+ */
+export function awardPots(table: Table) {
+  table.pots.forEach((pot) => {
+    const contenders = pot.eligibleSeatSet
+      .map((i) => table.seats[i])
+      .filter((p): p is Player => !!p && p.state !== PlayerState.FOLDED);
+    if (contenders.length === 0) {
+      pot.amount = 0;
+      return;
+    }
+
+    const evaluated = contenders.map((p) => ({
+      player: p,
+      hand: rankHand([...p.holeCards, ...table.board]),
+    }));
+
+    let best = evaluated[0].hand;
+    evaluated.forEach((e) => {
+      if (compareHands(e.hand, best) < 0) best = e.hand;
+    });
+    const winners = evaluated
+      .filter((e) => compareHands(e.hand, best) === 0)
+      .map((e) => e.player);
+
+    const share = Math.floor(pot.amount / winners.length);
+    const remainder = pot.amount - share * winners.length;
+    winners.forEach((w) => (w.stack += share));
+
+    if (remainder > 0) {
+      const ordered = winners
+        .slice()
+        .sort(
+          (a, b) =>
+            ((a.seatIndex - table.buttonIndex + table.seats.length) %
+              table.seats.length) -
+            ((b.seatIndex - table.buttonIndex + table.seats.length) %
+              table.seats.length),
+        );
+      for (let i = 0; i < remainder; i++) {
+        ordered[i % ordered.length].stack += 1;
+      }
+    }
+
+    pot.amount = 0;
+  });
+
+  table.seats.forEach((p) => {
+    if (p && p.stack === 0) p.state = PlayerState.SITTING_OUT;
+  });
+}
+
 export default {
   rebuildPots,
   resetForNextRound,
   applyRake,
+  awardPots,
 };
