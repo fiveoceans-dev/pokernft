@@ -19,9 +19,10 @@ Represents a seat at the table.
 | `totalCommitted` | Total chips committed across all rounds of the hand |
 | `holeCards` | Up to two face-down cards |
 | `lastAction` | Last action taken: `NONE`, `FOLD`, `CHECK`, `CALL`, `BET`, `RAISE` or `ALL_IN` |
+| `sitOutNextHand` | Player has toggled to sit out after the current hand |
 | `missedSmallBlind` / `missedBigBlind` | Flags indicating the player skipped posting blinds while sitting out |
 
-`SITTING_OUT` players remain seated but are not dealt until their stack reaches `minToPlay` (big blind by default). `LEAVING` denotes a player scheduled to be removed after the hand.
+`SITTING_OUT` players remain seated but are not dealt until their stack reaches `minToPlay` (big blind by default). Players reduced to zero chips with re-buy disabled are marked `LEAVING` and removed after the hand.
 
 ## Table
 

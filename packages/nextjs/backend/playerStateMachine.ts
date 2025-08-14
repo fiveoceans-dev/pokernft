@@ -41,14 +41,13 @@ export function playerStateReducer(
     case "RECONNECT":
       return state === PlayerState.DISCONNECTED ? PlayerState.ACTIVE : state;
     case "HAND_END":
-      if (
-        state === PlayerState.LEAVING ||
-        (event.stack === 0 && !event.reBuyAllowed)
-      ) {
+      if (state === PlayerState.LEAVING) {
         return PlayerState.EMPTY;
       }
       if (event.stack === 0) {
-        return PlayerState.SITTING_OUT;
+        return event.reBuyAllowed
+          ? PlayerState.SITTING_OUT
+          : PlayerState.LEAVING;
       }
       return state;
     case "LEAVE":

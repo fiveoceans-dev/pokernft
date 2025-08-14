@@ -63,6 +63,7 @@ This document describes the server-side `TableState` lifecycle for a single no-l
 
 - **Entry**: Winners resolved.
 - **Actions**: Chips are distributed, rake is applied, remainder chips from split pots are awarded clockwise from the button and pots cleared. Players reduced to zero chips are marked **SITTING_OUT** or removed when re-buy is disallowed.
+ - **Actions**: Chips are distributed, rake is applied, remainder chips from split pots are awarded clockwise from the button and pots cleared. Players reduced to zero chips are marked **SITTING_OUT** or flagged **LEAVING** when re-buy is disallowed.
 - **Exit**: Stacks updated and pots emptied.
 - **Edge Cases**: Transfer failures pause the table until resolved.
 
@@ -110,8 +111,8 @@ During betting:
 
 End of hand:
 
-- Stack == 0 & re-buy allowed → **SITTING_OUT** until stack ≥ `minToPlay`.
-- Stack == 0 & no re-buy → seat cleared immediately.
+- Stack == 0 & re-buy allowed → **SITTING_OUT** and prompted to buy-in; no cards are dealt until stack ≥ `minToPlay` (big blind by default, short-buy optional).
+- Stack == 0 & no re-buy → **LEAVING** then seat cleared.
 - Voluntary sit-out toggle → **SITTING_OUT** next hand.
 - **LEAVING** during hand → seat becomes **EMPTY**.
 

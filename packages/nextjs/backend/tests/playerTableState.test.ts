@@ -64,13 +64,13 @@ describe("playerStateReducer", () => {
     expect(state).toBe(PlayerState.SITTING_OUT);
   });
 
-  it("removes player when broke and rebuy disallowed", () => {
+  it("marks player leaving when broke and rebuy disallowed", () => {
     const state = playerStateReducer(PlayerState.ACTIVE, {
       type: "HAND_END",
       stack: 0,
       reBuyAllowed: false,
     });
-    expect(state).toBe(PlayerState.EMPTY);
+    expect(state).toBe(PlayerState.LEAVING);
   });
 
   it("removes player who chose to leave", () => {

@@ -79,4 +79,14 @@ describe('resetTableForNextHand', () => {
 
     expect(table.state).toBe(TableState.WAITING);
   });
+
+  it('removes broke players when re-buy disabled', async () => {
+    const p1 = createPlayer('a', 0, 0);
+    const p2 = createPlayer('b', 1, 100);
+    const table = createTable([p1, p2]);
+
+    await resetTableForNextHand(table, false);
+
+    expect(table.seats[0]).toBeNull();
+  });
 });
