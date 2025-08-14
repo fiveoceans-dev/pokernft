@@ -1,5 +1,7 @@
 import type { Card, Table, PlayerAction, Round } from "./types";
 
+export type BlindType = "SMALL" | "BIG";
+
 export type ServerEvent =
   | { type: "TABLE_SNAPSHOT"; table: Table }
   | { type: "HAND_START" }
@@ -40,7 +42,7 @@ export type ClientCommand =
   | { cmdId: string; type: "LEAVE" }
   | { cmdId: string; type: "SIT_OUT" }
   | { cmdId: string; type: "SIT_IN" }
-  | { cmdId: string; type: "POST_BLIND"; blind: "SMALL" | "BIG" }
+  | { cmdId: string; type: "POST_BLIND"; blindType: BlindType }
   | {
       cmdId: string;
       type: "ACTION";

@@ -98,16 +98,15 @@ wss.on("connection", (ws) => {
           break;
         }
         case "SIT_OUT":
-        case "SIT_IN":
-        case "POST_BLIND":
-          ws.send(
-            JSON.stringify({
-              type: "ERROR",
-              code: "UNSUPPORTED",
-              msg: msg.type,
-            } satisfies ServerEvent),
-          );
+        case "SIT_IN": {
+          broadcast({ type: "TABLE_SNAPSHOT", table: room });
           break;
+        }
+        case "POST_BLIND": {
+          broadcast({ type: "BLINDS_POSTED" });
+          broadcast({ type: "TABLE_SNAPSHOT", table: room });
+          break;
+        }
         default:
           ws.send(
             JSON.stringify({
