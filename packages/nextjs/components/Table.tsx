@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, Fragment } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "../hooks/useGameStore";
+import useIsMobile from "../hooks/useIsMobile";
 import Card from "./Card";
 import { indexToCard } from "../backend";
 import PlayerSeat from "./PlayerSeat";
@@ -64,7 +65,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     playerBets,
     playerAction,
   } = useGameStore();
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [tableScale, setTableScale] = useState(1);
   const [bet, setBet] = useState(bigBlind);
   const [actionTimer, setActionTimer] = useState<number | null>(null);
@@ -75,12 +76,10 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   useEffect(() => {
     const handle = () => {
-      const mobile = window.innerWidth < 640;
-      setIsMobile(mobile);
-      const baseW = mobile ? 420 : 820;
-      const baseH = mobile ? 680 : 520;
-      const minTableWidth = mobile ? 360 : baseW;
-      const bottomSpace = mobile ? 100 : 0;
+      const baseW = isMobile ? 420 : 820;
+      const baseH = isMobile ? 680 : 520;
+      const minTableWidth = isMobile ? 360 : baseW;
+      const bottomSpace = isMobile ? 100 : 0;
       const minScale = minTableWidth / baseW;
       const scale = Math.min(
         Math.max(window.innerWidth / baseW, minScale),
@@ -92,7 +91,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     handle();
     window.addEventListener("resize", handle);
     return () => window.removeEventListener("resize", handle);
-  }, []);
+  }, [isMobile]);
 
   const layout = useMemo(() => buildLayout(isMobile), [isMobile]);
   const localIdx = useMemo(() => {

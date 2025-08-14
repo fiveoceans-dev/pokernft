@@ -1,18 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "../hooks/useGameStore";
+import useIsMobile from "../hooks/useIsMobile";
 
 export default function DealerWindow() {
   const logs = useGameStore((s) => s.logs);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState(false);
 
-  useEffect(() => {
-    const handle = () => setIsMobile(window.innerWidth < 640);
-    handle();
-    window.addEventListener("resize", handle);
-    return () => window.removeEventListener("resize", handle);
-  }, []);
 
   useEffect(() => {
     if (isMobile && !expanded) return;
@@ -25,7 +20,8 @@ export default function DealerWindow() {
 
   const displayLogs = isMobile && !expanded ? logs.slice(-1) : logs;
 
-  const base = "absolute left-4 w-64 bg-black/50 text-white rounded text-xs";
+  const base = "absolute left-4 top-0 w-64 bg-black/50 text-white rounded text-xs";
+
   const collapsed = "h-5 p-1 overflow-hidden cursor-pointer flex items-center";
   const open =
     "max-h-40 p-2 overflow-y-auto flex flex-col justify-end space-y-1";
