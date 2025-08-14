@@ -12,9 +12,12 @@ export function rebuildPots(table: Table) {
     return;
   }
 
-  const thresholds = Array.from(new Set(players.map((p) => p.totalCommitted))).sort(
-    (a, b) => a - b,
-  );
+  // Build sorted unique commitment thresholds, ignoring zero as it cannot
+  // contribute to a pot. Each threshold represents a layer of chips that at
+  // least one player has contributed.
+  const thresholds = Array.from(
+    new Set(players.map((p) => p.totalCommitted).filter((t) => t > 0)),
+  ).sort((a, b) => a - b);
 
   let previous = 0;
   const pots: Pot[] = [];
