@@ -8,20 +8,20 @@ betting rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md
 
 ## Core Modules
 
-| Module                   | Responsibility                                                                                                                                                                                                                  |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **TableManager**         | Orchestrates the hand lifecycle and table state machine, moves the dealer button after payouts and enforces the minimum number of active players.                                                                                             |
+| Module                   | Responsibility                                                                                                                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **TableManager**         | Orchestrates the hand lifecycle and table state machine, moves the dealer button after payouts and enforces the minimum number of active players.                                                                                      |
 | **SeatingManager**       | Handles seat assignment, buy‑in/top‑up, sit‑out/return and leave actions. Voluntary sit-outs take effect after the current hand. At hand end, broke players are marked `SITTING_OUT` if re‑buy is allowed or `LEAVING` when it is not. |
-| **BlindManager**         | Assigns blind positions, auto‑posts blinds (allowing all‑in when short), enforces heads‑up order and applies configurable dead‑blind rules for returning players.                                                                       |
-| **Dealer**               | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server.                                                                                                      |
-| **BettingEngine**        | Manages turn order, validates actions and raise sizes, tracks `betToCall`/`minRaise` and detects round completion.                                                                                                              |
-| **PotManager**           | Tracks per‑round and total commitments, rebuilds main and side pots on all‑ins, applies rake and settles payouts.                                                                                                               |
-| **HandEvaluator**        | Ranks seven‑card hands, resolves ties and supports split pots.                                                                                                                                                                  |
-| **TimerService**         | Runs per‑action countdowns with optional timebank and disconnect grace; triggers auto‑fold or check on expiry and provides deal/inter‑round delay helpers.                                                                      |
-| **EventBus**             | Emits state changes to clients and queues validated commands to the server.                                                                                                                                                     |
-| **Persistence/Audit**    | Records immutable hand and action logs for settlements and anti‑fraud analysis.                                                                                                                                                 |
-| **RulesConfig**          | Defines game parameters such as blinds, rake and buy‑in limits.                                                                                                                                                                 |
-| **Integrity/Anti‑Abuse** | Optional hooks for rate limiting and collusion detection.                                                                                                                                                                       |
+| **BlindManager**         | Assigns blind positions, auto‑posts blinds (allowing all‑in when short), enforces heads‑up order and applies configurable dead‑blind rules for returning players.                                                                      |
+| **Dealer**               | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server.                                                                                                             |
+| **BettingEngine**        | Manages turn order, validates actions and raise sizes, tracks `betToCall`/`minRaise` and detects round completion.                                                                                                                     |
+| **PotManager**           | Tracks per‑round and total commitments, rebuilds main and side pots on all‑ins, applies rake and settles payouts.                                                                                                                      |
+| **HandEvaluator**        | Ranks seven‑card hands, resolves ties and supports split pots.                                                                                                                                                                         |
+| **TimerService**         | Runs per‑action countdowns with optional timebank and disconnect grace; triggers auto‑fold or check on expiry and provides deal/inter‑round delay helpers.                                                                             |
+| **EventBus**             | Emits state changes to clients and queues validated commands to the server.                                                                                                                                                            |
+| **Persistence/Audit**    | Records immutable hand and action logs for settlements and anti‑fraud analysis.                                                                                                                                                        |
+| **RulesConfig**          | Defines game parameters such as blinds, rake and buy‑in limits.                                                                                                                                                                        |
+| **Integrity/Anti‑Abuse** | Optional hooks for rate limiting and collusion detection.                                                                                                                                                                              |
 
 ## Interaction Flow
 
@@ -56,9 +56,40 @@ PlayerAction { seatIndex, action: FOLD|CHECK|CALL|BET|RAISE|ALL_IN, amount? }
 
 ### Key Validation Rules
 
-- Only the player at `actingIndex` may act.
-- Bets must be within the player's stack and at least the minimum bet.
-- Raises consist of calling first, then raising by at least `minRaise` (unless all‑in for less).
+- Only the player at `actingIndex` may act; out-of-turn commands are rejected.
+- BET amounts must be at least the table's minimum bet (`bigBlindAmount` preflop) and may not exceed the player's stack.
+- RAISE requires matching the current `betToCall` then increasing the wager by at least `minRaise` unless the player is all-in for less.
 - Players marked `FOLDED`, `ALL_IN` or `DISCONNECTED` cannot act.
 
 These checks keep the server authoritative and ensure that illegal actions are rejected before state changes are broadcast to clients.
+
+#### Round Completion
+
+```pseudo
+function isRoundComplete():
+  active = players.filter(p => p.state in {ACTIVE, ALL_IN})
+  if active.count <= 1: return true  // hand ends
+  if active.every(p => p.state == ALL_IN): return true  // proceed to next street/showdown
+  maxCommit = max(p.betThisRound for p in active if p.state == ACTIVE)
+  canAct = nextActorExists()
+  allMatched = active.every(p =>
+      p.state != ACTIVE || p.betThisRound == maxCommit ||
+      (maxCommit == 0 && p.lastAction in {CHECK}))
+  return allMatched && !canAct
+```
+
+#### Side-Pot Construction (on any all-in)
+
+```pseudo
+function rebuildPots():
+  live = players.filter(p => p.state != FOLDED)
+  byCommit = sortAsc(unique(live.map(p => p.totalCommitted)))
+  prev = 0
+  pots = []
+  for t in byCommit:
+    tierContribPlayers = live.filter(p => p.totalCommitted >= t)
+    if tierContribPlayers.length >= 2 and t > prev:
+      amount = (t - prev) * tierContribPlayers.length
+      pots.push({ amount, eligible: set(tierContribPlayers.map(p => p.seatIndex)) })
+      prev = t
+```
