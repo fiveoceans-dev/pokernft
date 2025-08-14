@@ -1,5 +1,5 @@
 import { Table, Player, PlayerState, PlayerAction, Round } from "./types";
-import { rebuildPots } from "./potManager";
+import { rebuildPots, resetForNextRound } from "./potManager";
 import { isHeadsUp } from "./tableUtils";
 
 /** Initialize betting round and determine first to act */
@@ -14,7 +14,7 @@ export function startBettingRound(table: Table, round: Round) {
       table.actingIndex = nextSeat(table, table.bigBlindIndex);
     }
   } else {
-    table.betToCall = 0;
+    resetForNextRound(table);
     if (isHeadsUp(table)) {
       table.actingIndex = table.bigBlindIndex;
     } else {
