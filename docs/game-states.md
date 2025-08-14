@@ -70,13 +70,15 @@ This document describes the server-side `TableState` lifecycle for a single no-l
 ### 10. **ROTATE**
 
 - **Entry**: Payout complete.
-- **Actions**: Dealer button and blinds move to the next eligible players.
+- **Actions**: Dealer button moves to the next active seat clockwise. Returning players who missed blinds must either post the
+  big blind (and small blind if required) immediately (`deadBlindRule = POST`) or wait for the big blind to reach them
+  (`deadBlindRule = WAIT`). If the small-blind seat is empty, blinds roll forward to the next available active seats.
 - **Exit**: Rotation finished.
 
 ### 11. **CLEANUP**
 
 - **Entry**: Rotation complete.
-- **Actions**: Board, pots and per-hand metadata are reset. Players marked **LEAVING** are removed and, if the button seat becomes empty, the button advances to the next active player.
+- **Actions**: Board, pots and per-hand metadata are reset. Players marked **LEAVING** are removed.
 - **Exit**: If at least two active players can post the blinds, the table waits `interRoundDelayMs` then returns to **BLINDS**. Otherwise it falls back to **WAITING**.
 
 ### **PAUSED** _(optional)_
