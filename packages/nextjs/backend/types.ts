@@ -170,6 +170,8 @@ export interface Table {
   maxBuyIn: number;
   state: TableState;
   deck: Card[];
+  /** Seed used to generate the shuffled deck for this hand */
+  deckSeed?: string;
   board: Card[];
   pots: Pot[];
   currentRound: Round;

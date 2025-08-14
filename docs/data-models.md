@@ -36,7 +36,8 @@ Describes the state of the table for the current hand.
 | `minBuyIn` / `maxBuyIn` | Buy‑in limits |
 | `state` | Current `TableState` (`WAITING`, `BLINDS`, `DEALING_HOLE`, `PRE_FLOP`, `FLOP`, `TURN`, `RIVER`, `SHOWDOWN`, `PAYOUT`, `ROTATE`, `CLEANUP`) |
 | `deck` | Remaining cards in the deck |
-| `board` | Community cards on the table |
+| `deckSeed` | Seed or hash used to shuffle the deck |
+| `board` | Community cards on the table (0–5 cards) |
 | `pots` | Array of `{ amount, eligibleSeatSet }` including side pots |
 | `currentRound` | Betting round (`PREFLOP`, `FLOP`, `TURN`, `RIVER`) |
 | `actingIndex` | Seat whose turn it is or `null` when idle |
