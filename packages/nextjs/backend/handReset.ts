@@ -61,6 +61,7 @@ export async function resetTableForNextHand(
   table.minRaise = 0;
   table.actingIndex = null;
   table.lastFullRaise = null;
+  table.actedSinceLastRaise = new Set();
   table.currentRound = Round.PREFLOP;
   table.smallBlindIndex = -1;
   table.bigBlindIndex = -1;

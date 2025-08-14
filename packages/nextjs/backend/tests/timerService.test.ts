@@ -41,6 +41,7 @@ const createTable = (player: Player, extra: Partial<Table> = {}): Table => ({
   betToCall: 0,
   minRaise: 0,
   lastFullRaise: null,
+  actedSinceLastRaise: new Set(),
   actionTimer: 50,
   interRoundDelayMs: 0,
   dealAnimationDelayMs: 0,

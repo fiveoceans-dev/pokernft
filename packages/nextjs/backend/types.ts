@@ -182,6 +182,8 @@ export interface Table {
   minRaise: number;
   /** Seat index of the last player to make a full bet/raise */
   lastFullRaise: number | null;
+  /** Seats that have acted since the last full bet/raise */
+  actedSinceLastRaise: Set<number>;
   actionTimer: number;
   interRoundDelayMs: number;
   dealAnimationDelayMs: number;
