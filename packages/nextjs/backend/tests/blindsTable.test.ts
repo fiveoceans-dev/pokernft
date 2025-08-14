@@ -248,4 +248,106 @@ describe("assignBlindsAndButton", () => {
     expect(table.seats[2]?.betThisRound).toBe(20);
     expect(table.seats[2]?.missedBigBlind).toBe(false);
   });
+
+  it("allows short stacks to post all-in blinds", () => {
+    const table: Table = {
+      seats: [createPlayer("a", 0, 3), createPlayer("b", 1, 6)],
+      buttonIndex: 1,
+      smallBlindIndex: -1,
+      bigBlindIndex: -1,
+      smallBlindAmount: 5,
+      bigBlindAmount: 10,
+      minBuyIn: 0,
+      maxBuyIn: 0,
+      state: TableState.BLINDS,
+      deck: [],
+      board: [],
+      pots: [],
+      currentRound: Round.PREFLOP,
+      actingIndex: null,
+      betToCall: 0,
+      minRaise: 0,
+      lastFullRaise: null,
+      actionTimer: 0,
+      interRoundDelayMs: 0,
+      dealAnimationDelayMs: 0,
+    };
+
+    advanceButton(table);
+    const ok = assignBlindsAndButton(table);
+    expect(ok).toBe(true);
+    expect(table.seats[0]?.state).toBe(PlayerState.ALL_IN);
+    expect(table.seats[0]?.betThisRound).toBe(3);
+    expect(table.seats[1]?.state).toBe(PlayerState.ALL_IN);
+    expect(table.seats[1]?.betThisRound).toBe(6);
+  });
+
+  it("marks players sitting out when they decline to auto-post", () => {
+    const table: Table = {
+      seats: [
+        createPlayer("a", 0, 100),
+        createPlayer("b", 1, 100),
+        createPlayer("c", 2, 100),
+      ],
+      buttonIndex: 0,
+      smallBlindIndex: -1,
+      bigBlindIndex: -1,
+      smallBlindAmount: 5,
+      bigBlindAmount: 10,
+      minBuyIn: 0,
+      maxBuyIn: 0,
+      state: TableState.BLINDS,
+      deck: [],
+      board: [],
+      pots: [],
+      currentRound: Round.PREFLOP,
+      actingIndex: null,
+      betToCall: 0,
+      minRaise: 0,
+      lastFullRaise: null,
+      actionTimer: 0,
+      interRoundDelayMs: 0,
+      dealAnimationDelayMs: 0,
+    };
+    table.seats[2]!.autoPostBlinds = false;
+    advanceButton(table);
+    const ok = assignBlindsAndButton(table);
+    expect(ok).toBe(true);
+    expect(table.seats[2]?.state).toBe(PlayerState.SITTING_OUT);
+    expect(table.seats[2]?.missedSmallBlind).toBe(true);
+    expect(table.smallBlindIndex).toBe(1);
+    expect(table.bigBlindIndex).toBe(0);
+    expect(table.actingIndex).toBe(1);
+  });
+
+  it("returns false when only one player can post a blind", () => {
+    const table: Table = {
+      seats: [createPlayer("a", 0, 100), createPlayer("b", 1, 0)],
+      buttonIndex: 1,
+      smallBlindIndex: -1,
+      bigBlindIndex: -1,
+      smallBlindAmount: 5,
+      bigBlindAmount: 10,
+      minBuyIn: 0,
+      maxBuyIn: 0,
+      state: TableState.BLINDS,
+      deck: [],
+      board: [],
+      pots: [],
+      currentRound: Round.PREFLOP,
+      actingIndex: null,
+      betToCall: 0,
+      minRaise: 0,
+      lastFullRaise: null,
+      actionTimer: 0,
+      interRoundDelayMs: 0,
+      dealAnimationDelayMs: 0,
+    };
+    table.seats[0]!.autoPostBlinds = false;
+    advanceButton(table);
+    const ok = assignBlindsAndButton(table);
+    expect(ok).toBe(false);
+    expect(table.seats[0]?.state).toBe(PlayerState.SITTING_OUT);
+    expect(table.seats[0]?.missedSmallBlind).toBe(true);
+  });
 });
