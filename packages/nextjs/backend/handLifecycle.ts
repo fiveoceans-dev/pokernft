@@ -1,10 +1,11 @@
-import { Table, TableState, Round, PlayerState } from './types';
-import { assignBlindsAndButton } from './blindManager';
-import { dealDeck } from './utils';
-import { dealHoleCards } from './dealer';
-import { rebuildPots, awardPots } from './potManager';
-import { resetTableForNextHand } from './handReset';
-import { countActivePlayers } from './tableUtils';
+import { Table, TableState, Round, PlayerState } from "./types";
+import { assignBlindsAndButton } from "./blindManager";
+import { dealDeck } from "./utils";
+import { dealHoleCards } from "./dealer";
+import { rebuildPots, awardPots } from "./potManager";
+import { startBettingRound } from "./bettingEngine";
+import { resetTableForNextHand } from "./handReset";
+import { countActivePlayers } from "./tableUtils";
 
 /**
  * Attempt to start a new hand by posting blinds, shuffling and
@@ -27,6 +28,7 @@ export function startHand(table: Table): boolean {
   table.pots = [];
   table.currentRound = Round.PREFLOP;
   dealHoleCards(table);
+  startBettingRound(table, Round.PREFLOP);
   table.state = TableState.PRE_FLOP;
   return true;
 }
