@@ -16,7 +16,7 @@ export default function DealerWindow() {
   return (
     <div
       ref={containerRef}
-      className="fixed left-4 bottom-4 w-64 bg-black/50 text-white p-2 rounded text-xs flex flex-row flex-nowrap space-x-2 overflow-x-auto md:top-1/2 md:bottom-auto md:h-40 md:flex-col md:justify-end md:space-y-1 md:space-x-0 md:overflow-y-auto md:overflow-x-hidden md:-translate-y-1/2"
+      className="fixed left-4 bottom-4 w-64 bg-black/50 text-white rounded text-xs flex flex-row flex-nowrap space-x-2 overflow-x-auto overflow-y-hidden h-5 p-1 md:top-[60%] md:bottom-auto md:h-40 md:p-2 md:flex-col md:justify-end md:space-y-1 md:space-x-0 md:overflow-y-auto md:overflow-x-hidden"
     >
       {logs.map((msg, i) => (
         <div key={i} className="whitespace-nowrap">
