@@ -152,6 +152,8 @@ export function assignBlindsAndButton(table: Table): boolean {
 
   const computeBlinds = () => {
     if (isHeadsUp(table)) {
+      // Heads-up: the button also posts the small blind and the
+      // opposing seat posts the big blind.
       sb = btn;
       bb = activeSeat(btn + 1, "BB");
     } else {
@@ -193,6 +195,7 @@ export function assignBlindsAndButton(table: Table): boolean {
   table.betToCall = table.bigBlindAmount;
 
   if (isHeadsUp(table)) {
+    // Preflop in heads-up: small blind (on the button) acts first.
     table.actingIndex = sb;
   } else {
     const first = activeSeat(bb + 1, "BB");

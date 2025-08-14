@@ -9,6 +9,7 @@ export function startBettingRound(table: Table, round: Round) {
   if (round === Round.PREFLOP) {
     // betToCall already equals big blind from blinds
     if (isHeadsUp(table)) {
+      // Heads-up preflop: the button posts the small blind and acts first.
       table.actingIndex = table.smallBlindIndex;
     } else {
       table.actingIndex = nextSeat(table, table.bigBlindIndex);
@@ -16,6 +17,7 @@ export function startBettingRound(table: Table, round: Round) {
   } else {
     resetForNextRound(table);
     if (isHeadsUp(table)) {
+      // Heads-up postflop: the player without the button (big blind) acts first.
       table.actingIndex = table.bigBlindIndex;
     } else {
       table.actingIndex = nextSeat(table, table.buttonIndex);
@@ -106,7 +108,10 @@ export function applyAction(
       break;
     }
     case PlayerAction.ALL_IN: {
-      if (table.lastFullRaise === seatIndex && player.betThisRound < table.betToCall)
+      if (
+        table.lastFullRaise === seatIndex &&
+        player.betThisRound < table.betToCall
+      )
         throw new Error("action not reopened");
       const commit = player.stack;
       player.stack = 0;
