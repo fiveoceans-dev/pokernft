@@ -122,6 +122,7 @@ export function assignBlindsAndButton(table: Table): boolean {
   };
 
   const postBlind = (player: Player, amount: number): boolean => {
+    if (!player.autoPostBlinds) return false;
     collectMissed(player);
     if (player.stack >= amount) {
       player.stack -= amount;
@@ -169,8 +170,14 @@ export function assignBlindsAndButton(table: Table): boolean {
 
     if (sbPosted && bbPosted) break;
 
-    if (!sbPosted) sbPlayer.state = PlayerState.SITTING_OUT;
-    if (!bbPosted) bbPlayer.state = PlayerState.SITTING_OUT;
+    if (!sbPosted) {
+      sbPlayer.state = PlayerState.SITTING_OUT;
+      sbPlayer.missedSmallBlind = true;
+    }
+    if (!bbPosted) {
+      bbPlayer.state = PlayerState.SITTING_OUT;
+      bbPlayer.missedBigBlind = true;
+    }
 
     const remaining = countActivePlayers(table);
     if (remaining < 2) return false;

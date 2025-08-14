@@ -16,7 +16,7 @@ This document describes the server-side `TableState` lifecycle for a single no-l
 - **Entry**: Enough players are seated.
 - **Actions**:
   - Dealer button moves to the next seated player clockwise. In heads-up, the button also posts the small blind.
-  - Small and big blinds are posted (automatically or by prompt).
+  - Small and big blinds are auto-posted for players with `autoPostBlinds` enabled. Short stacks post all-in for their remaining chips while players who decline or lack chips are set to **SITTING_OUT** and blinds are reassigned.
 - **Exit**: Blinds committed by required players.
 - **Edge Cases**: Missing blinds result in the player sitting out or being removed.
 
@@ -154,5 +154,5 @@ End of hand:
 - Attempt to auto-post the small and big blinds:
   - If a stack covers the blind, deduct it and mark the bet for this round.
   - Short stacks may post all-in for their remaining chips.
-- Players unable to post are marked sitting out and blinds are reassigned. Returning players with missed blinds either post them as dead chips or wait for the big blind depending on `deadBlindRule`. If only one player can post, the table returns to **WAITING**.
+- Players who decline auto-posting or lack chips are marked sitting out and flagged for a missed blind. Blinds are reassigned. Returning players with missed blinds either post them as dead chips or wait for the big blind depending on `deadBlindRule`. If only one player can post, the table returns to **WAITING**.
 - Pre-flop action begins left of the big blind, except heads-up where the button acts first and the big blind acts first on later streets.
