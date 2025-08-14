@@ -83,7 +83,10 @@ export default function PlayPage() {
       <div className="flex-1 flex items-center justify-center">
         <Table timer={timer} />
       </div>
-      <div id="action-buttons" className="fixed bottom-4 right-4">
+      <div id="dealer-anchor" className="relative w-full h-px">
+        <DealerWindow />
+      </div>
+      <div id="action-buttons" className="flex justify-end p-4">
         <ActionBar
           street={stageNames[street] ?? "preflop"}
           onActivate={handleActivate}
@@ -93,7 +96,6 @@ export default function PlayPage() {
           hasHandStarted={handStarted}
         />
       </div>
-      <DealerWindow />
     </main>
   );
 }
