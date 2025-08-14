@@ -10,18 +10,18 @@ export function dealHoleCards(table: Table) {
     for (let offset = 0; offset < len; offset++) {
       const idx = (table.smallBlindIndex + offset) % len;
       const player = table.seats[idx];
-      if (player && player.state !== PlayerState.SITTING_OUT) {
+      if (player && player.state === PlayerState.ACTIVE) {
         player.holeCards.push(draw(table.deck));
       }
     }
   }
 }
 
-/** Deal board cards for the given round with optional burn */
-export function dealBoard(table: Table, round: Round) {
+/** Deal board cards for the given round */
+export function dealBoard(table: Table, round: Round, burn = true) {
   if (!table.deck.length) return;
-  // burn card
-  draw(table.deck);
+  // optional burn card
+  if (burn) draw(table.deck);
   if (round === Round.FLOP) {
     table.board.push(draw(table.deck), draw(table.deck), draw(table.deck));
   } else if (round === Round.TURN || round === Round.RIVER) {
