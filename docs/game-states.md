@@ -135,11 +135,15 @@ End of hand:
 
 - At least two active players who can post blinds or are allowed to post all-in blinds.
 - Button assigned to the next active seat from the previous hand; for the first hand, choose a random active seat.
+- The `startHand` helper posts blinds, shuffles a fresh deck and deals two
+  hole cards to each active seat. If blinds cannot be posted the table falls
+  back to **WAITING**.
 
 ### End Conditions
 
 - If all but one player fold, the remaining player immediately receives the entire pot or pots.
 - After a showdown, payouts are completed based on hand evaluation.
+- The `endHand` helper awards chips and resets state before the next hand.
 
 ### Cleanup
 
