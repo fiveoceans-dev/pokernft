@@ -1,8 +1,8 @@
 # Networking Contract
 
 This document defines the WebSocket protocol between poker clients and the server.
-Commands from the client are idempotent and must include a unique `cmdId`. The
-server ignores duplicates and always replies with the authoritative state.
+All client commands are idempotent and carry a unique `cmdId`; the server ignores
+duplicates and always replies with the authoritative state.
 
 ## Server → Client Events
 
@@ -34,7 +34,7 @@ command.
 - `LEAVE` – vacate the current seat.
 - `SIT_OUT` – mark the player sitting out next hand.
 - `SIT_IN` – return a previously sitting out player to action.
-- `POST_BLIND {type}` – post a small or big blind when prompted.
+- `POST_BLIND {blindType}` – post a small or big blind when prompted.
 - `ACTION {Fold|Check|Call|Bet|Raise|AllIn, amount}` – perform a betting action.
 - `REBUY {amount}` – add chips to the player's stack.
 
