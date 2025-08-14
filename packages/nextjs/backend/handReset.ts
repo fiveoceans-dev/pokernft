@@ -40,7 +40,7 @@ export async function resetTableForNextHand(
       stack: player.stack,
       reBuyAllowed,
     });
-    if (state === PlayerState.EMPTY) {
+    if (state === PlayerState.EMPTY || state === PlayerState.LEAVING) {
       table.seats[idx] = null;
       return;
     }
@@ -50,9 +50,10 @@ export async function resetTableForNextHand(
       type: 'NEW_HAND',
       stack: player.stack,
       bigBlind: table.bigBlindAmount,
-      sittingOut: state === PlayerState.SITTING_OUT,
+      sittingOut: state === PlayerState.SITTING_OUT || player.sitOutNextHand === true,
     });
     player.state = state;
+    player.sitOutNextHand = false;
 
     // clear per-hand player fields
     player.holeCards = [];

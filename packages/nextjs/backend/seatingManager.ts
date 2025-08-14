@@ -1,4 +1,4 @@
-import { Table, Player, PlayerState, PlayerAction } from './types';
+import { Table, Player, PlayerState, PlayerAction, TableState } from './types';
 
 /**
  * SeatingManager handles seat assignment, buy-ins, sit-out/return and leaving.
@@ -43,33 +43,44 @@ export class SeatingManager {
   /** Mark a player as sitting out. */
   sitOut(seatIndex: number) {
     const player = this.table.seats[seatIndex];
-    if (player) player.state = PlayerState.SITTING_OUT;
+    if (!player) return;
+    if (this.table.state === TableState.WAITING) {
+      player.state = PlayerState.SITTING_OUT;
+    } else {
+      player.sitOutNextHand = true;
+    }
   }
 
   /** Return a sitting out player to active play if they have chips. */
   sitIn(seatIndex: number) {
     const player = this.table.seats[seatIndex];
-    if (player && player.stack >= this.table.bigBlindAmount) {
+    if (!player) return;
+    player.sitOutNextHand = false;
+    if (player.stack >= this.table.bigBlindAmount) {
       player.state = PlayerState.ACTIVE;
     }
   }
 
   /** Remove a player entirely from the table. */
   leave(seatIndex: number) {
-    if (this.table.seats[seatIndex]) {
+    const player = this.table.seats[seatIndex];
+    if (!player) return;
+    if (this.table.state === TableState.WAITING) {
       this.table.seats[seatIndex] = null;
+    } else {
+      player.state = PlayerState.LEAVING;
     }
   }
 
   /** Remove or mark players with zero chips depending on re-buy rules. */
   removeBrokePlayers(reBuyAllowed: boolean) {
-    this.table.seats.forEach((p, idx) => {
+    this.table.seats.forEach((p) => {
       if (!p) return;
       if (p.stack === 0) {
         if (reBuyAllowed) {
           p.state = PlayerState.SITTING_OUT;
         } else {
-          this.table.seats[idx] = null;
+          p.state = PlayerState.LEAVING;
         }
       }
     });

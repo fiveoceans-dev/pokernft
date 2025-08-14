@@ -113,6 +113,8 @@ export interface Player {
   totalCommitted: number;
   holeCards: Card[];
   lastAction: PlayerAction;
+  /** Player has requested to sit out after the current hand */
+  sitOutNextHand?: boolean;
   /** Player has missed the small blind while sitting out */
   missedSmallBlind?: boolean;
   /** Player has missed the big blind while sitting out */
