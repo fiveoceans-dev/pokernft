@@ -74,8 +74,7 @@ function rebuildPots():
     tierContribPlayers = live.filter(p => p.totalCommitted >= t)
     if tierContribPlayers.length >= 2 and t > prev:
       amount = (t - prev) * tierContribPlayers.length
-  pots.push({ amountAccumulated += amount,
-                  eligible: set(tierContribPlayers.map(p => p.seatIndex)) })
+      pots.push({ amount, eligible: set(tierContribPlayers.map(p => p.seatIndex)) })
       prev = t
 ```
 
