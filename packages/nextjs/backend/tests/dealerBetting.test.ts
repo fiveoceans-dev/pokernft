@@ -53,6 +53,7 @@ describe('Dealer & BettingEngine', () => {
       betToCall: 0,
       minRaise: 0,
       lastFullRaise: null,
+      actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
       dealAnimationDelayMs: 0,
@@ -86,6 +87,7 @@ describe('Dealer & BettingEngine', () => {
       betToCall: 0,
       minRaise: 0,
       lastFullRaise: null,
+      actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
       dealAnimationDelayMs: 0,
@@ -131,6 +133,7 @@ describe('Dealer & BettingEngine', () => {
       betToCall: 0,
       minRaise: 0,
       lastFullRaise: null,
+      actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
       dealAnimationDelayMs: 0,
@@ -150,5 +153,84 @@ describe('Dealer & BettingEngine', () => {
 
     applyAction(table,0,{type:PlayerAction.CALL});
     expect(isRoundComplete(table)).toBe(true);
+  });
+
+  it('blocks earlier callers from re-raising after short all-in', () => {
+    const table: Table = {
+      seats: [
+        createPlayer('a',0,100),
+        createPlayer('b',1,100),
+        createPlayer('c',2,35),
+      ],
+      buttonIndex: 0,
+      smallBlindIndex: -1,
+      bigBlindIndex: -1,
+      smallBlindAmount: 5,
+      bigBlindAmount: 10,
+      minBuyIn: 0,
+      maxBuyIn: 0,
+      state: TableState.BLINDS,
+      deck: [],
+      board: [],
+      pots: [],
+      currentRound: Round.PREFLOP,
+      actingIndex: null,
+      betToCall: 0,
+      minRaise: 0,
+      lastFullRaise: null,
+      actedSinceLastRaise: new Set(),
+      actionTimer: 0,
+      interRoundDelayMs: 0,
+      dealAnimationDelayMs: 0,
+    };
+
+    const ok = assignBlindsAndButton(table);
+    expect(ok).toBe(true);
+    startBettingRound(table, Round.PREFLOP);
+
+    applyAction(table,0,{type:PlayerAction.RAISE, amount:20}); // to 30
+    applyAction(table,1,{type:PlayerAction.CALL});
+    applyAction(table,2,{type:PlayerAction.ALL_IN}); // to 35 total, short raise
+    applyAction(table,0,{type:PlayerAction.CALL});
+    expect(() => applyAction(table,1,{type:PlayerAction.RAISE, amount:20})).toThrow();
+    applyAction(table,1,{type:PlayerAction.CALL});
+    expect(isRoundComplete(table)).toBe(true);
+  });
+
+  it('rejects invalid checks without changing turn', () => {
+    const table: Table = {
+      seats: [
+        createPlayer('a',0,100),
+        createPlayer('b',1,100),
+        createPlayer('c',2,100),
+      ],
+      buttonIndex: 0,
+      smallBlindIndex: -1,
+      bigBlindIndex: -1,
+      smallBlindAmount: 5,
+      bigBlindAmount: 10,
+      minBuyIn: 0,
+      maxBuyIn: 0,
+      state: TableState.BLINDS,
+      deck: [],
+      board: [],
+      pots: [],
+      currentRound: Round.PREFLOP,
+      actingIndex: null,
+      betToCall: 0,
+      minRaise: 0,
+      lastFullRaise: null,
+      actedSinceLastRaise: new Set(),
+      actionTimer: 0,
+      interRoundDelayMs: 0,
+      dealAnimationDelayMs: 0,
+    };
+
+    const ok = assignBlindsAndButton(table);
+    expect(ok).toBe(true);
+    startBettingRound(table, Round.PREFLOP);
+    const actor = table.actingIndex!;
+    expect(() => applyAction(table, actor, {type: PlayerAction.CHECK})).toThrow();
+    expect(table.actingIndex).toBe(actor);
   });
 });

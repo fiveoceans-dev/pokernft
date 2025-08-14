@@ -48,6 +48,7 @@ const createTable = (seats: (Player | null)[]): Table => ({
   betToCall: 20,
   minRaise: 20,
   lastFullRaise: null,
+  actedSinceLastRaise: new Set(),
   actionTimer: 0,
   interRoundDelayMs: 0,
   dealAnimationDelayMs: 0,

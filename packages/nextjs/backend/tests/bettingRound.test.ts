@@ -48,6 +48,7 @@ describe("startBettingRound", () => {
       betToCall: 0,
       minRaise: 0,
       lastFullRaise: null,
+      actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
       dealAnimationDelayMs: 0,

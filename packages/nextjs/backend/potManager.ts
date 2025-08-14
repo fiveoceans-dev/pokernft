@@ -43,6 +43,7 @@ export function rebuildPots(table: Table) {
  */
 export function resetForNextRound(table: Table) {
   table.betToCall = 0;
+  table.actedSinceLastRaise = new Set();
   table.seats.forEach((p) => {
     if (p) p.betThisRound = 0;
   });
