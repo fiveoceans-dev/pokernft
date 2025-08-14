@@ -87,5 +87,6 @@ function rebuildPots():
 - When a player's `actionTimer` (typically around 15s) expires, they automatically check if `betToCall` is `0` or fold otherwise.
 - The server processes actions sequentially and ignores out-of-turn commands.
 - When a player disconnects during their turn, a separate grace timer runs. When it elapses the player's remaining `timebankMs` is consumed before an automatic fold or check is applied.
+- After payouts the dealer button moves to the next active seat clockwise. Players returning from sitting out must either post any missed blinds immediately (`deadBlindRule = POST`) or wait for the big blind to reach them (`deadBlindRule = WAIT`). When the small-blind seat is empty the blinds roll forward to the next available active players.
 - After payouts the table waits `interRoundDelayMs` before the next hand begins.
 - In heads-up play the button posts the small blind, the opposing player posts the big blind, and acting order follows those positions.

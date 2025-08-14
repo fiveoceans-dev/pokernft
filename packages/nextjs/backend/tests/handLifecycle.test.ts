@@ -77,5 +77,6 @@ describe('handLifecycle', () => {
     expect(p1.stack).toBe(110);
     expect(table.pots.length).toBe(0);
     expect(table.state).toBe(TableState.BLINDS);
+    expect(table.buttonIndex).toBe(1);
   });
 });

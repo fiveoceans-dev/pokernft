@@ -18,18 +18,6 @@ export async function resetTableForNextHand(
   table: Table,
   reBuyAllowed = true,
 ) {
-  // clear table-level per-hand fields
-  table.deck = [];
-  table.board = [];
-  table.pots = [];
-  table.betToCall = 0;
-  table.minRaise = 0;
-  table.actingIndex = null;
-  table.lastFullRaise = null;
-  table.currentRound = Round.PREFLOP;
-  table.smallBlindIndex = -1;
-  table.bigBlindIndex = -1;
-
   // reset each seat and remove players marked for leaving
   table.seats.forEach((player, idx) => {
     if (!player) return;
@@ -64,6 +52,18 @@ export async function resetTableForNextHand(
 
   // move button in case current seat was removed
   advanceButton(table);
+
+  // clear table-level per-hand fields
+  table.deck = [];
+  table.board = [];
+  table.pots = [];
+  table.betToCall = 0;
+  table.minRaise = 0;
+  table.actingIndex = null;
+  table.lastFullRaise = null;
+  table.currentRound = Round.PREFLOP;
+  table.smallBlindIndex = -1;
+  table.bigBlindIndex = -1;
 
   const active = countActivePlayers(table);
   if (active >= 2) {
