@@ -10,7 +10,7 @@ betting rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md
 
 | Module                   | Responsibility                                                                                                                                                                                                                         |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **TableManager**         | Orchestrates the hand lifecycle and table state machine, moves the dealer button after payouts and enforces the minimum number of active players.                                                                                      |
+| **TableManager**         | Orchestrates the hand lifecycle and table state machine, rotates through **ROTATE** and **CLEANUP** after payouts while enforcing the minimum number of active players.                                                                |
 | **SeatingManager**       | Handles seat assignment, buy‑in/top‑up, sit‑out/return and leave actions. Voluntary sit-outs take effect after the current hand. At hand end, broke players are marked `SITTING_OUT` if re‑buy is allowed or `LEAVING` when it is not. |
 | **BlindManager**         | Assigns blind positions, auto‑posts blinds (allowing all‑in when short), enforces heads‑up order and applies configurable dead‑blind rules for returning players.                                                                      |
 | **Dealer**               | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server.                                                                                                             |
@@ -31,7 +31,7 @@ Typical hand lifecycle:
 2. `BettingEngine` prompts the acting player. After each action it updates commitments and asks `PotManager` to rebuild pots on all‑ins.
 3. When a round completes, `BettingEngine` signals the `Dealer` to deal the next street or proceeds to showdown.
 4. At showdown, `HandEvaluator` ranks hands and `PotManager` awards pots, applying rake if configured.
-5. `TableManager` rotates the button and resets per‑hand state for the next hand.
+5. `TableManager` advances through **ROTATE** and **CLEANUP**, moving the button, clearing per-hand data and after `interRoundDelayMs` either restarting in **BLINDS** or waiting for more players.
 
 This separation keeps rendering, state management and game rules isolated and mirrors the architecture described in the design guidelines.
 

@@ -1,57 +1,51 @@
-import {
-  Table,
-  PlayerState,
-  PlayerAction,
-  TableState,
-  Round,
-} from './types';
-import { playerStateReducer } from './playerStateMachine';
-import { advanceButton } from './blindManager';
-import { countActivePlayers } from './tableUtils';
-import TimerService from './timerService';
+import { Table, PlayerState, PlayerAction, TableState, Round } from "./types";
+import { playerStateReducer } from "./playerStateMachine";
+import { advanceButton } from "./blindManager";
+import { countActivePlayers } from "./tableUtils";
+import TimerService from "./timerService";
 
 /**
  * Reset per-hand table and player fields after a hand finishes and
  * optionally transition to the next hand if enough players remain.
  */
-export async function resetTableForNextHand(
-  table: Table,
-  reBuyAllowed = true,
-) {
-  // reset each seat and remove players marked for leaving
+export async function resetTableForNextHand(table: Table, reBuyAllowed = true) {
+  // resolve players at hand end and remove any leaving seats
   table.seats.forEach((player, idx) => {
     if (!player) return;
-
-    // resolve leaving players and zero stacks
-    let state = playerStateReducer(player.state, {
-      type: 'HAND_END',
+    const state = playerStateReducer(player.state, {
+      type: "HAND_END",
       stack: player.stack,
       reBuyAllowed,
     });
     if (state === PlayerState.EMPTY || state === PlayerState.LEAVING) {
       table.seats[idx] = null;
-      return;
+    } else {
+      player.state = state;
     }
+  });
 
-    // set up state for the upcoming hand
-    state = playerStateReducer(state, {
-      type: 'NEW_HAND',
+  // advance dealer button to the next active seat
+  table.state = TableState.ROTATE;
+  advanceButton(table);
+
+  // prepare remaining players for the upcoming hand
+  table.state = TableState.CLEANUP;
+  table.seats.forEach((player) => {
+    if (!player) return;
+    player.state = playerStateReducer(player.state, {
+      type: "NEW_HAND",
       stack: player.stack,
       bigBlind: table.bigBlindAmount,
-      sittingOut: state === PlayerState.SITTING_OUT || player.sitOutNextHand === true,
+      sittingOut:
+        player.state === PlayerState.SITTING_OUT ||
+        player.sitOutNextHand === true,
     });
-    player.state = state;
     player.sitOutNextHand = false;
-
-    // clear per-hand player fields
     player.holeCards = [];
     player.betThisRound = 0;
     player.totalCommitted = 0;
     player.lastAction = PlayerAction.NONE;
   });
-
-  // move button in case current seat was removed
-  advanceButton(table);
 
   // clear table-level per-hand fields
   table.deck = [];
