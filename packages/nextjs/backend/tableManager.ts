@@ -1,18 +1,14 @@
-import {
-  Table,
-  PlayerAction,
-  Round,
-  TableState,
-} from './types';
-import { TableStateMachine } from './tableStateMachine';
-import { startHand as startHandLifecycle, endHand } from './handLifecycle';
+import { Table, PlayerAction, Round, TableState } from "./types";
+import { TableStateMachine } from "./tableStateMachine";
+import { startHand as startHandLifecycle, endHand } from "./handLifecycle";
 import {
   applyAction,
   isRoundComplete,
   startBettingRound,
-} from './bettingEngine';
-import { dealBoard } from './dealer';
-import { countActivePlayers } from './tableUtils';
+} from "./bettingEngine";
+import { dealBoard } from "./dealer";
+import { countActivePlayers } from "./tableUtils";
+import { AuditLogger } from "./auditLogger";
 
 /**
  * TableManager orchestrates the hand lifecycle for a single table. It uses the
@@ -21,22 +17,25 @@ import { countActivePlayers } from './tableUtils';
  */
 export class TableManager {
   private fsm: TableStateMachine;
+  private audit: AuditLogger;
   constructor(public table: Table) {
     this.fsm = new TableStateMachine();
     this.fsm.state = table.state;
+    this.audit = new AuditLogger();
   }
 
   /** Attempt to begin a new hand */
   startHand(): boolean {
     this.fsm.dispatch({
-      type: 'START_HAND',
+      type: "START_HAND",
       activeSeats: countActivePlayers(this.table),
     });
     if (this.fsm.state !== TableState.BLINDS) return false;
+    this.audit.startHand();
     const ok = startHandLifecycle(this.table);
     if (ok) {
-      this.fsm.dispatch({ type: 'BLINDS_POSTED' });
-      this.fsm.dispatch({ type: 'DEALING_COMPLETE' });
+      this.fsm.dispatch({ type: "BLINDS_POSTED" });
+      this.fsm.dispatch({ type: "DEALING_COMPLETE" });
     }
     return ok;
   }
@@ -46,11 +45,14 @@ export class TableManager {
     seatIndex: number,
     action: { type: PlayerAction; amount?: number },
   ) {
-    applyAction(this.table, seatIndex, action);
+    applyAction(this.table, seatIndex, action, this.audit);
     if (!isRoundComplete(this.table)) return;
 
     const remaining = countActivePlayers(this.table);
-    this.fsm.dispatch({ type: 'BETTING_COMPLETE', remainingPlayers: remaining });
+    this.fsm.dispatch({
+      type: "BETTING_COMPLETE",
+      remainingPlayers: remaining,
+    });
 
     switch (this.fsm.state) {
       case TableState.FLOP:
@@ -71,10 +73,10 @@ export class TableManager {
       case TableState.SHOWDOWN:
       case TableState.PAYOUT:
         await endHand(this.table);
-        this.fsm.dispatch({ type: 'PAYOUT_COMPLETE' });
-        this.fsm.dispatch({ type: 'ROTATION_COMPLETE' });
+        this.fsm.dispatch({ type: "PAYOUT_COMPLETE" });
+        this.fsm.dispatch({ type: "ROTATION_COMPLETE" });
         this.fsm.dispatch({
-          type: 'CLEANUP_COMPLETE',
+          type: "CLEANUP_COMPLETE",
           activeSeats: countActivePlayers(this.table),
         });
         break;

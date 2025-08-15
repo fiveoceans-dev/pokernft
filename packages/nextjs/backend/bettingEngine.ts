@@ -1,6 +1,7 @@
 import { Table, Player, PlayerState, PlayerAction, Round } from "./types";
 import { rebuildPots, resetForNextRound } from "./potManager";
 import { isHeadsUp } from "./tableUtils";
+import { AuditLogger } from "./auditLogger";
 
 /** Initialize betting round and determine first to act */
 export function startBettingRound(table: Table, round: Round) {
@@ -41,6 +42,7 @@ export function applyAction(
   table: Table,
   seatIndex: number,
   action: { type: PlayerAction; amount?: number },
+  audit?: AuditLogger,
 ) {
   if (table.actingIndex !== seatIndex) throw new Error("not players turn");
   const player = table.seats[seatIndex];
@@ -48,6 +50,7 @@ export function applyAction(
     throw new Error("invalid");
   const acted = table.actedSinceLastRaise;
 
+  let commit = 0;
   switch (action.type) {
     case PlayerAction.FOLD:
       player.state = PlayerState.FOLDED;
@@ -62,7 +65,7 @@ export function applyAction(
       break;
     case PlayerAction.CALL: {
       const toCall = table.betToCall - player.betThisRound;
-      const commit = Math.min(toCall, player.stack);
+      commit = Math.min(toCall, player.stack);
       player.stack -= commit;
       player.betThisRound += commit;
       player.totalCommitted += commit;
@@ -76,7 +79,7 @@ export function applyAction(
       if (table.betToCall !== 0) throw new Error("cannot bet");
       const amount = action.amount ?? 0;
       if (amount < table.minRaise) throw new Error("bet too small");
-      const commit = Math.min(amount, player.stack);
+      commit = Math.min(amount, player.stack);
       player.stack -= commit;
       player.betThisRound += commit;
       player.totalCommitted += commit;
@@ -101,7 +104,7 @@ export function applyAction(
       const raiseAmt = action.amount ?? 0;
       if (raiseAmt < table.minRaise) throw new Error("raise too small");
       const total = callAmt + raiseAmt;
-      const commit = Math.min(total, player.stack);
+      commit = Math.min(total, player.stack);
       player.stack -= commit;
       player.betThisRound += commit;
       player.totalCommitted += commit;
@@ -124,7 +127,7 @@ export function applyAction(
       break;
     }
     case PlayerAction.ALL_IN: {
-      const commit = player.stack;
+      commit = player.stack;
       const newTotal = player.betThisRound + commit;
       const diff = newTotal - table.betToCall;
       if (
@@ -160,6 +163,9 @@ export function applyAction(
   if (player.state === PlayerState.ALL_IN) {
     rebuildPots(table);
   }
+
+  // record action for audit purposes
+  audit?.record(player.id, table.currentRound, action.type, commit);
 
   // advance turn
   table.actingIndex = nextToAct(table, seatIndex);
