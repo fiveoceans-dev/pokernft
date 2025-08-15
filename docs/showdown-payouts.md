@@ -27,3 +27,8 @@ For each pot that still has contenders:
 - Transfer chips from each pot to its winning players and update their stacks.
 - Remainder chips from split pots are given one at a time starting with the first winning seat clockwise from the button.
 - A player reduced to zero chips cannot post blinds on the next hand. If re-buy is allowed, they are marked `SITTING_OUT` and must reload to at least the `minToPlay` amount (big blind by default) before being dealt in again. Otherwise their seat is cleared immediately.
+
+## Post-hand cleanup & next hand
+
+- `resetTableForNextHand` clears per-hand state, rotates the dealer button with `advanceButton` and prepares active players for the next deal.
+- After `interRoundDelayMs`, `TableManager.startHand` shuffles a fresh deck and begins the next hand if at least two players remain; otherwise the table returns to `WAITING`.

@@ -8,20 +8,21 @@ betting rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md
 
 ## Core Modules
 
-| Module                   | Responsibility                                                                                                                                                                                                                         |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **TableManager**         | Orchestrates the hand lifecycle and table state machine, rotates through **ROTATE** and **CLEANUP** after payouts while enforcing the minimum number of active players.                                                                |
-| **SeatingManager**       | Handles seat assignment, buy‑in/top‑up, sit‑out/return and leave actions. Voluntary sit-outs take effect after the current hand. At hand end, broke players are marked `SITTING_OUT` if re‑buy is allowed or `LEAVING` when it is not. |
-| **BlindManager**         | Assigns blind positions, auto‑posts blinds (allowing all‑in when short), enforces heads‑up order and applies configurable dead‑blind rules for returning players.                                                                      |
-| **Dealer**               | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server.                                                                                                             |
-| **BettingEngine**        | Manages turn order, validates actions and raise sizes, tracks `betToCall`/`minRaise` and detects round completion.                                                                                                                     |
-| **PotManager**           | Tracks per‑round and total commitments, rebuilds main and side pots on all‑ins, applies rake and settles payouts.                                                                                                                      |
-| **HandEvaluator**        | Ranks seven‑card hands, resolves ties and supports split pots.                                                                                                                                                                         |
-| **TimerService**         | Runs per‑action countdowns with optional timebank and disconnect grace; triggers auto‑fold or check on expiry and provides deal/inter‑round delay helpers.                                                                             |
-| **EventBus**             | Emits state changes to clients and queues validated commands to the server.                                                                                                                                                            |
-| **Persistence/Audit**    | Records immutable hand and action logs for settlements and anti‑fraud analysis.                                                                                                                                                        |
-| **RulesConfig**          | Defines game parameters such as blinds, rake and buy‑in limits.                                                                                                                                                                        |
-| **Integrity/Anti‑Abuse** | Optional hooks for rate limiting and collusion detection.                                                                                                                                                                              |
+| Module | Responsibility |
+| --- | --- |
+| **TableManager** | Orchestrates the hand lifecycle and table state machine, rotating through **ROTATE** and **CLEANUP** after payouts while enforcing the minimum number of active players. |
+| **HandLifecycle** | Provides `startHand`/`endHand` helpers, resolves showdowns and splits pots, and calls `resetTableForNextHand` to rotate the button and prepare a fresh deal. |
+| **SeatingManager** | Handles seat assignment, buy‑in/top‑up, sit‑out/return and leave actions. Voluntary sit-outs take effect after the current hand. At hand end, broke players are marked `SITTING_OUT` if re‑buy is allowed or `LEAVING` when it is not. |
+| **BlindManager** | Assigns blind positions, auto‑posts blinds (allowing all‑in when short), enforces heads‑up order and applies configurable dead‑blind rules for returning players. |
+| **Dealer** | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server. |
+| **BettingEngine** | Manages turn order, validates actions and raise sizes, tracks `betToCall`/`minRaise` and detects round completion. |
+| **PotManager** | Tracks per‑round and total commitments, rebuilds main and side pots on all‑ins, applies rake and settles payouts. |
+| **HandEvaluator** | Ranks seven‑card hands, resolves ties and supports split pots. |
+| **TimerService** | Runs per‑action countdowns with optional timebank and disconnect grace; triggers auto‑fold or check on expiry and provides deal/inter‑round delay helpers. |
+| **EventBus** | Emits state changes to clients and queues validated commands to the server. |
+| **Persistence/Audit** | Records immutable hand and action logs for settlements and anti‑fraud analysis. |
+| **RulesConfig** | Defines game parameters such as blinds, rake and buy‑in limits. |
+| **Integrity/Anti‑Abuse** | Optional hooks for rate limiting and collusion detection. |
 
 ## Interaction Flow
 
@@ -31,7 +32,7 @@ Typical hand lifecycle:
 2. `BettingEngine` prompts the acting player. After each action it updates commitments and asks `PotManager` to rebuild pots on all‑ins.
 3. When a round completes, `BettingEngine` signals the `Dealer` to deal the next street or proceeds to showdown.
 4. At showdown, `HandEvaluator` ranks hands and `PotManager` awards pots, applying rake if configured.
-5. `TableManager` advances through **ROTATE** and **CLEANUP**, moving the button, clearing per-hand data and after `interRoundDelayMs` either restarting in **BLINDS** or waiting for more players.
+5. `TableManager` calls `resetTableForNextHand` to run **ROTATE** and **CLEANUP**, moving the button, clearing per-hand data and after `interRoundDelayMs` either restarting in **BLINDS** or waiting for more players.
 
 This separation keeps rendering, state management and game rules isolated and mirrors the architecture described in the design guidelines.
 
@@ -93,3 +94,4 @@ function rebuildPots():
       pots.push({ amount, eligible: set(tierContribPlayers.map(p => p.seatIndex)) })
       prev = t
 ```
+
