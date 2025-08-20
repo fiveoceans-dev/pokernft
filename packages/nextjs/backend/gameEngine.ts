@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import {
   GameRoom,
   PlayerSession,
@@ -8,23 +9,31 @@ import {
   addPlayer as addPlayerImpl,
   startHand as startHandImpl,
   handleAction as handleActionImpl,
-  nextTurn as nextTurnImpl,
   progressStage as progressStageImpl,
   determineWinners as determineWinnersImpl,
   isRoundComplete as isRoundCompleteImpl,
   payout as payoutImpl,
 } from './room';
+import { PokerStateMachine, GameState } from './stateMachine';
 
 /**
- * Object oriented wrapper around the functional room helpers.  This provides a
- * single engine instance that owns a {@link GameRoom} and exposes methods used
- * by the frontend's view‑model.
+ * Central game engine orchestrating table workflow.  It wraps the low level
+ * room helpers, drives the {@link PokerStateMachine} and emits events when
+ * phases or table state change.
  */
-export class GameEngine {
+export class GameEngine extends EventEmitter {
   private room: GameRoom;
+  private machine: PokerStateMachine;
 
   constructor(id: string, minBet = 10) {
+    super();
     this.room = createRoomImpl(id, minBet);
+    this.machine = new PokerStateMachine();
+  }
+
+  /** current high level engine phase */
+  getPhase(): GameState {
+    return this.machine.state;
   }
 
   /** Retrieve mutable room state */
@@ -44,7 +53,12 @@ export class GameEngine {
 
   /** Start a fresh hand */
   startHand() {
+    this.machine.dispatch({ type: 'PLAYERS_READY' });
+    this.machine.dispatch({ type: 'SHUFFLE_COMPLETE' });
     startHandImpl(this.room);
+    this.machine.dispatch({ type: 'DEAL_COMPLETE' });
+    this.emit('phaseChanged', this.machine.state);
+    this.emit('handStarted', this.room);
   }
 
   /** Apply an action for the given player */
@@ -53,16 +67,19 @@ export class GameEngine {
     action: { type: 'fold' | 'call' | 'raise' | 'check'; amount?: number },
   ) {
     handleActionImpl(this.room, playerId, action);
+    this.emit('stateChanged', this.room);
+    if (isRoundCompleteImpl(this.room)) {
+      this.resolveRound();
+    }
   }
 
-  /** Move action to the next player */
-  nextTurn() {
-    nextTurnImpl(this.room);
-  }
-
-  /** Advance to the next game stage */
+  /** manually advance stage (used for dev controls) */
   progressStage() {
     progressStageImpl(this.room);
+    this.machine.dispatch({ type: 'DEAL_COMPLETE' });
+    this.emit('phaseChanged', this.machine.state);
+    this.emit('stageChanged', this.room.stage);
+    this.emit('stateChanged', this.room);
   }
 
   /** Determine winners for the current hand */
@@ -70,15 +87,45 @@ export class GameEngine {
     return determineWinnersImpl(this.room);
   }
 
-  /** Check if all active players have matched the highest bet */
-  isRoundComplete(): boolean {
-    return isRoundCompleteImpl(this.room);
-  }
-
   /** Split the pot amongst winners */
   payout(winners: PlayerSession[]) {
     payoutImpl(this.room, winners);
   }
+
+  private resolveRound() {
+    const remaining = this.room.players.filter((p) => !p.hasFolded).length;
+    this.machine.dispatch({ type: 'BETTING_COMPLETE', remainingPlayers: remaining });
+
+    if (remaining <= 1) {
+      const winners = this.room.players.filter((p) => !p.hasFolded);
+      payoutImpl(this.room, winners);
+      this.machine.dispatch({ type: 'PAYOUT_COMPLETE' });
+      this.room.stage = 'waiting';
+      this.emit('phaseChanged', this.machine.state);
+      this.emit('handEnded', winners);
+      this.emit('stateChanged', this.room);
+      return;
+    }
+
+    if (this.room.stage === 'river') {
+      progressStageImpl(this.room); // advance to showdown
+      const winners = determineWinnersImpl(this.room);
+      this.machine.dispatch({ type: 'SHOWDOWN_COMPLETE' });
+      payoutImpl(this.room, winners);
+      this.machine.dispatch({ type: 'PAYOUT_COMPLETE' });
+      this.room.stage = 'waiting';
+      this.emit('phaseChanged', this.machine.state);
+      this.emit('handEnded', winners);
+      this.emit('stateChanged', this.room);
+      return;
+    }
+
+    progressStageImpl(this.room);
+    this.machine.dispatch({ type: 'DEAL_COMPLETE' });
+    this.emit('phaseChanged', this.machine.state);
+    this.emit('stageChanged', this.room.stage);
+    this.emit('stateChanged', this.room);
+  }
 }
 
-export type { Stage };
+export type { Stage, GameState };
