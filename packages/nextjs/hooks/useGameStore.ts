@@ -5,6 +5,7 @@ import {
   cardToIndex,
   PokerStateMachine,
   GameState as EnginePhase,
+  PlayerState,
 } from "../backend";
 import type { Stage } from "../backend";
 
@@ -33,6 +34,8 @@ interface GameStoreState {
   chips: number[];
   /** current bet for each seat */
   playerBets: number[];
+  /** state for each seat */
+  playerStates: PlayerState[];
   /** total chips in the pot */
   pot: number;
   /** seat index whose turn it is, or null */
@@ -71,6 +74,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   community: Array(5).fill(null),
   chips: Array(9).fill(0),
   playerBets: Array(9).fill(0),
+  playerStates: Array(9).fill(PlayerState.EMPTY),
   pot: 0,
   currentTurn: null,
   street: 0,
@@ -100,6 +104,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const hands = Array(9).fill(null) as ([number, number] | null)[];
     const chips = Array(9).fill(0) as number[];
     const bets = Array(9).fill(0) as number[];
+    const states = Array(9).fill(PlayerState.EMPTY) as PlayerState[];
     room.players.forEach((p) => {
       seats[p.seat] = p.nickname;
       if (p.hand.length === 2) {
@@ -107,6 +112,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
       chips[p.seat] = p.chips;
       bets[p.seat] = p.currentBet;
+      let state = PlayerState.ACTIVE;
+      if (p.hasFolded) state = PlayerState.FOLDED;
+      else if (p.chips === 0) state = PlayerState.ALL_IN;
+      states[p.seat] = state;
     });
 
     const comm = Array(5).fill(null) as (number | null)[];
@@ -120,6 +129,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       community: comm,
       chips,
       playerBets: bets,
+      playerStates: states,
       pot: room.pot,
       currentTurn: room.players.length ? room.players[room.currentTurnIndex].seat : null,
       street: stageToStreet[room.stage],

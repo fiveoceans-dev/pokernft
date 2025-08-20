@@ -132,9 +132,16 @@ export function handleAction(
 export function nextTurn(room: GameRoom) {
   if (room.players.length === 0) return;
   let next = room.currentTurnIndex;
+  let count = 0;
   do {
     next = (next + 1) % room.players.length;
-  } while (room.players[next].hasFolded);
+    count++;
+    if (count > room.players.length) {
+      // no eligible player to take action (all folded or all-in)
+      room.players.forEach((p) => (p.isTurn = false));
+      return;
+    }
+  } while (room.players[next].hasFolded || room.players[next].chips === 0);
   room.currentTurnIndex = next;
   room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
 }
