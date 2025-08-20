@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import Card from "./Card";
 import type { UiPlayer, Card as TCard } from "../backend";
+import { PlayerState } from "../backend";
 
 interface PlayerSeatProps {
   player: UiPlayer; // player object from your Zustand store
@@ -11,6 +12,7 @@ interface PlayerSeatProps {
   revealCards?: boolean; // if true, show hole cards face-up
   cardSize?: "xs" | "sm" | "md" | "lg"; // size of player's hole cards
   dealerOffset?: { x: number; y: number }; // offset dealer button toward centre
+  state?: PlayerState; // player state for status labels
 }
 
 export default function PlayerSeat({
@@ -20,6 +22,7 @@ export default function PlayerSeat({
   revealCards = false,
   cardSize = "sm",
   dealerOffset = { x: 0, y: -20 },
+  state = PlayerState.ACTIVE,
 }: PlayerSeatProps) {
   // If `player.hand` is null, treat as not yet dealt
   const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [
@@ -71,6 +74,16 @@ export default function PlayerSeat({
       >
         <span className="text-[var(--color-highlight)]">{player.name}</span>
       </div>
+      {state === PlayerState.ALL_IN && (
+        <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-yellow-300 font-bold">
+          ALL IN
+        </span>
+      )}
+      {state === PlayerState.FOLDED && (
+        <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-gray-300">
+          Folded
+        </span>
+      )}
       </div>
 
     </div>
