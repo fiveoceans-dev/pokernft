@@ -1,55 +1,12 @@
 // src/components/Table.tsx
 
-import { useEffect, useState, useMemo, Fragment } from "react";
+import { Fragment } from "react";
 import type { CSSProperties } from "react";
-import { useGameStore } from "../hooks/useGameStore";
-import useIsMobile from "../hooks/useIsMobile";
+import { useTableViewModel } from "../hooks/useTableViewModel";
 import Card from "./Card";
 import { indexToCard, PlayerState } from "../backend";
 import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../backend";
-
-interface SeatPos {
-  x: string;
-  y: string;
-  t: string;
-  r: number;
-}
-
-const buildLayout = (isMobile: boolean): SeatPos[] => {
-  const desktop = [
-    { x: 75, y: 10 },
-    { x: 92, y: 35 },
-    { x: 95, y: 65 },
-    { x: 80, y: 90 },
-    { x: 50, y: 95 },
-    { x: 20, y: 90 },
-    { x: 5, y: 65 },
-    { x: 8, y: 35 },
-    { x: 25, y: 10 },
-  ];
-  const mobile = [
-    { x: 85, y: 8 },
-    { x: 100, y: 30 },
-    { x: 100, y: 72 },
-    { x: 88, y: 88 },
-    { x: 50, y: 98 },
-    { x: 12, y: 88 },
-    { x: 0, y: 72 },
-    { x: 0, y: 30 },
-    { x: 15, y: 8 },
-  ];
-  const positions = isMobile ? mobile : desktop;
-  return positions.map((p) => {
-    const angle = Math.atan2(p.y - 50, p.x - 50);
-    return {
-      x: `${p.x}%`,
-      y: `${p.y}%`,
-      t: "-50%,-50%",
-      r: isMobile ? (angle * 0) / Math.PI : 0,
-    };
-  });
-};
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -63,75 +20,22 @@ export default function Table({ timer }: { timer?: number | null }) {
     chips,
     currentTurn,
     playerBets,
-    playerAction,
     playerStates,
-  } = useGameStore();
-  const isMobile = useIsMobile();
-  const [tableScale, setTableScale] = useState(1);
-  const [bet, setBet] = useState(bigBlind);
-  const [actionTimer, setActionTimer] = useState<number | null>(null);
-
-  useEffect(() => {
-    const stack = chips[currentTurn ?? 0] ?? bigBlind;
-    setBet(Math.min(bigBlind, stack));
-  }, [bigBlind, currentTurn, chips]);
-
-  useEffect(() => {
-    const handle = () => {
-      const baseW = isMobile ? 420 : 820;
-      const baseH = isMobile ? 680 : 520;
-      const minTableWidth = isMobile ? 360 : baseW;
-      const bottomSpace = isMobile ? 100 : 0;
-      const minScale = minTableWidth / baseW;
-      const scale = Math.min(
-        Math.max(window.innerWidth / baseW, minScale),
-        (window.innerHeight - bottomSpace) / baseH,
-        1,
-      );
-      setTableScale(scale);
-    };
-    handle();
-    window.addEventListener("resize", handle);
-    return () => window.removeEventListener("resize", handle);
-  }, [isMobile]);
-
-  const layout = useMemo(() => buildLayout(isMobile), [isMobile]);
-  const localIdx = useMemo(() => {
-    let max = 0;
-    for (let i = 1; i < layout.length; i++) {
-      if (parseFloat(layout[i].y) > parseFloat(layout[max].y)) max = i;
-    }
-    return max;
-  }, [layout]);
-
-  useEffect(() => {
-    if (currentTurn !== null) {
-      setActionTimer(10);
-    } else {
-      setActionTimer(null);
-    }
-  }, [currentTurn]);
-
-  useEffect(() => {
-    if (actionTimer === null || currentTurn === null) return;
-    if (actionTimer === 0) {
-      const highest = Math.max(...playerBets);
-      const myBet = playerBets[currentTurn] ?? 0;
-      if (highest > myBet) {
-        playerAction({ type: "fold" });
-      } else {
-        playerAction({ type: "check" });
-      }
-      setActionTimer(null);
-      return;
-    }
-    const id = setTimeout(() => setActionTimer((t) => (t as number) - 1), 1000);
-    return () => clearTimeout(id);
-  }, [actionTimer, playerBets, playerAction, currentTurn]);
-
-  const communityCardSize = useMemo(() => {
-    return tableScale < 0.75 ? "xs" : tableScale < 1 ? "sm" : "md";
-  }, [tableScale]);
+    layout,
+    localIdx,
+    tableScale,
+    bet,
+    setBet,
+    communityCardSize,
+    baseW,
+    baseH,
+    actions,
+    betEnabled,
+    maxBet,
+    displayTimer,
+    actionDisabled,
+    handleActionClick,
+  } = useTableViewModel(timer);
 
   const holeCardSize = "sm";
 
@@ -183,6 +87,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       ? [indexToCard(handCodes[0]), indexToCard(handCodes[1])]
       : null;
     const state = playerStates[idx];
+    // TODO: visually mark auto-folded players (Action Plan 1.2)
     const player: UiPlayer = {
       name: nickname,
       chips: chips[idx] ?? 0,
@@ -269,46 +174,6 @@ export default function Table({ timer }: { timer?: number | null }) {
     </div>
   );
 
-  const baseW = isMobile ? 420 : 820;
-  const baseH = isMobile ? 680 : 520;
-  const highestBet = Math.max(...playerBets);
-  const myBet = playerBets[currentTurn ?? localIdx] ?? 0;
-  const myChips = chips[currentTurn ?? localIdx] ?? 0;
-  const toCall = Math.max(0, highestBet - myBet);
-  const actions = ["Fold"] as string[];
-  if (toCall > 0) {
-    actions.push("Call");
-    if (myChips > toCall) actions.push("Raise");
-  } else {
-    actions.push("Check");
-    if (myChips > 0) actions.push("Bet");
-  }
-  const betEnabled = actions.includes("Bet") || actions.includes("Raise");
-  const maxBet = myChips;
-
-  const displayTimer = actionTimer ?? timer ?? 0;
-
-  const handleActionClick = (action: string) => {
-    switch (action) {
-      case "Fold":
-        playerAction({ type: "fold" });
-        break;
-      case "Check":
-        playerAction({ type: "check" });
-        break;
-      case "Call":
-        playerAction({ type: "call" });
-        break;
-      case "Bet":
-      case "Raise":
-        playerAction({ type: "raise", amount: bet });
-        break;
-    }
-    setActionTimer(null);
-  };
-
-  const actionDisabled = currentTurn === null;
-
   return (
     <div className="relative flex flex-col items-center justify-center w-full h-full">
       <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
@@ -329,8 +194,8 @@ export default function Table({ timer }: { timer?: number | null }) {
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
-        <div className="mt-12 flex flex-col items-center gap-2">
-          <div className="flex gap-2">
+      <div className="mt-12 flex flex-col items-center gap-2">
+        <div className="flex gap-2">
           {actions.map((action) => (
             <button
               key={action}
@@ -341,51 +206,51 @@ export default function Table({ timer }: { timer?: number | null }) {
               {action}
             </button>
           ))}
-          </div>
-          <div className="flex items-center mt-1">
-            <input
-              type="range"
-              min={bigBlind}
-              max={maxBet}
-              value={bet}
-              onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
-              className="w-40"
-              disabled={actionDisabled || !betEnabled}
-            />
-            <input
-              type="number"
-              min={bigBlind}
-              max={maxBet}
-              value={bet}
-              onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
-              className="w-16 ml-2 text-black rounded"
-              disabled={actionDisabled || !betEnabled}
-            />
-          </div>
-          <div className="flex gap-2 mt-2">
-            <button
-              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => setBet(Math.min(bet * 2, maxBet))}
-              disabled={actionDisabled || !betEnabled}
-            >
-              2x
-            </button>
-            <button
-              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => setBet(Math.min(bet * 3, maxBet))}
-              disabled={actionDisabled || !betEnabled}
-            >
-              3x
-            </button>
-            <button
-              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => setBet(maxBet)}
-              disabled={actionDisabled || !betEnabled}
-            >
-              All In
-            </button>
-          </div>
         </div>
+        <div className="flex items-center mt-1">
+          <input
+            type="range"
+            min={bigBlind}
+            max={maxBet}
+            value={bet}
+            onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
+            className="w-40"
+            disabled={actionDisabled || !betEnabled}
+          />
+          <input
+            type="number"
+            min={bigBlind}
+            max={maxBet}
+            value={bet}
+            onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
+            className="w-16 ml-2 text-black rounded"
+            disabled={actionDisabled || !betEnabled}
+          />
+        </div>
+        <div className="flex gap-2 mt-2">
+          <button
+            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setBet(Math.min(bet * 2, maxBet))}
+            disabled={actionDisabled || !betEnabled}
+          >
+            2x
+          </button>
+          <button
+            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setBet(Math.min(bet * 3, maxBet))}
+            disabled={actionDisabled || !betEnabled}
+          >
+            3x
+          </button>
+          <button
+            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setBet(maxBet)}
+            disabled={actionDisabled || !betEnabled}
+          >
+            All In
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
