@@ -1,6 +1,8 @@
 # TODO
 
-The following items from the implementation checklist remain unfinished:
+The following items from the implementation checklist remain unfinished. They
+tie back to features discussed across the documents in this directory. See
+[action-plan.md](./action-plan.md) for the broader implementation roadmap:
 
 - Deterministic PRNG with logged seed and per-hand hash for audits.
 - Log rake taken from pots.

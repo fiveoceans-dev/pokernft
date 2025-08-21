@@ -1,8 +1,11 @@
 # Networking Contract
 
-This document defines the WebSocket protocol between poker clients and the server.
-All client commands are idempotent and carry a unique `cmdId`; the server ignores
-duplicates and always replies with the authoritative state.
+This document defines the WebSocket protocol between poker clients and the
+server. All client commands are idempotent and carry a unique `cmdId`; the
+server ignores duplicates and always replies with the authoritative state. See
+[`multi-player-server.md`](./multi-player-server.md) for session creation and
+[`modules.md`](./modules.md) for how the `EventBus` module feeds these events to
+clients.
 
 ## Server → Client Events
 

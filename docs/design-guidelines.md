@@ -1,12 +1,17 @@
 # Design Rules and Guidelines
 
-These guidelines describe architectural principles for the poker backend to ensure modularity, maintainability, and future extensibility.
+These guidelines describe architectural principles for the poker backend to
+ensure modularity, maintainability, and future extensibility. They complement
+[`modules.md`](./modules.md) and [`game-states.md`](./game-states.md), which
+detail how these principles map to concrete components.
 
 ## Modular Architecture
 
 - **Separation of Concerns**: Distinct modules handle networking, game logic, randomness, hand evaluation, and persistence.
 - **Replaceable Components**: Each module communicates through clearly defined interfaces. Implementations (e.g., RNG provider or evaluation library) can be swapped without changing consumers.
-- **State Machine Core**: The game engine exposes a state machine (see `game-states.md`). All state transitions originate from the core to avoid inconsistent logic scattered across modules.
+- **State Machine Core**: The game engine exposes a state machine (see
+  [`game-states.md`](./game-states.md)). All state transitions originate from
+  the core to avoid inconsistent logic scattered across modules.
 
 ## Security and Fairness
 

@@ -1,6 +1,9 @@
 # Poker Table State Machine
 
-This document describes the server-side `TableState` lifecycle for a single no-limit Texas Hold'em table. Each state has clear entry conditions, responsibilities and exit criteria.
+This document describes the server-side `TableState` lifecycle for a single
+no-limit Texas Hold'em table. Each state has clear entry conditions,
+responsibilities and exit criteria. Module responsibilities that drive these
+transitions are detailed in [`modules.md`](./modules.md).
 
 ## States
 
