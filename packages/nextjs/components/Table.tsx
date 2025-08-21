@@ -10,7 +10,13 @@ import type { UiPlayer, Card as TCard } from "../backend";
 
 /* ─────────────────────────────────────────────────────── */
 
-export default function Table({ timer }: { timer?: number | null }) {
+export default function Table({
+  timer,
+  socket,
+}: {
+  timer?: number | null;
+  socket?: WebSocket | null;
+}) {
   const {
     players,
     playerHands,
@@ -35,7 +41,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     displayTimer,
     actionDisabled,
     handleActionClick,
-  } = useTableViewModel(timer);
+  } = useTableViewModel(timer, socket);
 
   const holeCardSize = "sm";
 

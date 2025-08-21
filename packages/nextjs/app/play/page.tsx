@@ -21,6 +21,8 @@ export default function PlayPage() {
     stageNames,
     handStarted,
     handleActivate,
+    socket,
+    sessionId,
   } = usePlayViewModel();
 
   return (
@@ -41,7 +43,7 @@ export default function PlayPage() {
         </div>
       </header>
       <div className="flex-1 flex items-center justify-center">
-        <Table timer={timer} />
+        <Table timer={timer} socket={socket} />
       </div>
       <DealerWindow />
       <div

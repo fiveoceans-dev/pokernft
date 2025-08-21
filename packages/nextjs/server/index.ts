@@ -75,6 +75,31 @@ wss.on("connection", (ws) => {
       set.add(msg.cmdId);
 
       switch (msg.type) {
+        case "ATTACH": {
+          const attached = sessions.attach(ws, msg.sessionId);
+          if (attached) {
+            session.id = attached.id;
+            session.roomId = attached.roomId;
+            ws.send(
+              JSON.stringify({
+                tableId: attached.roomId ?? "",
+                type: "SESSION",
+                userId: attached.id,
+              } satisfies ServerEvent),
+            );
+            if (attached.roomId) {
+              const room = getRoom(attached.roomId);
+              ws.send(
+                JSON.stringify({
+                  tableId: room.id,
+                  type: "TABLE_SNAPSHOT",
+                  table: room,
+                } satisfies ServerEvent),
+              );
+            }
+          }
+          break;
+        }
         case "SIT": {
           const room = getRoom(msg.tableId);
           const nickname = shortAddress(session.id);
