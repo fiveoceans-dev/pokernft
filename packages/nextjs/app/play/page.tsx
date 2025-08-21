@@ -2,67 +2,26 @@
 
 // Play poker interface with wallet connect
 
-import { useEffect, useState } from "react";
 import Table from "../../components/Table";
 import AnimatedTitle from "../../components/AnimatedTitle";
 import DealerWindow from "../../components/DealerWindow";
 import { CustomConnectButton } from "../../components/scaffold-stark/CustomConnectButton";
 import ActionBar from "../../components/ActionBar";
-import { useGameStore } from "../../hooks/useGameStore";
+import { usePlayViewModel } from "../../hooks/usePlayViewModel";
+
+// TODO: display connected address and handle signature (Action Plan 1.3)
 
 export default function PlayPage() {
   const {
     street,
-    startHand,
     dealFlop,
     dealTurn,
     dealRiver,
-    playerHands,
-    players,
-    startBlindTimer,
-  } = useGameStore();
-  const [timer, setTimer] = useState<number | null>(null);
-
-  const stageNames = ["preflop", "flop", "turn", "river", "showdown"] as const;
-  const handStarted = playerHands.some((h) => h !== null);
-  const activePlayers = players.filter(Boolean).length;
-
-  useEffect(() => {
-    const originalBody = document.body.style.overflow;
-    const originalHtml = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = originalBody;
-      document.documentElement.style.overflow = originalHtml;
-    };
-  }, []);
-
-  useEffect(() => {
-    startBlindTimer();
-  }, [startBlindTimer]);
-
-  useEffect(() => {
-    if (activePlayers >= 2 && !handStarted && timer === null) {
-      setTimer(10);
-    }
-  }, [activePlayers, handStarted, timer]);
-
-  useEffect(() => {
-    if (timer === null || handStarted) return;
-    if (timer === 0) {
-      startHand();
-      setTimer(null);
-      return;
-    }
-    const id = setTimeout(() => setTimer((t) => (t as number) - 1), 1000);
-    return () => clearTimeout(id);
-  }, [timer, handStarted, startHand]);
-
-  const handleActivate = async () => {
-    setTimer(null);
-    await startHand();
-  };
+    timer,
+    stageNames,
+    handStarted,
+    handleActivate,
+  } = usePlayViewModel();
 
   return (
     <main
@@ -78,6 +37,7 @@ export default function PlayPage() {
         <AnimatedTitle text="Poker Night on Starknet" />
         <div className="flex flex-1 items-center justify-end gap-4">
           <CustomConnectButton />
+          {/* TODO: persist session token and auto-reconnect (Action Plan 1.3) */}
         </div>
       </header>
       <div className="flex-1 flex items-center justify-center">
