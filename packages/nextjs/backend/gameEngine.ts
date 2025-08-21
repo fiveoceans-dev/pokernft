@@ -57,6 +57,7 @@ export class GameEngine extends EventEmitter {
     this.machine.dispatch({ type: 'SHUFFLE_COMPLETE' });
     startHandImpl(this.room);
     this.machine.dispatch({ type: 'DEAL_COMPLETE' });
+    this.emit('stateChanged', this.room);
     this.emit('phaseChanged', this.machine.state);
     this.emit('handStarted', this.room);
   }
@@ -113,8 +114,9 @@ export class GameEngine extends EventEmitter {
       this.machine.dispatch({ type: 'SHOWDOWN_COMPLETE' });
       payoutImpl(this.room, winners);
       this.machine.dispatch({ type: 'PAYOUT_COMPLETE' });
-      this.room.stage = 'waiting';
+      this.room.players.forEach((p) => (p.isTurn = false));
       this.emit('phaseChanged', this.machine.state);
+      this.emit('stageChanged', this.room.stage);
       this.emit('handEnded', winners);
       this.emit('stateChanged', this.room);
       return;
