@@ -11,6 +11,8 @@ export function createRoom(id: string, minBet = 10): GameRoom {
     players: [],
     dealerIndex: 0,
     currentTurnIndex: 0,
+    firstToActIndex: 0,
+    lastAggressorIndex: 0,
     stage: "waiting",
     pot: 0,
     communityCards: [],
@@ -72,6 +74,8 @@ export function startHand(room: GameRoom) {
   const { bb } = blindMgr.postBlinds(room);
   const firstToAct = blindMgr.nextActiveIndex(room, bb + 1);
   room.currentTurnIndex = firstToAct;
+  room.firstToActIndex = firstToAct;
+  room.lastAggressorIndex = firstToAct;
   room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
 }
 
@@ -113,6 +117,7 @@ export function handleAction(
       player.currentBet += raiseAmt;
       room.pot += raiseAmt;
       room.minBet = player.currentBet;
+      room.lastAggressorIndex = idx;
       break;
     }
     case "check":
@@ -148,6 +153,19 @@ export function nextTurn(room: GameRoom) {
   room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
 }
 
+/** Find the next active player index starting from `start` */
+function nextActiveIndex(room: GameRoom, start: number): number {
+  if (room.players.length === 0) return 0;
+  let idx = start % room.players.length;
+  let count = 0;
+  do {
+    idx = (idx + 1) % room.players.length;
+    count++;
+    if (count > room.players.length) return start % room.players.length;
+  } while (room.players[idx].hasFolded || room.players[idx].chips === 0);
+  return idx;
+}
+
 /** Progress to the next betting street and deal community cards */
 export function progressStage(room: GameRoom) {
   const order: Stage[] = [
@@ -172,7 +190,10 @@ export function progressStage(room: GameRoom) {
 
   room.players.forEach((p) => (p.currentBet = 0));
   room.stage = next;
-  room.currentTurnIndex = (room.dealerIndex + 1) % room.players.length;
+  const first = nextActiveIndex(room, room.dealerIndex);
+  room.currentTurnIndex = first;
+  room.firstToActIndex = first;
+  room.lastAggressorIndex = first;
   room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
 }
 
@@ -197,10 +218,11 @@ export function isRoundComplete(room: GameRoom): boolean {
   const allMatched = active.every(
     (p) => p.chips === 0 || p.currentBet === maxBet,
   );
-  const canAct = active.some(
-    (p) => p.chips > 0 && p.currentBet < maxBet,
-  );
-  return allMatched && !canAct;
+  if (!allMatched) return false;
+  if (room.lastAggressorIndex === room.firstToActIndex) {
+    return room.currentTurnIndex === room.firstToActIndex;
+  }
+  return room.currentTurnIndex === room.lastAggressorIndex;
 }
 
 /** Split the pot equally amongst winners */

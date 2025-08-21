@@ -145,7 +145,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       playerBets: bets,
       playerStates: states,
       pot: room.pot,
-      currentTurn: room.players.length ? room.players[room.currentTurnIndex].seat : null,
+      currentTurn:
+        room.players.length && room.players[room.currentTurnIndex]?.isTurn
+          ? room.players[room.currentTurnIndex].seat
+          : null,
       street: stageToStreet[room.stage],
       phase: engine.getPhase(),
       loading: false,
@@ -171,6 +174,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
   /** Deal new hole cards to all players */
   startHand: async () => {
     engine.startHand();
+    await get().reloadTableState();
   },
 
   /** Reveal the flop (dev control) */
