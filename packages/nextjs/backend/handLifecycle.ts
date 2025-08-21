@@ -51,7 +51,10 @@ export async function endHand(table: Table, audit?: AuditLogger) {
   const rake = applyRake(table);
   if (rake > 0) audit?.recordRake(rake);
   if (live.length === 1) {
-    const total = table.pots.reduce((sum, p) => sum + p.amount, 0);
+    const total = table.seats.reduce(
+      (sum, p) => sum + (p ? p.totalCommitted : 0),
+      0,
+    );
     live[0].stack += total;
     table.pots = [];
   } else if (live.length > 1) {

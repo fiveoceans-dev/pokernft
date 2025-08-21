@@ -24,10 +24,6 @@ export async function resetTableForNextHand(table: Table, reBuyAllowed = true) {
     }
   });
 
-  // advance dealer button to the next active seat
-  table.state = TableState.ROTATE;
-  advanceButton(table);
-
   // prepare remaining players for the upcoming hand
   table.state = TableState.CLEANUP;
   table.seats.forEach((player) => {
@@ -46,6 +42,10 @@ export async function resetTableForNextHand(table: Table, reBuyAllowed = true) {
     player.totalCommitted = 0;
     player.lastAction = PlayerAction.NONE;
   });
+
+  // advance dealer button to the next active seat
+  table.state = TableState.ROTATE;
+  advanceButton(table);
 
   // clear table-level per-hand fields
   table.deck = [];

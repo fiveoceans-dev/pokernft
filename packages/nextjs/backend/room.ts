@@ -49,6 +49,9 @@ export function startHand(room: GameRoom) {
   room.deck = dealDeck();
   room.communityCards = [];
   room.pot = 0;
+  if (winners.length === 1) {
+    room.players = room.players.filter((p) => p.chips > 0);
+  }
   if (room.stage === "waiting") {
     room.dealerIndex = randomInt(room.players.length);
   } else {
@@ -221,5 +224,4 @@ export function payout(room: GameRoom, winners: PlayerSession[]) {
     }
   }
   room.pot = 0;
-  room.players = room.players.filter((p) => p.chips > 0);
 }
