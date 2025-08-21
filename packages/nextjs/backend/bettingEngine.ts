@@ -2,6 +2,12 @@ import { Table, Player, PlayerState, PlayerAction, Round } from "./types";
 import { rebuildPots, resetForNextRound } from "./potManager";
 import { isHeadsUp } from "./tableUtils";
 import { AuditLogger } from "./auditLogger";
+import {
+  BettingActionRequest,
+  BettingActionResponse,
+  tableFromJson,
+  tableToJson,
+} from "./jsonFormats";
 
 /** Initialize betting round and determine first to act */
 export function startBettingRound(table: Table, round: Round) {
@@ -169,6 +175,14 @@ export function applyAction(
 
   // advance turn
   table.actingIndex = nextToAct(table, seatIndex);
+}
+
+export function applyActionFromJson(
+  req: BettingActionRequest,
+): BettingActionResponse {
+  const table = tableFromJson(req.table);
+  applyAction(table, req.seatIndex, req.action);
+  return { actingIndex: table.actingIndex, table: tableToJson(table) };
 }
 
 function nextToAct(table: Table, from: number): number | null {

@@ -1,0 +1,21 @@
+{
+  "cards": [
+    {"rank": "A", "suit": "\u2660"},
+    {"rank": "K", "suit": "\u2660"},
+    {"rank": "Q", "suit": "\u2660"},
+    {"rank": "J", "suit": "\u2660"},
+    {"rank": "T", "suit": "\u2660"},
+    {"rank": "9", "suit": "\u2663"},
+    {"rank": "2", "suit": "\u2665"}
+  ],
+  "expected": {
+    "rankValue": 1,
+    "bestCards": [
+      {"rank": "A", "suit": "\u2660"},
+      {"rank": "K", "suit": "\u2660"},
+      {"rank": "Q", "suit": "\u2660"},
+      {"rank": "J", "suit": "\u2660"},
+      {"rank": "T", "suit": "\u2660"}
+    ]
+  }
+}
