@@ -9,6 +9,11 @@ clients.
 
 ## Server → Client Events
 
+All server events include a `tableId` field so that clients can route updates to
+the appropriate table. The following event types are emitted:
+
+- `SESSION {userId}` – the server has assigned an ephemeral Starknet-style
+  address to this connection.
 - `TABLE_SNAPSHOT` – full `Table` state for reconciliation.
 - `HAND_START` – a new hand has begun.
 - `BLINDS_POSTED` – blinds have been applied for the hand.
@@ -33,7 +38,8 @@ Every command must carry a `cmdId` field. If the server receives the same
 `cmdId` again it simply resends the latest `TABLE_SNAPSHOT` without applying the
 command.
 
-- `SIT {buyIn}` – take a seat with the provided buy‑in amount.
+- `SIT {tableId, buyIn}` – take a seat at the specified table with the provided
+  buy‑in amount.
 - `LEAVE` – vacate the current seat.
 - `SIT_OUT` – mark the player sitting out next hand.
 - `SIT_IN` – return a previously sitting out player to action.

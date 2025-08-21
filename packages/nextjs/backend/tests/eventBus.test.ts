@@ -8,11 +8,11 @@ describe('EventBus', () => {
     const received: ServerEvent[] = [];
     bus.onEvent((e) => received.push(e));
 
-    const ev: ServerEvent = { type: 'HAND_START' };
+    const ev: ServerEvent = { tableId: 't1', type: 'HAND_START' };
     bus.emit(ev);
     expect(received).toEqual([ev]);
 
-    const cmd: ClientCommand = { cmdId: '1', type: 'SIT', buyIn: 100 };
+    const cmd: ClientCommand = { cmdId: '1', type: 'SIT', tableId: 't1', buyIn: 100 };
     bus.enqueueCommand(cmd);
     expect(bus.pendingCommands).toBe(1);
     expect(bus.dequeueCommand()).toEqual(cmd);
