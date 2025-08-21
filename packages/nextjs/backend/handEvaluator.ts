@@ -1,5 +1,6 @@
 import { RANKS } from './constants';
 import type { Card } from './types';
+import type { HandEvaluatorRequest, HandEvaluatorResponse } from './jsonFormats';
 
 export interface RankedHand {
   rankValue: number; // lower = better
@@ -164,4 +165,10 @@ export function compareHands(a: RankedHand, b: RankedHand): number {
     if (diff !== 0) return diff;
   }
   return 0;
+}
+
+export function rankHandFromJson(
+  input: HandEvaluatorRequest,
+): HandEvaluatorResponse {
+  return rankHand(input.cards);
 }
