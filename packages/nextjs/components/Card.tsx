@@ -39,10 +39,10 @@ const rankMap: Record<string, string> = {
   "2": "2",
 };
 const suitMap: Record<string, string> = {
-  "♠": "spades",
-  "♥": "hearts",
-  "♦": "diamonds",
-  "♣": "clubs",
+  s: "spades",
+  h: "hearts",
+  d: "diamonds",
+  c: "clubs",
 };
 function faceKey(card: TCard) {
   return `../assets/svg-cards/${rankMap[card.rank]}_of_${suitMap[card.suit]}.svg`;
@@ -76,7 +76,10 @@ export default function Card({
   const src =
     hidden || !card ? cardStarknet : (faceSvgs[faceKey(card)] ?? cardStarknet); // fallback to back if missing
 
-  const alt = hidden || !card ? "Card back" : `${card.rank} of ${card.suit}`;
+  const alt =
+    hidden || !card
+      ? "Card back"
+      : `${card.rank} of ${suitMap[card.suit] ?? card.suit}`;
 
   return (
     <Image

@@ -32,11 +32,12 @@ const RANK_MAP: Record<Rank, number> = {
   A: 12,
 };
 
+// Map suit letters to the indices expected by the evaluator tables
 const SUIT_MAP: Record<Suit, number> = {
-  '\u2663': 0, // clubs
-  '\u2666': 1, // diamonds
-  '\u2665': 2, // hearts
-  '\u2660': 3, // spades
+  c: 0, // clubs
+  d: 1, // diamonds
+  h: 2, // hearts
+  s: 3, // spades
 };
 
 function cardToId(card: Card): number {
