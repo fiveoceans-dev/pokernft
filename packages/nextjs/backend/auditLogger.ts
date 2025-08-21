@@ -8,11 +8,15 @@ import { HandAction, PlayerAction, Round } from "./types";
 export class AuditLogger {
   private actions: HandAction[] = [];
   private startTs = 0;
+  private seed = "";
+  private rake = 0;
 
   /** Reset the logger for a new hand */
-  startHand() {
+  startHand(deckSeed: string) {
     this.actions = [];
     this.startTs = Date.now();
+    this.seed = deckSeed;
+    this.rake = 0;
   }
 
   /** Record a hand action with the elapsed time since hand start */
@@ -21,9 +25,22 @@ export class AuditLogger {
     this.actions.push({ playerId, round, action, amount, elapsedMs });
   }
 
+  /** Record total rake taken for the hand */
+  recordRake(amount: number) {
+    this.rake = amount;
+  }
+
   /** Return a read-only view of the logged actions */
   get handActions(): readonly HandAction[] {
     return this.actions;
+  }
+
+  get deckSeed(): string {
+    return this.seed;
+  }
+
+  get totalRake(): number {
+    return this.rake;
   }
 }
 

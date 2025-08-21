@@ -95,7 +95,7 @@ export class TimerService {
   }
 
   /** Deal hole cards with animation delays */
-  async dealHoleCardsAnimated(table: Table) {
+  async dealHoleAnimated(table: Table) {
     if (!table.deck.length) return;
     const len = table.seats.length;
     for (let i = 0; i < 2; i++) {

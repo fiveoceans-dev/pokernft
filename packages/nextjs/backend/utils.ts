@@ -1,13 +1,13 @@
 import { RANKS, SUITS } from './constants';
 import type { Card } from './types';
-import { randomInt } from './rng';
+import { randomInt, seededRNG } from './rng';
 
 /* ─────── Random + Deck helpers ─────── */
 
-export function freshDeck(): Card[] {
+export function freshDeck(seed?: string): Card[] {
   const deck: Card[] = [];
   for (const suit of SUITS) for (const rank of RANKS) deck.push({ rank, suit });
-  return shuffle(deck);
+  return seed ? shuffleWithSeed(deck, seed) : shuffle(deck);
 }
 
 /** Convenience alias used by higher level room logic */
@@ -17,6 +17,16 @@ export const dealDeck = freshDeck;
 export function shuffle<T>(array: T[]): T[] {
   for (let i = array.length - 1; i > 0; i--) {
     const j = randomInt(i + 1);
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+/** Deterministic shuffle using a string seed */
+export function shuffleWithSeed<T>(array: T[], seed: string): T[] {
+  const rng = seededRNG(seed);
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(rng.next() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;

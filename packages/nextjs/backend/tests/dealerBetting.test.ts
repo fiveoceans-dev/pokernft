@@ -7,7 +7,7 @@ import {
   TableState,
   Round,
 } from '../types';
-import { dealHoleCards } from '../dealer';
+import { dealHole } from '../dealer';
 import { assignBlindsAndButton } from '../blindManager';
 import { startBettingRound, applyAction, isRoundComplete } from '../bettingEngine';
 
@@ -58,7 +58,7 @@ describe('Dealer & BettingEngine', () => {
       interRoundDelayMs: 0,
       dealAnimationDelayMs: 0,
     };
-    dealHoleCards(table);
+    dealHole(table);
     expect(table.seats[1]?.holeCards).toEqual([card('1','s'), card('4','s')]);
     expect(table.seats[2]?.holeCards).toEqual([card('2','s'), card('5','s')]);
     expect(table.seats[0]?.holeCards).toEqual([card('3','s'), card('6','s')]);

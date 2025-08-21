@@ -5,7 +5,7 @@ import { PlayerAction, Round } from "../types";
 describe("AuditLogger", () => {
   test("records actions with elapsed time", () => {
     const audit = new AuditLogger();
-    audit.startHand();
+    audit.startHand("seed");
     audit.record("p1", Round.PREFLOP, PlayerAction.BET, 50);
     const actions = audit.handActions;
     expect(actions.length).toBe(1);

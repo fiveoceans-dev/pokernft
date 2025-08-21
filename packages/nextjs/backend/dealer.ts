@@ -2,7 +2,7 @@ import { Table, PlayerState, Round } from './types';
 import { draw } from './utils';
 
 /** Deal two hole cards to each active seat starting from the small blind */
-export function dealHoleCards(table: Table) {
+export function dealHole(table: Table) {
   if (!table.deck.length) return;
   const len = table.seats.length;
   // deal one card at a time, starting from small blind
