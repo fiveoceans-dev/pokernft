@@ -52,6 +52,10 @@ export interface GameRoom {
   players: PlayerSession[];
   dealerIndex: number;
   currentTurnIndex: number;
+  /** seat index that opened the current betting round */
+  firstToActIndex: number;
+  /** most recent player to bet or raise */
+  lastAggressorIndex: number;
   stage: Stage;
   pot: number;
   communityCards: Card[];

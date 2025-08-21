@@ -49,7 +49,7 @@ export default function ActionBar({
           Deal River
         </button>
       )}
-      {street === "river" && (
+      {street === "showdown" && (
         <button
           onClick={actions.onActivate}
           className="py-1.5 px-3 text-sm rounded-full font-serif-renaissance hover:bg-gradient-nav hover:text-white"

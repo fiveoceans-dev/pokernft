@@ -132,16 +132,19 @@ export function useTableViewModel(timer?: number | null, socket?: WebSocket | nu
   const baseW = isMobile ? 420 : 820;
   const baseH = isMobile ? 680 : 520;
   const highestBet = Math.max(...playerBets);
-  const myBet = playerBets[currentTurn ?? localIdx] ?? 0;
-  const myChips = chips[currentTurn ?? localIdx] ?? 0;
+  const myBet = playerBets[localIdx] ?? 0;
+  const myChips = chips[localIdx] ?? 0;
   const toCall = Math.max(0, highestBet - myBet);
-  const actions = ["Fold"] as string[];
-  if (toCall > 0) {
-    actions.push("Call");
-    if (myChips > toCall) actions.push("Raise");
-  } else {
-    actions.push("Check");
-    if (myChips > 0) actions.push("Bet");
+  let actions: string[] = [];
+  if (currentTurn === localIdx) {
+    actions = ["Fold"];
+    if (toCall > 0) {
+      actions.push("Call");
+      if (myChips > toCall) actions.push("Raise");
+    } else {
+      actions.push("Check");
+      if (myChips > 0) actions.push("Bet");
+    }
   }
   const betEnabled = actions.includes("Bet") || actions.includes("Raise");
   const maxBet = myChips;
@@ -178,7 +181,7 @@ export function useTableViewModel(timer?: number | null, socket?: WebSocket | nu
     setActionTimer(null);
   };
 
-  const actionDisabled = currentTurn === null;
+  const actionDisabled = currentTurn !== localIdx;
 
   return {
     players,
