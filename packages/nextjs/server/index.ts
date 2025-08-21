@@ -6,6 +6,7 @@ import type {
   ClientCommand,
   PlayerAction,
 } from "../backend";
+import { SessionManager, Session } from "./sessionManager";
 
 function shortAddress(addr: string): string {
   if (addr.length <= 8) return addr;
@@ -13,18 +14,42 @@ function shortAddress(addr: string): string {
 }
 
 const wss = new WebSocketServer({ port: 8080 });
-const room: GameRoom = createRoom("default");
-const clients = new Map<WebSocket, string>();
+const sessions = new SessionManager();
+const rooms = new Map<string, GameRoom>();
 const processed = new Map<WebSocket, Set<string>>();
 
-function broadcast(event: ServerEvent) {
-  const msg = JSON.stringify(event);
+function getRoom(id: string): GameRoom {
+  let room = rooms.get(id);
+  if (!room) {
+    room = createRoom(id);
+    rooms.set(id, room);
+  }
+  return room;
+}
+
+function broadcast(roomId: string, event: Omit<ServerEvent, "tableId">) {
+  const msg = JSON.stringify({ tableId: roomId, ...event });
   wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) client.send(msg);
+    const session = sessions.get(client as WebSocket);
+    if (
+      session?.roomId === roomId &&
+      client.readyState === WebSocket.OPEN
+    ) {
+      client.send(msg);
+    }
   });
 }
 
 wss.on("connection", (ws) => {
+  const session = sessions.create(ws);
+  ws.send(
+    JSON.stringify({
+      tableId: "",
+      type: "SESSION",
+      userId: session.id,
+    } satisfies ServerEvent),
+  );
+
   ws.on("message", (data) => {
     try {
       const msg: ClientCommand = JSON.parse(data.toString());
@@ -35,91 +60,103 @@ wss.on("connection", (ws) => {
         processed.set(ws, set);
       }
       if (set.has(msg.cmdId)) {
-        ws.send(
-          JSON.stringify({
-            type: "TABLE_SNAPSHOT",
-            table: room,
-          } satisfies ServerEvent),
-        );
+        if (session.roomId) {
+          const room = getRoom(session.roomId);
+          ws.send(
+            JSON.stringify({
+              tableId: room.id,
+              type: "TABLE_SNAPSHOT",
+              table: room,
+            } satisfies ServerEvent),
+          );
+        }
         return;
       }
       set.add(msg.cmdId);
+
       switch (msg.type) {
         case "SIT": {
-          const id = clients.get(ws) ?? msg.cmdId;
-          const nickname = shortAddress(id);
+          const room = getRoom(msg.tableId);
+          const nickname = shortAddress(session.id);
           addPlayer(room, {
-            id,
+            id: session.id,
             nickname,
             seat: room.players.length,
             chips: msg.buyIn,
           });
-          clients.set(ws, id);
+          session.roomId = room.id;
           if (room.players.length >= 2 && room.stage === "waiting") {
             startHand(room);
-            broadcast({ type: "HAND_START" });
+            broadcast(room.id, { type: "HAND_START" });
           }
-          broadcast({ type: "TABLE_SNAPSHOT", table: room });
+          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
         case "LEAVE": {
-          const id = clients.get(ws);
-          if (id) {
-            const idx = room.players.findIndex((p) => p.id === id);
-            if (idx !== -1) room.players.splice(idx, 1);
-            clients.delete(ws);
-            broadcast({ type: "TABLE_SNAPSHOT", table: room });
-          }
+          if (!session.roomId) break;
+          const room = getRoom(session.roomId);
+          const idx = room.players.findIndex((p) => p.id === session.id);
+          if (idx !== -1) room.players.splice(idx, 1);
+          session.roomId = undefined;
+          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
         case "ACTION": {
-          const playerId = clients.get(ws);
-          if (!playerId) break;
+          if (!session.roomId) break;
+          const room = getRoom(session.roomId);
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
-          handleAction(room, playerId, {
+          handleAction(room, session.id, {
             type: action.toLowerCase() as any,
             amount: msg.amount,
           });
-          broadcast({
+          broadcast(room.id, {
             type: "PLAYER_ACTION_APPLIED",
-            playerId,
+            playerId: session.id,
             action,
             amount: msg.amount,
           });
-          broadcast({ type: "TABLE_SNAPSHOT", table: room });
+          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
         case "REBUY": {
-          const playerId = clients.get(ws);
-          if (!playerId) break;
-          const player = room.players.find((p) => p.id === playerId);
+          if (!session.roomId) break;
+          const room = getRoom(session.roomId);
+          const player = room.players.find((p) => p.id === session.id);
           if (player) player.chips += msg.amount;
-          broadcast({ type: "TABLE_SNAPSHOT", table: room });
+          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
         case "SIT_OUT":
         case "SIT_IN": {
-          broadcast({ type: "TABLE_SNAPSHOT", table: room });
+          if (!session.roomId) break;
+          const room = getRoom(session.roomId);
+          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
         case "POST_BLIND": {
-          broadcast({ type: "BLINDS_POSTED" });
-          broadcast({ type: "TABLE_SNAPSHOT", table: room });
+          if (!session.roomId) break;
+          const room = getRoom(session.roomId);
+          broadcast(room.id, { type: "BLINDS_POSTED" });
+          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
-        default:
+        default: {
+          const tableId = session.roomId ?? ("tableId" in msg ? (msg as any).tableId : "");
           ws.send(
             JSON.stringify({
+              tableId,
               type: "ERROR",
               code: "UNKNOWN_COMMAND",
-              msg: msg.type,
+              msg: (msg as any).type,
             } satisfies ServerEvent),
           );
+        }
       }
     } catch (err) {
       console.error("invalid message", err);
       ws.send(
         JSON.stringify({
+          tableId: session.roomId || "",
           type: "ERROR",
           code: "BAD_JSON",
           msg: String(err),
@@ -129,12 +166,13 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
-    const id = clients.get(ws);
-    if (!id) return;
-    const idx = room.players.findIndex((p) => p.id === id);
-    if (idx !== -1) room.players.splice(idx, 1);
-    clients.delete(ws);
-    broadcast({ type: "TABLE_SNAPSHOT", table: room });
+    sessions.handleDisconnect(session, (s: Session) => {
+      if (!s.roomId) return;
+      const room = getRoom(s.roomId);
+      const idx = room.players.findIndex((p) => p.id === s.id);
+      if (idx !== -1) room.players.splice(idx, 1);
+      broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
+    });
   });
 });
 

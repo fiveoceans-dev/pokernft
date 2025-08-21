@@ -3,11 +3,13 @@ import type { Card, Table, PlayerAction, Round } from "./types";
 export type BlindType = "SMALL" | "BIG";
 
 export type ServerEvent =
-  | { type: "TABLE_SNAPSHOT"; table: Table }
-  | { type: "HAND_START" }
-  | { type: "BLINDS_POSTED" }
-  | { type: "DEAL_HOLE"; seat: number; cards: [Card, Card] }
+  | { tableId: string; type: "SESSION"; userId: string }
+  | { tableId: string; type: "TABLE_SNAPSHOT"; table: Table }
+  | { tableId: string; type: "HAND_START" }
+  | { tableId: string; type: "BLINDS_POSTED" }
+  | { tableId: string; type: "DEAL_HOLE"; seat: number; cards: [Card, Card] }
   | {
+      tableId: string;
       type: "ACTION_PROMPT";
       actingIndex: number;
       betToCall: number;
@@ -15,17 +17,19 @@ export type ServerEvent =
       timeLeftMs: number;
     }
   | {
+      tableId: string;
       type: "PLAYER_ACTION_APPLIED";
       playerId: string;
       action: PlayerAction;
       amount?: number;
     }
-  | { type: "ROUND_END"; street: Round }
-  | { type: "DEAL_FLOP"; cards: [Card, Card, Card] }
-  | { type: "DEAL_TURN"; card: Card }
-  | { type: "DEAL_RIVER"; card: Card }
-  | { type: "SHOWDOWN"; revealOrder: string[] }
+  | { tableId: string; type: "ROUND_END"; street: Round }
+  | { tableId: string; type: "DEAL_FLOP"; cards: [Card, Card, Card] }
+  | { tableId: string; type: "DEAL_TURN"; card: Card }
+  | { tableId: string; type: "DEAL_RIVER"; card: Card }
+  | { tableId: string; type: "SHOWDOWN"; revealOrder: string[] }
   | {
+      tableId: string;
       type: "PAYOUT";
       potBreakdown: Array<{
         playerId: string;
@@ -33,12 +37,12 @@ export type ServerEvent =
         potIndex: number;
       }>;
     }
-  | { type: "HAND_END" }
-  | { type: "BUTTON_MOVED"; buttonIndex: number }
-  | { type: "ERROR"; code: string; msg: string };
+  | { tableId: string; type: "HAND_END" }
+  | { tableId: string; type: "BUTTON_MOVED"; buttonIndex: number }
+  | { tableId: string; type: "ERROR"; code: string; msg: string };
 
 export type ClientCommand =
-  | { cmdId: string; type: "SIT"; buyIn: number }
+  | { cmdId: string; type: "SIT"; tableId: string; buyIn: number }
   | { cmdId: string; type: "LEAVE" }
   | { cmdId: string; type: "SIT_OUT" }
   | { cmdId: string; type: "SIT_IN" }
