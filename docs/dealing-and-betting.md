@@ -1,6 +1,9 @@
 # Dealing & Betting Rounds
 
-This document describes how cards are dealt and betting rounds proceed in a no‑limit Texas Hold'em hand.
+This document describes how cards are dealt and betting rounds proceed in a
+no‑limit Texas Hold'em hand. It pairs with [`game-states.md`](./game-states.md)
+for the table lifecycle and [`modules.md`](./modules.md) for the engine
+components that enforce these rules.
 
 ## Dealing Order
 
@@ -10,7 +13,9 @@ This document describes how cards are dealt and betting rounds proceed in a no�
   - **Turn**: one community card
   - **River**: one community card
 
-Between individual deal events the server pauses `dealAnimationDelayMs` milliseconds so clients can animate the action.
+Between individual deal events the server pauses `dealAnimationDelayMs`
+milliseconds so clients can animate the action. The `TimerService` also
+manages per-action countdowns to keep play moving.
 
 ## Betting Rounds & Acting Order
 

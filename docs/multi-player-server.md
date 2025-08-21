@@ -1,6 +1,8 @@
 # Multiplayer Server & Session Management
 
-This document outlines how the poker server tracks connected players and guarantees unique identities.
+This document outlines how the poker server tracks connected players and
+guarantees unique identities. For message formats and commands, see
+[`networking-contract.md`](./networking-contract.md).
 
 ## Session Lifecycle
 

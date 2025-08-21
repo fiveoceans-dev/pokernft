@@ -1,10 +1,13 @@
 # Poker Modules
 
 This document complements [`game-states.md`](./game-states.md) by mapping the
-state machine to the main modules that drive the table. Each module has a
-clear responsibility and can be swapped without affecting others, following the
-MVVM style used in the UI. For an in-depth look at how cards are dealt and
-betting rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md).
+table state machine to the modules that drive the backend poker engine. Each
+module has a clear responsibility and exposes an interface that allows
+implementations to be swapped without affecting others, mirroring the MVVM
+style used in the UI. For a deeper look at how cards are dealt and betting
+rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md) and
+[`turn-order-and-seating.md`](./turn-order-and-seating.md). For a numbered implementation roadmap, consult
+[action-plan.md](./action-plan.md).
 
 ## Core Modules
 
@@ -28,13 +31,22 @@ betting rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md
 
 Typical hand lifecycle:
 
-1. `TableManager.startHand` calls `BlindManager.assignBlindsAndButton` to set the button, post blinds and establish turn order, then deals hole cards through the `Dealer`.
-2. `BettingEngine` prompts the acting player. After each action it updates commitments and asks `PotManager` to rebuild pots on all‑ins.
-3. When a round completes, `BettingEngine` signals the `Dealer` to deal the next street or proceeds to showdown.
-4. At showdown, `HandEvaluator` ranks hands and `PotManager` awards pots, applying rake if configured.
-5. `TableManager` calls `resetTableForNextHand` to run **ROTATE** and **CLEANUP**, moving the button, clearing per-hand data and after `interRoundDelayMs` either restarting in **BLINDS** or waiting for more players.
+1. `TableManager.startHand` calls `BlindManager.assignBlindsAndButton` to set the button, post blinds and establish turn order,
+   then deals hole cards through the `Dealer`.
+2. `BettingEngine` prompts the acting player and `TimerService` starts the
+   action countdown. After each action the engine updates commitments and asks
+   `PotManager` to rebuild pots on all‑ins.
+3. When a round completes, `BettingEngine` signals the `Dealer` to deal the next
+   street or proceeds to showdown.
+4. At showdown, `HandEvaluator` ranks hands and `PotManager` awards pots,
+   applying rake if configured.
+5. `TableManager` calls `resetTableForNextHand` to run **ROTATE** and
+   **CLEANUP**, moving the button, clearing per-hand data and after
+   `interRoundDelayMs` either restarting in **BLINDS** or waiting for more
+   players.
 
-This separation keeps rendering, state management and game rules isolated and mirrors the architecture described in the design guidelines.
+This separation keeps rendering, state management and game rules isolated and
+mirrors the architecture described in the design guidelines.
 
 ## Module Interaction & APIs
 

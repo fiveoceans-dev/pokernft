@@ -1,6 +1,10 @@
 # Core Poker Data Models
 
-The backend exposes strongly typed interfaces that describe the state of a poker table. The key models are defined in `packages/nextjs/backend/types.ts` and are summarised below for reference.
+The backend exposes strongly typed interfaces that describe the state of a poker
+table. The key models are defined in `packages/nextjs/backend/types.ts` and are
+summarised below for reference. These models are consumed by the engine modules
+outlined in [`modules.md`](./modules.md) and flow through the state machine in
+[`game-states.md`](./game-states.md).
 
 ## Player
 

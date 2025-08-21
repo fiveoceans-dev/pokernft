@@ -1,6 +1,8 @@
 # Heads-Up Specifics
 
-When only two players remain in a hand, turn order and blinds differ from multi-way play.
+When only two players remain in a hand, turn order and blinds differ from
+multi-way play. This note supplements [`dealing-and-betting.md`](./dealing-and-betting.md)
+with heads-up specific rules.
 
 ## Summary
 

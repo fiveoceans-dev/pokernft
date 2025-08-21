@@ -1,6 +1,10 @@
 # Turn Order & Seating Structures
 
-This document outlines data structures typically used in poker software to ensure players act in the correct sequence and that seats remain consistent throughout play.
+This document outlines data structures typically used in poker software to
+ensure players act in the correct sequence and that seats remain consistent
+throughout play. See [`modules.md`](./modules.md) for the modules that consume
+these structures and [`game-states.md`](./game-states.md) for where turn changes
+occur in the hand lifecycle.
 
 ## Turn Management
 

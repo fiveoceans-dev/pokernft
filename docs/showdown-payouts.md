@@ -1,6 +1,9 @@
 # Showdown & Payouts
 
 This document outlines how a hand transitions from showdown to awarding chips.
+Responsibilities are mainly handled by the `HandEvaluator` and `PotManager`
+modules described in [`modules.md`](./modules.md). The surrounding state
+transitions are covered in [`game-states.md`](./game-states.md).
 
 ## When does a showdown occur?
 
