@@ -107,14 +107,13 @@ export function awardPots(table: Table) {
     winners.forEach((w) => (w.stack += share));
 
     if (remainder > 0) {
+      const offset = (table.buttonIndex + 1) % table.seats.length;
       const ordered = winners
         .slice()
         .sort(
           (a, b) =>
-            ((a.seatIndex - table.buttonIndex + table.seats.length) %
-              table.seats.length) -
-            ((b.seatIndex - table.buttonIndex + table.seats.length) %
-              table.seats.length),
+            ((a.seatIndex - offset + table.seats.length) % table.seats.length) -
+            ((b.seatIndex - offset + table.seats.length) % table.seats.length),
         );
       for (let i = 0; i < remainder; i++) {
         ordered[i % ordered.length].stack += 1;

@@ -147,11 +147,18 @@ export function assignBlindsAndButton(table: Table): boolean {
     if (p) p.hasButton = i === btn;
   });
 
+  if (table.deadBlindRule === DeadBlindRule.WAIT) {
+    table.seats.forEach((p) => {
+      if (p && p.missedBigBlind) p.missedSmallBlind = true;
+    });
+  }
+
   let sb: number | null;
   let bb: number | null;
 
+  const headsUp = isHeadsUp(table);
   const computeBlinds = () => {
-    if (isHeadsUp(table)) {
+    if (headsUp) {
       // Heads-up: the button also posts the small blind and the
       // opposing seat posts the big blind.
       sb = btn;

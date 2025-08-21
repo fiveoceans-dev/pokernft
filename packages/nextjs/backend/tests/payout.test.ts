@@ -62,7 +62,7 @@ describe("payouts", () => {
       { rank: "3", suit: spade },
       { rank: "4", suit: spade },
       { rank: "5", suit: spade },
-      { rank: "6", suit: spade },
+      { rank: "7", suit: spade },
     ];
     const p1 = createPlayer(
       "a",
