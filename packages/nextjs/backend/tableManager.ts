@@ -31,8 +31,7 @@ export class TableManager {
       activeSeats: countActivePlayers(this.table),
     });
     if (this.fsm.state !== TableState.BLINDS) return false;
-    this.audit.startHand();
-    const ok = startHandLifecycle(this.table);
+    const ok = startHandLifecycle(this.table, this.audit);
     if (ok) {
       this.fsm.dispatch({ type: "BLINDS_POSTED" });
       this.fsm.dispatch({ type: "DEALING_COMPLETE" });
@@ -72,7 +71,7 @@ export class TableManager {
         break;
       case TableState.SHOWDOWN:
       case TableState.PAYOUT:
-        await endHand(this.table);
+        await endHand(this.table, this.audit);
         this.fsm.dispatch({ type: "PAYOUT_COMPLETE" });
         this.fsm.dispatch({ type: "ROTATION_COMPLETE" });
         this.fsm.dispatch({
