@@ -10,3 +10,6 @@ The following items from the implementation checklist remain unfinished:
   - Side pots with three or more all-ins.
   - Dead-blind returns.
 
+- Enforce turn order with a dedicated manager that advances `actingIndex` and rejects out-of-turn commands.
+- Maintain seats as persistent structures to prevent index reshuffling when players join, leave, or sit out.
+- Implement session management that assigns a Starknet-style public address per connection and enforces one user per session.

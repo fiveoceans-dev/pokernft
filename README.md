@@ -3,6 +3,7 @@
 ## Getting Started
 
 This repository uses **Node 20** and **Yarn 3** workspaces.
+For an overview of the directory layout see [docs/project-structure.md](docs/project-structure.md).
 
 ```bash
 corepack enable
@@ -46,3 +47,4 @@ yarn vercel
 Environment variables such as `NEXT_PUBLIC_PROVIDER_URL` configure Starknet RPC endpoints. The app falls back to `NEXT_PUBLIC_DEVNET_PROVIDER_URL` when the primary endpoint is unavailable.
 
 For details on the WebSocket protocol between clients and the poker server, see [docs/networking-contract.md](docs/networking-contract.md).
+Session creation and unique user identifiers are covered in [docs/multi-player-server.md](docs/multi-player-server.md).
