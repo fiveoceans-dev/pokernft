@@ -17,7 +17,9 @@ export const RANKS: Rank[] = [
   'A',
 ];
 
-export const SUITS: Suit[] = ['\u2660', '\u2665', '\u2666', '\u2663'];
+// Suits are represented using single lowercase letters:
+// s = spades, h = hearts, d = diamonds, c = clubs
+export const SUITS: Suit[] = ['s', 'h', 'd', 'c'];
 
 /** Blind levels (edit to taste) */
 export const SMALL_BLIND = 5;

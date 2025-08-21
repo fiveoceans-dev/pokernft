@@ -56,7 +56,7 @@ const createTable = (players: Player[], extra: Partial<Table> = {}): Table => ({
 
 describe("payouts", () => {
   it("awards main and side pots based on hand strength", () => {
-    const spade = "\u2660";
+    const spade = "s";
     const board: Card[] = [
       { rank: "2", suit: spade },
       { rank: "3", suit: spade },
@@ -69,7 +69,7 @@ describe("payouts", () => {
       0,
       [
         { rank: "A", suit: spade },
-        { rank: "A", suit: "\u2665" },
+        { rank: "A", suit: "h" },
       ],
       100,
     );
@@ -78,7 +78,7 @@ describe("payouts", () => {
       1,
       [
         { rank: "K", suit: spade },
-        { rank: "K", suit: "\u2665" },
+        { rank: "K", suit: "h" },
       ],
       200,
     );
@@ -87,7 +87,7 @@ describe("payouts", () => {
       2,
       [
         { rank: "Q", suit: spade },
-        { rank: "Q", suit: "\u2665" },
+        { rank: "Q", suit: "h" },
       ],
       300,
     );
@@ -111,18 +111,18 @@ describe("payouts", () => {
 
   it("distributes remainder chips clockwise from the button", () => {
     const board: Card[] = [
-      { rank: "2", suit: "\u2660" },
-      { rank: "3", suit: "\u2663" },
-      { rank: "4", suit: "\u2665" },
-      { rank: "5", suit: "\u2666" },
-      { rank: "6", suit: "\u2660" },
+      { rank: "2", suit: "s" },
+      { rank: "3", suit: "c" },
+      { rank: "4", suit: "h" },
+      { rank: "5", suit: "d" },
+      { rank: "6", suit: "s" },
     ];
     const p1 = createPlayer(
       "a",
       0,
       [
-        { rank: "J", suit: "\u2663" },
-        { rank: "8", suit: "\u2665" },
+        { rank: "J", suit: "c" },
+        { rank: "8", suit: "h" },
       ],
       5,
     );
@@ -130,8 +130,8 @@ describe("payouts", () => {
       "b",
       1,
       [
-        { rank: "T", suit: "\u2663" },
-        { rank: "9", suit: "\u2665" },
+        { rank: "T", suit: "c" },
+        { rank: "9", suit: "h" },
       ],
       5,
     );

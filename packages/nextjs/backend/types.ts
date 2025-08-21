@@ -1,4 +1,7 @@
-export type Suit = '\u2660' | '\u2665' | '\u2666' | '\u2663';
+// Suits use single lowercase letters so cards can be shared between modules
+// without relying on platform-specific symbols. The mapping is:
+// s = spades, h = hearts, d = diamonds, c = clubs.
+export type Suit = 's' | 'h' | 'd' | 'c';
 export type Rank =
   | '2'
   | '3'
