@@ -87,6 +87,9 @@ export function assignBlindsAndButton(table: Table): boolean {
       const p = table.seats[idx];
       if (!p) continue;
       if (p.state === PlayerState.ACTIVE) {
+        if (blind === "SB" && p.missedBigBlind) {
+          continue;
+        }
         if (
           table.deadBlindRule === DeadBlindRule.WAIT &&
           (p.missedBigBlind || p.missedSmallBlind)
@@ -164,8 +167,15 @@ export function assignBlindsAndButton(table: Table): boolean {
       sb = btn;
       bb = activeSeat(btn + 1, "BB");
     } else {
-      sb = activeSeat(btn + 1, "SB");
-      bb = sb !== null ? activeSeat(sb + 1, "BB") : null;
+      const first = (btn + 1) % table.seats.length;
+      const firstSeat = table.seats[first];
+      if (firstSeat?.state !== PlayerState.ACTIVE || firstSeat.missedBigBlind) {
+        sb = btn;
+        bb = activeSeat(btn + 1, "BB");
+      } else {
+        sb = activeSeat(btn + 1, "SB");
+        bb = sb !== null ? activeSeat(sb + 1, "BB") : null;
+      }
     }
   };
 

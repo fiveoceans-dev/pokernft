@@ -245,4 +245,5 @@ export function payout(room: GameRoom, winners: PlayerSession[]) {
     }
   }
   room.pot = 0;
+  room.players = room.players.filter((p) => p.chips > 0);
 }
