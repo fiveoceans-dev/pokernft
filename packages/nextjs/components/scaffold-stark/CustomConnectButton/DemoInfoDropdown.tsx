@@ -63,12 +63,12 @@ export const DemoInfoDropdown = ({ address }: { address: string }) => {
         </li>
         <li>
           <button
-            className="menu-item text-secondary-content btn-sm !rounded-xl flex gap-3 py-3"
+            className="btn-sm !rounded-xl flex gap-3 py-3"
             type="button"
             onClick={handleLogout}
           >
             <ArrowLeftEndOnRectangleIcon className="h-6 w-4 ml-2 sm:ml-0" />
-            <span>Log out</span>
+            <span className="whitespace-nowrap">Log out</span>
           </button>
         </li>
       </ul>
