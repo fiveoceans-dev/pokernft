@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { BlockieAvatar } from "../BlockieAvatar";
 import GenericModal from "./GenericModal";
 import { LAST_CONNECTED_TIME_LOCALSTORAGE_KEY } from "~~/utils/Constants";
+import { randomAddress } from "~~/utils/address";
 
 const loader = ({ src }: { src: string }) => {
   return src;
@@ -64,6 +65,13 @@ const ConnectModal = () => {
     }
   }
 
+  function handleDemoPlayer() {
+    const addr = randomAddress();
+    localStorage.setItem("sessionId", addr);
+    handleCloseModal();
+    window.location.reload();
+  }
+
   return (
     <div>
       <label
@@ -96,14 +104,22 @@ const ConnectModal = () => {
           <div className="flex flex-col flex-1 lg:grid">
             <div className="flex flex-col gap-4 w-full px-8 py-10">
               {!isBurnerWallet ? (
-                connectors.map((connector, index) => (
-                  <Wallet
-                    key={connector.id || index}
-                    connector={connector}
-                    loader={loader}
-                    handleConnectWallet={handleConnectWallet}
-                  />
-                ))
+                <>
+                  {connectors.map((connector, index) => (
+                    <Wallet
+                      key={connector.id || index}
+                      connector={connector}
+                      loader={loader}
+                      handleConnectWallet={handleConnectWallet}
+                    />
+                  ))}
+                  <button
+                    className="mt-2 py-2 px-4 rounded border border-gray-500 hover:bg-gradient-modal"
+                    onClick={handleDemoPlayer}
+                  >
+                    Demo Player
+                  </button>
+                </>
               ) : (
                 <div className="flex flex-col pb-[20px] justify-end gap-3">
                   <div className="h-[300px] overflow-y-auto flex w-full flex-col gap-2">

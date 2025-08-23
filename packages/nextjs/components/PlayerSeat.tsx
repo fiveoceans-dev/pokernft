@@ -4,6 +4,7 @@ import clsx from "clsx";
 import Card from "./Card";
 import type { UiPlayer, Card as TCard } from "../backend";
 import { PlayerState } from "../backend";
+import { shortAddress } from "../utils/address";
 
 interface PlayerSeatProps {
   player: UiPlayer; // player object from your Zustand store
@@ -72,7 +73,9 @@ export default function PlayerSeat({
             : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
         )}
       >
-        <span className="text-[var(--color-highlight)]">{player.name}</span>
+        <span className="text-[var(--color-highlight)]">
+          {shortAddress(player.name)}
+        </span>
       </div>
       {state === PlayerState.ALL_IN && (
         <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-yellow-300 font-bold">
