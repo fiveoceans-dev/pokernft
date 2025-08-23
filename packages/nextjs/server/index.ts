@@ -12,11 +12,7 @@ import type {
   PlayerAction,
 } from "../backend";
 import { SessionManager, Session } from "./sessionManager";
-
-function shortAddress(addr: string): string {
-  if (addr.length <= 8) return addr;
-  return `${addr.slice(0, 4)}..${addr.slice(-4)}`;
-}
+import { shortAddress } from "../utils/address";
 
 const wss = new WebSocketServer({ port: 8080 });
 const sessions = new SessionManager();
