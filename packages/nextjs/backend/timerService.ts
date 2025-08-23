@@ -1,5 +1,6 @@
 import { Player, PlayerAction, PlayerState, Table, Round } from './types';
 import { draw } from './utils';
+import { ACTION_TIMEOUT_MS } from './constants';
 
 /** Handlers invoked when timers resolve to auto actions */
 export interface TimerHandlers {
@@ -47,7 +48,7 @@ export class TimerService {
       } else {
         forceAction();
       }
-    }, this.table.actionTimer);
+    }, this.table.actionTimer || ACTION_TIMEOUT_MS);
   }
 
   /** Handle player disconnection with a grace timer */

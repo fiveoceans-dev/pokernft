@@ -25,6 +25,9 @@ export const SUITS: Suit[] = ['s', 'h', 'd', 'c'];
 export const SMALL_BLIND = 5;
 export const BIG_BLIND = 10;
 
+/** Default time (ms) a player has to act before auto-check/fold */
+export const ACTION_TIMEOUT_MS = 10_000;
+
 /** Streets in order */
 export const STREETS = [
   'preflop',

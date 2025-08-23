@@ -88,7 +88,7 @@ function rebuildPots():
 - If all but one player folds at any point, that player wins the pot immediately and no further streets are dealt.
 - Short all-in raises that do not meet the current `minRaise` never reopen the betting; players who already acted may only call or fold.
 - Invalid actions (for example, trying to check when `betToCall > 0`) are rejected and the turn timer continues to run.
-- When a player's `actionTimer` (typically around 15s) expires, they automatically check if `betToCall` is `0` or fold otherwise.
+- When a player's `actionTimer` (typically around 10s) expires, they automatically check if `betToCall` is `0` or fold otherwise.
 - The server serializes simultaneous inputs and only accepts commands from the current `actingIndex`.
 - When a player disconnects during their turn, a separate grace timer runs. When it elapses the player's remaining `timebankMs` is consumed before an automatic fold or check is applied.
 - After payouts the dealer button moves to the next active seat clockwise. Players returning from sitting out must either post any missed blinds immediately (`deadBlindRule = POST`) or wait for the big blind to reach them (`deadBlindRule = WAIT`). When the small-blind seat is empty the blinds roll forward to the next available active players.
