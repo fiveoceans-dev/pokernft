@@ -1,12 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
-import {
-  createRoom,
-  addPlayer,
-  handleAction,
-  startRoomHand,
-  isRoomRoundComplete,
-  progressStage,
-} from "../backend";
+import { GameEngine } from "../backend";
 import type {
   GameRoom,
   ServerEvent,
@@ -20,26 +13,72 @@ import { shortAddress } from "../utils/address";
 
 const wss = new WebSocketServer({ port: 8080 });
 const sessions = new SessionManager();
-const rooms = new Map<string, GameRoom>();
+const engines = new Map<string, GameEngine>();
 const processed = new Map<WebSocket, Set<string>>();
 
-function getRoom(id: string): GameRoom {
-  let room = rooms.get(id);
-  if (!room) {
-    room = createRoom(id);
-    rooms.set(id, room);
+function getEngine(id: string): GameEngine {
+  let engine = engines.get(id);
+  if (!engine) {
+    engine = new GameEngine(id);
+    engines.set(id, engine);
+
+    let prevStage: Stage = engine.getState().stage;
+
+    engine.on("stateChanged", (room: GameRoom) => {
+      broadcast(id, { type: "TABLE_SNAPSHOT", table: room });
+    });
+
+    engine.on("stageChanged", (stage: Stage) => {
+      const room = engine!.getState();
+      const stageToRound: Record<Stage, Round | null> = {
+        waiting: null,
+        preflop: Round.PREFLOP,
+        flop: Round.FLOP,
+        turn: Round.TURN,
+        river: Round.RIVER,
+        showdown: null,
+      };
+      const street = stageToRound[prevStage];
+      if (street) {
+        broadcast(id, { type: "ROUND_END", street });
+      }
+
+      if (stage === "flop") {
+        broadcast(id, {
+          type: "DEAL_FLOP",
+          cards: [
+            room.communityCards[0],
+            room.communityCards[1],
+            room.communityCards[2],
+          ],
+        });
+      } else if (stage === "turn") {
+        broadcast(id, {
+          type: "DEAL_TURN",
+          card: room.communityCards[3],
+        });
+      } else if (stage === "river") {
+        broadcast(id, {
+          type: "DEAL_RIVER",
+          card: room.communityCards[4],
+        });
+      }
+
+      prevStage = stage;
+    });
+
+    engine.on("handEnded", () => {
+      broadcast(id, { type: "HAND_END" });
+    });
   }
-  return room;
+  return engine;
 }
 
 function broadcast(roomId: string, event: Omit<ServerEvent, "tableId">) {
   const msg = JSON.stringify({ tableId: roomId, ...event });
   wss.clients.forEach((client) => {
     const session = sessions.get(client as WebSocket);
-    if (
-      session?.roomId === roomId &&
-      client.readyState === WebSocket.OPEN
-    ) {
+    if (session?.roomId === roomId && client.readyState === WebSocket.OPEN) {
       client.send(msg);
     }
   });
@@ -67,7 +106,8 @@ wss.on("connection", (ws) => {
       }
       if (set.has(msg.cmdId)) {
         if (session.roomId) {
-          const room = getRoom(session.roomId);
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
           ws.send(
             JSON.stringify({
               tableId: room.id,
@@ -95,7 +135,8 @@ wss.on("connection", (ws) => {
               } satisfies ServerEvent),
             );
             if (attached.roomId) {
-              const room = getRoom(attached.roomId);
+              const engine = getEngine(attached.roomId);
+              const room = engine.getState();
               ws.send(
                 JSON.stringify({
                   tableId: room.id,
@@ -108,10 +149,11 @@ wss.on("connection", (ws) => {
           break;
         }
         case "SIT": {
-          const room = getRoom(msg.tableId);
+          const engine = getEngine(msg.tableId);
+          const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const nickname = shortAddress(playerId);
-          addPlayer(room, {
+          engine.addPlayer({
             id: playerId,
             nickname,
             seat: room.players.length,
@@ -119,7 +161,7 @@ wss.on("connection", (ws) => {
           });
           session.roomId = room.id;
           if (room.players.length >= 2 && room.stage === "waiting") {
-            startRoomHand(room);
+            engine.startHand();
             broadcast(room.id, { type: "HAND_START" });
           }
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
@@ -127,7 +169,8 @@ wss.on("connection", (ws) => {
         }
         case "LEAVE": {
           if (!session.roomId) break;
-          const room = getRoom(session.roomId);
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const idx = room.players.findIndex((p) => p.id === playerId);
           if (idx !== -1) room.players.splice(idx, 1);
@@ -137,10 +180,11 @@ wss.on("connection", (ws) => {
         }
         case "ACTION": {
           if (!session.roomId) break;
-          const room = getRoom(session.roomId);
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
-          handleAction(room, playerId, {
+          engine.handleAction(playerId, {
             type: action.toLowerCase() as any,
             amount: msg.amount,
           });
@@ -150,46 +194,6 @@ wss.on("connection", (ws) => {
             action,
             amount: msg.amount,
           });
-          if (
-            isRoomRoundComplete(room) &&
-            room.stage !== "waiting" &&
-            room.stage !== "showdown"
-          ) {
-            const stageToRound: Record<Stage, Round | null> = {
-              waiting: null,
-              preflop: Round.PREFLOP,
-              flop: Round.FLOP,
-              turn: Round.TURN,
-              river: Round.RIVER,
-              showdown: null,
-            };
-            const street = stageToRound[room.stage];
-            if (street) {
-              broadcast(room.id, { type: "ROUND_END", street });
-            }
-            progressStage(room);
-            if (room.stage === "flop") {
-              broadcast(room.id, {
-                type: "DEAL_FLOP",
-                cards: [
-                  room.communityCards[0],
-                  room.communityCards[1],
-                  room.communityCards[2],
-                ],
-              });
-            } else if (room.stage === "turn") {
-              broadcast(room.id, {
-                type: "DEAL_TURN",
-                card: room.communityCards[3],
-              });
-            } else if (room.stage === "river") {
-              broadcast(room.id, {
-                type: "DEAL_RIVER",
-                card: room.communityCards[4],
-              });
-            }
-          }
-
           if (room.stage !== "waiting" && room.stage !== "showdown") {
             const acting = room.players[room.currentTurnIndex];
             if (acting) {
@@ -207,13 +211,12 @@ wss.on("connection", (ws) => {
               });
             }
           }
-
-          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
         case "REBUY": {
           if (!session.roomId) break;
-          const room = getRoom(session.roomId);
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const player = room.players.find((p) => p.id === playerId);
           if (player) player.chips += msg.amount;
@@ -223,19 +226,22 @@ wss.on("connection", (ws) => {
         case "SIT_OUT":
         case "SIT_IN": {
           if (!session.roomId) break;
-          const room = getRoom(session.roomId);
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
         case "POST_BLIND": {
           if (!session.roomId) break;
-          const room = getRoom(session.roomId);
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
           broadcast(room.id, { type: "BLINDS_POSTED" });
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
         default: {
-          const tableId = session.roomId ?? ("tableId" in msg ? (msg as any).tableId : "");
+          const tableId =
+            session.roomId ?? ("tableId" in msg ? (msg as any).tableId : "");
           ws.send(
             JSON.stringify({
               tableId,
@@ -262,7 +268,8 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     sessions.handleDisconnect(session, (s: Session) => {
       if (!s.roomId) return;
-      const room = getRoom(s.roomId);
+      const engine = getEngine(s.roomId);
+      const room = engine.getState();
       const playerId = s.userId ?? s.sessionId;
       const idx = room.players.findIndex((p) => p.id === playerId);
       if (idx !== -1) room.players.splice(idx, 1);
