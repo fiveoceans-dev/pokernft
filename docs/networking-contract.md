@@ -29,6 +29,10 @@ the appropriate table. The following event types are emitted:
 - `PAYOUT {potBreakdown}` – distribution of the pot(s).
 - `HAND_END` – hand concluded and state will reset shortly.
 - `BUTTON_MOVED {buttonIndex}` – dealer button advanced to the new position.
+- `PLAYER_JOINED {seat, playerId}` – a player sat in the specified seat.
+- `PLAYER_LEFT {seat, playerId}` – a seat was vacated.
+- `PLAYER_DISCONNECTED {seat, playerId}` – a player's connection dropped but the seat is held briefly.
+- `PLAYER_REJOINED {seat, playerId}` – a disconnected player reconnected before their seat was released.
 - `ERROR {code,msg}` – any recoverable error. Clients should surface the
   message to the user and resynchronise using the snapshot.
 

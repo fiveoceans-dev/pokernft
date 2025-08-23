@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useGameStore } from "./useGameStore";
+import { shortAddress } from "../utils/address";
 
 /**
  * Persist a session token from the backend websocket and attempt to reattach on reload.
@@ -15,6 +16,7 @@ export function usePlayViewModel() {
     playerHands,
     players,
     startBlindTimer,
+    addLog,
   } = useGameStore();
   const [timer, setTimer] = useState<number | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -44,6 +46,25 @@ export function usePlayViewModel() {
         if (msg.type === "SESSION" && msg.userId) {
           setSessionId(msg.userId);
           localStorage.setItem("sessionId", msg.userId);
+        } else if (msg.type === "PLAYER_JOINED") {
+          const nickname = shortAddress(msg.playerId);
+          useGameStore.setState((s) => {
+            const arr = [...s.players];
+            arr[msg.seat] = nickname;
+            return { players: arr };
+          });
+          addLog(`${nickname} joined`);
+        } else if (msg.type === "PLAYER_LEFT") {
+          useGameStore.setState((s) => {
+            const arr = [...s.players];
+            arr[msg.seat] = null;
+            return { players: arr };
+          });
+          addLog(`${shortAddress(msg.playerId)} left`);
+        } else if (msg.type === "PLAYER_DISCONNECTED") {
+          addLog(`${shortAddress(msg.playerId)} disconnected`);
+        } else if (msg.type === "PLAYER_REJOINED") {
+          addLog(`${shortAddress(msg.playerId)} rejoined`);
         }
       } catch {
         /* ignore malformed */
