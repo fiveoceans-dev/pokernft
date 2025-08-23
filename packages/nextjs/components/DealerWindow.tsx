@@ -19,12 +19,10 @@ export default function DealerWindow() {
 
   const displayLogs = isMobile && !expanded ? logs.slice(-1) : logs;
 
-  const base =
-    "fixed left-4 bottom-0 w-64 bg-black/50 text-white rounded text-xs z-10";
+  const base = `fixed left-4 ${isMobile ? "bottom-0" : "bottom-20"} w-64 bg-black/50 text-white rounded text-xs z-10 sm:scale-100 scale-[0.85]`;
 
   const collapsed = "h-5 p-1 overflow-hidden cursor-pointer flex items-center";
-  const open =
-    "max-h-40 p-2 overflow-y-auto flex flex-col justify-end space-y-1";
+  const open = "h-24 p-2 overflow-y-auto flex flex-col justify-end space-y-1";
 
   return (
     <div

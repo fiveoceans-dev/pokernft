@@ -83,7 +83,7 @@ export function useTableViewModel(timer?: number | null, socket?: WebSocket | nu
         (window.innerHeight - bottomSpace) / baseH,
         1,
       );
-      setTableScale(scale);
+      setTableScale(isMobile ? scale * 0.85 : scale);
     };
     handle();
     window.addEventListener("resize", handle);
