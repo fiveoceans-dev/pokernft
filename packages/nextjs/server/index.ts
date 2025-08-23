@@ -1,12 +1,12 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { GameEngine } from "../backend";
+import { GameEngine, SeatingManager, TableState, Round } from "../backend";
 import type {
   GameRoom,
   ServerEvent,
   ClientCommand,
   PlayerAction,
   Stage,
-  Round,
+  Table,
 } from "../backend";
 import { SessionManager, Session } from "./sessionManager";
 import { shortAddress } from "../utils/address";
@@ -15,12 +15,42 @@ const wss = new WebSocketServer({ port: 8080 });
 const sessions = new SessionManager();
 const engines = new Map<string, GameEngine>();
 const processed = new Map<WebSocket, Set<string>>();
+const tables = new Map<string, Table>();
+const seating = new Map<string, SeatingManager>();
+const seatMaps = new Map<string, Map<string, number>>();
 
 function getEngine(id: string): GameEngine {
   let engine = engines.get(id);
   if (!engine) {
     engine = new GameEngine(id);
     engines.set(id, engine);
+
+    const table: Table = {
+      seats: Array(6).fill(null),
+      buttonIndex: 0,
+      smallBlindIndex: 0,
+      bigBlindIndex: 0,
+      smallBlindAmount: engine.getState().minBet / 2,
+      bigBlindAmount: engine.getState().minBet,
+      minBuyIn: engine.getState().minBet,
+      maxBuyIn: engine.getState().minBet * 100,
+      state: TableState.WAITING,
+      deck: [],
+      board: [],
+      pots: [],
+      currentRound: Round.PREFLOP,
+      actingIndex: null,
+      betToCall: 0,
+      minRaise: engine.getState().minBet,
+      lastFullRaise: null,
+      actedSinceLastRaise: new Set(),
+      actionTimer: 0,
+      interRoundDelayMs: 0,
+      dealAnimationDelayMs: 0,
+    };
+    tables.set(id, table);
+    seating.set(id, new SeatingManager(table));
+    seatMaps.set(id, new Map());
 
     let prevStage: Stage = engine.getState().stage;
 
@@ -152,11 +182,22 @@ wss.on("connection", (ws) => {
           const engine = getEngine(msg.tableId);
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
+          const table = tables.get(room.id)!;
+          const mgr = seating.get(room.id)!;
+          const map = seatMaps.get(room.id)!;
+          if (map.has(playerId) || table.seats.some((p) => p?.id === playerId)) {
+            break;
+          }
+          const seatIndex = table.seats.findIndex((p) => p === null);
+          if (seatIndex === -1) break;
+          const seated = mgr.seatPlayer(seatIndex, playerId, msg.buyIn);
+          if (!seated) break;
+          map.set(playerId, seatIndex);
           const nickname = shortAddress(playerId);
           engine.addPlayer({
             id: playerId,
             nickname,
-            seat: room.players.length,
+            seat: seatIndex,
             chips: msg.buyIn,
           });
           session.roomId = room.id;
@@ -172,6 +213,13 @@ wss.on("connection", (ws) => {
           const engine = getEngine(session.roomId);
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
+          const map = seatMaps.get(room.id);
+          const mgr = seating.get(room.id);
+          const seatIndex = map?.get(playerId);
+          if (seatIndex !== undefined) {
+            mgr?.leave(seatIndex);
+            map?.delete(playerId);
+          }
           const idx = room.players.findIndex((p) => p.id === playerId);
           if (idx !== -1) room.players.splice(idx, 1);
           session.roomId = undefined;
@@ -271,6 +319,13 @@ wss.on("connection", (ws) => {
       const engine = getEngine(s.roomId);
       const room = engine.getState();
       const playerId = s.userId ?? s.sessionId;
+      const map = seatMaps.get(room.id);
+      const mgr = seating.get(room.id);
+      const seatIndex = map?.get(playerId);
+      if (seatIndex !== undefined) {
+        mgr?.leave(seatIndex);
+        map?.delete(playerId);
+      }
       const idx = room.players.findIndex((p) => p.id === playerId);
       if (idx !== -1) room.players.splice(idx, 1);
       broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
