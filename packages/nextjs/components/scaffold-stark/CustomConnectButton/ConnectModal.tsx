@@ -106,10 +106,15 @@ const ConnectModal = () => {
               {!isBurnerWallet ? (
                 <>
                   <button
-                    className="py-2 px-4 rounded border border-gray-500 hover:bg-gradient-modal"
+                    className={`flex gap-4 items-center text-black rounded-[4px] p-3 transition-all border ${
+                      isDarkMode
+                        ? "hover:bg-[#385183] border-[#4f4ab7]"
+                        : "hover:bg-slate-200 border-[#5c4fe5]"
+                    }`}
                     onClick={handleDemoPlayer}
                   >
-                    Demo Player
+                    <div className="h-[1.5rem] w-[1.5rem]" />
+                    <span className="text-start m-0">Demo Player</span>
                   </button>
                   {connectors.map((connector, index) => (
                     <Wallet
@@ -129,9 +134,9 @@ const ConnectModal = () => {
                         className="w-full flex flex-col"
                       >
                         <button
-                        className={`hover:bg-gradient-modal border rounded-md text-black py-[8px] pl-[10px] pr-16 flex items-center gap-4 ${
-                          isDarkMode ? "border-[#385183]" : ""
-                        }`}
+                          className={`hover:bg-gradient-modal border rounded-md text-black py-[8px] pl-[10px] pr-16 flex items-center gap-4 ${
+                            isDarkMode ? "border-[#385183]" : ""
+                          }`}
                           onClick={(e) => handleConnectBurner(e, ix)}
                         >
                           <BlockieAvatar

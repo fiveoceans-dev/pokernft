@@ -14,7 +14,6 @@ import { usePlayViewModel } from "../../hooks/usePlayViewModel";
 export default function PlayPage() {
   const {
     street,
-    dealFlop,
     dealTurn,
     dealRiver,
     timer,
@@ -46,20 +45,19 @@ export default function PlayPage() {
       <div className="flex-1 flex items-center justify-center">
         <Table timer={timer} socket={socket} />
       </div>
-      <DealerWindow />
       <div
         id="action-buttons"
-        className="fixed bottom-0 right-0 flex justify-end p-4 z-10"
+        className="fixed right-0 flex justify-end p-4 z-10 bottom-10 sm:bottom-0"
       >
         <ActionBar
           street={stageNames[street] ?? "preflop"}
           onActivate={handleActivate}
-          onFlop={dealFlop}
           onTurn={dealTurn}
           onRiver={dealRiver}
           hasHandStarted={handStarted}
         />
       </div>
+      <DealerWindow />
     </main>
   );
 }
