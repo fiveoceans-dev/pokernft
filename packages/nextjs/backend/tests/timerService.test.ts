@@ -49,6 +49,20 @@ const createTable = (player: Player, extra: Partial<Table> = {}): Table => ({
 });
 
 describe("TimerService", () => {
+  it("defaults to 10s when actionTimer is zero", () => {
+    vi.useFakeTimers();
+    const player = createPlayer("p1", 0);
+    const table = createTable(player, { betToCall: 0, actionTimer: 0 });
+    const onAutoAction = vi.fn();
+    const timers = new TimerService(table, { onAutoAction });
+    timers.startActionTimer(player);
+    vi.advanceTimersByTime(9999);
+    expect(onAutoAction).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(onAutoAction).toHaveBeenCalledWith("p1", PlayerAction.CHECK);
+    vi.useRealTimers();
+  });
+
   it("auto-checks when no bet to call", () => {
     vi.useFakeTimers();
     const player = createPlayer("p1", 0);
