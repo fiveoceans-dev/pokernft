@@ -115,7 +115,7 @@ function broadcast(roomId: string, event: Omit<ServerEvent, "tableId">) {
 }
 
 wss.on("connection", (ws) => {
-  const session = sessions.create(ws);
+  let session = sessions.create(ws);
   ws.send(
     JSON.stringify({
       tableId: "",
@@ -151,6 +151,48 @@ wss.on("connection", (ws) => {
       set.add(msg.cmdId);
 
       switch (msg.type) {
+        case "REATTACH": {
+          const existing = sessions.getBySessionId(msg.sessionId);
+          if (existing) {
+            const hadTimeout = existing.timeout !== undefined;
+            sessions.handleReconnect(existing);
+            sessions.expire(session);
+            sessions.replaceSocket(existing, ws);
+            session = existing;
+            ws.send(
+              JSON.stringify({
+                tableId: existing.roomId ?? "",
+                type: "SESSION",
+                sessionId: existing.sessionId,
+                userId: existing.userId,
+              } satisfies ServerEvent),
+            );
+            if (existing.roomId) {
+              const engine = getEngine(existing.roomId);
+              const room = engine.getState();
+              if (hadTimeout) {
+                const playerId = existing.userId ?? existing.sessionId;
+                const map = seatMaps.get(room.id);
+                const seatIndex = map?.get(playerId);
+                if (seatIndex !== undefined) {
+                  broadcast(room.id, {
+                    type: "PLAYER_REJOINED",
+                    seat: seatIndex,
+                    playerId,
+                  });
+                }
+              }
+              ws.send(
+                JSON.stringify({
+                  tableId: room.id,
+                  type: "TABLE_SNAPSHOT",
+                  table: room,
+                } satisfies ServerEvent),
+              );
+            }
+          }
+          break;
+        }
         case "ATTACH": {
           const attached = sessions.attach(ws, msg.userId);
           if (attached) {
@@ -338,20 +380,6 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
-    if (session.roomId) {
-      const engine = getEngine(session.roomId);
-      const room = engine.getState();
-      const playerId = session.userId ?? session.sessionId;
-      const map = seatMaps.get(room.id);
-      const seatIndex = map?.get(playerId);
-      if (seatIndex !== undefined) {
-        broadcast(room.id, {
-          type: "PLAYER_DISCONNECTED",
-          seat: seatIndex,
-          playerId,
-        });
-      }
-    }
     sessions.handleDisconnect(session, (s: Session) => {
       if (!s.roomId) return;
       const engine = getEngine(s.roomId);
@@ -360,7 +388,15 @@ wss.on("connection", (ws) => {
       const map = seatMaps.get(room.id);
       const mgr = seating.get(room.id);
       const seatIndex = map?.get(playerId);
-      if (seatIndex !== undefined) {
+      if (seatIndex === undefined) return;
+
+      broadcast(room.id, {
+        type: "PLAYER_DISCONNECTED",
+        seat: seatIndex,
+        playerId,
+      });
+
+      s.timeout = setTimeout(() => {
         mgr?.leave(seatIndex);
         map?.delete(playerId);
         broadcast(room.id, {
@@ -368,10 +404,11 @@ wss.on("connection", (ws) => {
           seat: seatIndex,
           playerId,
         });
-      }
-      const idx = room.players.findIndex((p) => p.id === playerId);
-      if (idx !== -1) room.players.splice(idx, 1);
-      broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
+        const idx = room.players.findIndex((p) => p.id === playerId);
+        if (idx !== -1) room.players.splice(idx, 1);
+        broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
+        sessions.expire(s);
+      }, sessions.disconnectGraceMs);
     });
   });
 });

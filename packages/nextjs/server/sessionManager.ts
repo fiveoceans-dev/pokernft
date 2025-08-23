@@ -21,7 +21,7 @@ export class SessionManager {
   private sessions = new Map<WebSocket, Session>();
   private bySessionId = new Map<string, Session>();
   private byUserId = new Map<string, Session>();
-  constructor(private disconnectGraceMs = 5000) {}
+  constructor(public readonly disconnectGraceMs = 5000) {}
 
   create(ws: WebSocket): Session {
     const sessionId = createAddress();
@@ -58,20 +58,27 @@ export class SessionManager {
     return session;
   }
 
-  handleDisconnect(session: Session, onExpire: (session: Session) => void) {
+  handleDisconnect(session: Session, onDisconnect: (session: Session) => void) {
     this.clearTimer(session);
-    session.timeout = setTimeout(() => {
-      this.sessions.delete(session.socket);
-      this.bySessionId.delete(session.sessionId);
-      if (session.userId) {
-        this.byUserId.delete(session.userId);
-      }
-      onExpire(session);
-    }, this.disconnectGraceMs);
+    onDisconnect(session);
   }
 
   handleReconnect(session: Session) {
     this.clearTimer(session);
+  }
+
+  expire(session: Session) {
+    this.sessions.delete(session.socket);
+    this.bySessionId.delete(session.sessionId);
+    if (session.userId) {
+      this.byUserId.delete(session.userId);
+    }
+  }
+
+  replaceSocket(session: Session, ws: WebSocket) {
+    this.sessions.delete(session.socket);
+    session.socket = ws;
+    this.sessions.set(ws, session);
   }
 
   private clearTimer(session: Session) {
