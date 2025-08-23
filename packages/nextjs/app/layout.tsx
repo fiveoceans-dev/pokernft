@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ScaffoldStarkAppWithProviders } from "~~/components/ScaffoldStarkAppWithProviders";
 import "~~/styles/globals.css";
 import { ThemeProvider } from "~~/components/ThemeProvider";
+import MobileBlocker from "~~/components/MobileBlocker";
 
 export const metadata: Metadata = {
   title: "PokerNFTs",
@@ -22,6 +23,7 @@ const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
         className="flex flex-col min-h-screen bg-main"
       >
         <ThemeProvider>
+          <MobileBlocker />
           <ScaffoldStarkAppWithProviders>
             {children}
           </ScaffoldStarkAppWithProviders>
