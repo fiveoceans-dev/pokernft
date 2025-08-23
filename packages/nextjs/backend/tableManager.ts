@@ -1,9 +1,9 @@
 import { Table, PlayerAction, Round, TableState } from "./types";
 import { TableStateMachine } from "./tableStateMachine";
-import { startHand as startHandLifecycle, endHand } from "./handLifecycle";
+import { startTableHand as startHandLifecycle, endHand } from "./handLifecycle";
 import {
   applyAction,
-  isRoundComplete,
+  isBettingRoundComplete,
   startBettingRound,
 } from "./bettingEngine";
 import { dealBoard } from "./dealer";
@@ -45,7 +45,7 @@ export class TableManager {
     action: { type: PlayerAction; amount?: number },
   ) {
     applyAction(this.table, seatIndex, action, this.audit);
-    if (!isRoundComplete(this.table)) return;
+    if (!isBettingRoundComplete(this.table)) return;
 
     const remaining = countActivePlayers(this.table);
     this.fsm.dispatch({

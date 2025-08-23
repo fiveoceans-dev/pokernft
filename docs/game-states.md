@@ -140,7 +140,7 @@ End of hand:
 
 - At least two active players who can post blinds or are allowed to post all-in blinds.
 - Button assigned to the next active seat from the previous hand; for the first hand, choose a random active seat.
-- The `startHand` helper posts blinds, shuffles a fresh deck and deals two
+- The `startTableHand` helper posts blinds, shuffles a fresh deck and deals two
   hole cards to each active seat. If blinds cannot be posted the table falls
   back to **WAITING**.
 

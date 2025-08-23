@@ -5,9 +5,9 @@ import {
   handleAction,
   nextTurn,
   determineWinners,
-  isRoundComplete,
+  isRoomRoundComplete,
   payout,
-  startHand,
+  startRoomHand,
   BlindManager,
 } from "..";
 import { describe, it } from "vitest";
@@ -15,14 +15,14 @@ import { describe, it } from "vitest";
 // Comprehensive integration test for core room helpers
 describe("room helpers", () => {
   it("handles hand flow and payouts", () => {
-    // startHand should begin only when at least two players are seated
+    // startRoomHand should begin only when at least two players are seated
     const startRoom = createRoom("start");
     addPlayer(startRoom, { id: "a", nickname: "A", seat: 0, chips: 100 });
-    startHand(startRoom);
+    startRoomHand(startRoom);
     assert.strictEqual(startRoom.stage, "waiting");
 
     addPlayer(startRoom, { id: "b", nickname: "B", seat: 1, chips: 100 });
-    startHand(startRoom);
+    startRoomHand(startRoom);
     assert.strictEqual(startRoom.stage, "preflop");
     startRoom.players.forEach((p) => assert.strictEqual(p.hand.length, 2));
 
@@ -121,7 +121,7 @@ describe("room helpers", () => {
     assert.strictEqual(showdownRoom.pot, 0);
     assert.strictEqual(winners[0].chips, 100);
 
-    assert.ok(isRoundComplete(room));
+    assert.ok(isRoomRoundComplete(room));
 
     // payout remainder test
     const remainderRoom = {

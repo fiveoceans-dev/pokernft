@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { applyActionFromJson } from '../bettingEngine';
-import { isRoundComplete } from '../bettingEngine';
+import { isBettingRoundComplete } from '../bettingEngine';
 import { tableFromJson } from '../jsonFormats';
 import type { BettingActionRequest } from '../jsonFormats';
 
@@ -27,6 +27,6 @@ describe('BettingEngine JSON interface', () => {
     }
     const finalTable = tableFromJson(jsonTable);
     expect(finalTable.actingIndex).toBe(data.expected.actingIndex);
-    expect(isRoundComplete(finalTable)).toBe(true);
+    expect(isBettingRoundComplete(finalTable)).toBe(true);
   });
 });

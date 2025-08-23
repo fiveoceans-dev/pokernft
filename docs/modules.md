@@ -14,7 +14,7 @@ rounds progress, see [`dealing-and-betting.md`](./dealing-and-betting.md) and
 | Module | Responsibility |
 | --- | --- |
 | **TableManager** | Orchestrates the hand lifecycle and table state machine, rotating through **ROTATE** and **CLEANUP** after payouts while enforcing the minimum number of active players. |
-| **HandLifecycle** | Provides `startHand`/`endHand` helpers, resolves showdowns and splits pots, and calls `resetTableForNextHand` to rotate the button and prepare a fresh deal. |
+| **HandLifecycle** | Provides `startTableHand`/`endHand` helpers, resolves showdowns and splits pots, and calls `resetTableForNextHand` to rotate the button and prepare a fresh deal. |
 | **SeatingManager** | Handles seat assignment, buy‑in/top‑up, sit‑out/return and leave actions. Voluntary sit-outs take effect after the current hand. At hand end, broke players are marked `SITTING_OUT` if re‑buy is allowed or `LEAVING` when it is not. |
 | **BlindManager** | Assigns blind positions, auto‑posts blinds (allowing all‑in when short), enforces heads‑up order and applies configurable dead‑blind rules for returning players. |
 | **Dealer** | Shuffles the deck, deals hole and board cards (with optional burns) and keeps card visibility authoritative on the server. |
@@ -79,7 +79,7 @@ These checks keep the server authoritative and ensure that illegal actions are r
 #### Round Completion
 
 ```pseudo
-function isRoundComplete():
+function isBettingRoundComplete():
   active = players.filter(p => p.state in {ACTIVE, ALL_IN})
   if active.count <= 1: return true  // hand ends
   if active.every(p => p.state == ALL_IN): return true  // proceed to next street/showdown
