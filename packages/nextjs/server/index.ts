@@ -51,7 +51,8 @@ wss.on("connection", (ws) => {
     JSON.stringify({
       tableId: "",
       type: "SESSION",
-      userId: session.id,
+      sessionId: session.sessionId,
+      userId: session.userId,
     } satisfies ServerEvent),
   );
 
@@ -81,15 +82,16 @@ wss.on("connection", (ws) => {
 
       switch (msg.type) {
         case "ATTACH": {
-          const attached = sessions.attach(ws, msg.sessionId);
+          const attached = sessions.attach(ws, msg.userId);
           if (attached) {
-            session.id = attached.id;
+            session.userId = attached.userId;
             session.roomId = attached.roomId;
             ws.send(
               JSON.stringify({
                 tableId: attached.roomId ?? "",
                 type: "SESSION",
-                userId: attached.id,
+                sessionId: attached.sessionId,
+                userId: attached.userId,
               } satisfies ServerEvent),
             );
             if (attached.roomId) {
@@ -107,9 +109,10 @@ wss.on("connection", (ws) => {
         }
         case "SIT": {
           const room = getRoom(msg.tableId);
-          const nickname = shortAddress(session.id);
+          const playerId = session.userId ?? session.sessionId;
+          const nickname = shortAddress(playerId);
           addPlayer(room, {
-            id: session.id,
+            id: playerId,
             nickname,
             seat: room.players.length,
             chips: msg.buyIn,
@@ -125,7 +128,8 @@ wss.on("connection", (ws) => {
         case "LEAVE": {
           if (!session.roomId) break;
           const room = getRoom(session.roomId);
-          const idx = room.players.findIndex((p) => p.id === session.id);
+          const playerId = session.userId ?? session.sessionId;
+          const idx = room.players.findIndex((p) => p.id === playerId);
           if (idx !== -1) room.players.splice(idx, 1);
           session.roomId = undefined;
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
@@ -134,14 +138,15 @@ wss.on("connection", (ws) => {
         case "ACTION": {
           if (!session.roomId) break;
           const room = getRoom(session.roomId);
+          const playerId = session.userId ?? session.sessionId;
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
-          handleAction(room, session.id, {
+          handleAction(room, playerId, {
             type: action.toLowerCase() as any,
             amount: msg.amount,
           });
           broadcast(room.id, {
             type: "PLAYER_ACTION_APPLIED",
-            playerId: session.id,
+            playerId,
             action,
             amount: msg.amount,
           });
@@ -209,7 +214,8 @@ wss.on("connection", (ws) => {
         case "REBUY": {
           if (!session.roomId) break;
           const room = getRoom(session.roomId);
-          const player = room.players.find((p) => p.id === session.id);
+          const playerId = session.userId ?? session.sessionId;
+          const player = room.players.find((p) => p.id === playerId);
           if (player) player.chips += msg.amount;
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
@@ -257,7 +263,8 @@ wss.on("connection", (ws) => {
     sessions.handleDisconnect(session, (s: Session) => {
       if (!s.roomId) return;
       const room = getRoom(s.roomId);
-      const idx = room.players.findIndex((p) => p.id === s.id);
+      const playerId = s.userId ?? s.sessionId;
+      const idx = room.players.findIndex((p) => p.id === playerId);
       if (idx !== -1) room.players.splice(idx, 1);
       broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
     });

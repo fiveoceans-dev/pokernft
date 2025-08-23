@@ -3,7 +3,7 @@ import type { Card, Table, PlayerAction, Round } from "./types";
 export type BlindType = "SMALL" | "BIG";
 
 export type ServerEvent =
-  | { tableId: string; type: "SESSION"; userId: string }
+  | { tableId: string; type: "SESSION"; sessionId: string; userId?: string }
   | { tableId: string; type: "TABLE_SNAPSHOT"; table: Table }
   | { tableId: string; type: "HAND_START" }
   | { tableId: string; type: "BLINDS_POSTED" }
@@ -42,6 +42,7 @@ export type ServerEvent =
   | { tableId: string; type: "ERROR"; code: string; msg: string };
 
 export type ClientCommand =
+  | { cmdId: string; type: "ATTACH"; userId: string }
   | { cmdId: string; type: "SIT"; tableId: string; buyIn: number }
   | { cmdId: string; type: "LEAVE" }
   | { cmdId: string; type: "SIT_OUT" }
