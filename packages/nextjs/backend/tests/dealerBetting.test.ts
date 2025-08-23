@@ -9,7 +9,11 @@ import {
 } from '../types';
 import { dealHole } from '../dealer';
 import { assignBlindsAndButton } from '../blindManager';
-import { startBettingRound, applyAction, isRoundComplete } from '../bettingEngine';
+import {
+  startBettingRound,
+  applyAction,
+  isBettingRoundComplete,
+} from '../bettingEngine';
 
 const card = (rank: string, suit: string) => ({ rank: rank as any, suit: suit as any });
 const createPlayer = (id: string, seatIndex: number, stack: number): Player => ({
@@ -106,7 +110,7 @@ describe('Dealer & BettingEngine', () => {
     expect(table.betToCall).toBe(40);
     expect(table.minRaise).toBe(20);
     applyAction(table,1,{type:PlayerAction.CALL});
-    expect(isRoundComplete(table)).toBe(true);
+    expect(isBettingRoundComplete(table)).toBe(true);
     expect(table.actingIndex).toBeNull();
   });
 
@@ -152,7 +156,7 @@ describe('Dealer & BettingEngine', () => {
     ).toThrow();
 
     applyAction(table,0,{type:PlayerAction.CALL});
-    expect(isRoundComplete(table)).toBe(true);
+    expect(isBettingRoundComplete(table)).toBe(true);
   });
 
   it('blocks earlier callers from re-raising after short all-in', () => {
@@ -194,7 +198,7 @@ describe('Dealer & BettingEngine', () => {
     applyAction(table,0,{type:PlayerAction.CALL});
     expect(() => applyAction(table,1,{type:PlayerAction.RAISE, amount:20})).toThrow();
     applyAction(table,1,{type:PlayerAction.CALL});
-    expect(isRoundComplete(table)).toBe(true);
+    expect(isBettingRoundComplete(table)).toBe(true);
   });
 
   it('rejects invalid checks without changing turn', () => {

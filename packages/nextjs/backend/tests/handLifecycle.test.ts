@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { startHand, endHand } from '../handLifecycle';
+import { startTableHand, endHand } from '../handLifecycle';
 import {
   Table,
   Player,
@@ -59,7 +59,7 @@ describe('handLifecycle', () => {
       createPlayer('a', 0, 100),
       createPlayer('b', 1, 100),
     ]);
-    const ok = startHand(table);
+    const ok = startTableHand(table);
     expect(ok).toBe(true);
     expect(table.state).toBe(TableState.PRE_FLOP);
     expect(table.seats[0]?.holeCards.length).toBe(2);

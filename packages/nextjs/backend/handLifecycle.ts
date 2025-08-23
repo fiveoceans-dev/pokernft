@@ -15,7 +15,7 @@ import crypto from "crypto";
  * `false` when the hand cannot begin (e.g. not enough active
  * players or blinds could not be posted).
  */
-export function startHand(table: Table, audit?: AuditLogger): boolean {
+export function startTableHand(table: Table, audit?: AuditLogger): boolean {
   if (table.state !== TableState.BLINDS) return false;
   if (countActivePlayers(table) < 2) {
     table.state = TableState.WAITING;
@@ -64,4 +64,3 @@ export async function endHand(table: Table, audit?: AuditLogger) {
   await resetTableForNextHand(table);
 }
 
-export default { startHand, endHand };

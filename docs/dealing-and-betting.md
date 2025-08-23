@@ -53,7 +53,7 @@ A betting round ends when any of the following occurs:
 - All players are all‑in; the remaining board cards are dealt without further betting and the hand proceeds to showdown.
 
 ```pseudo
-function isRoundComplete():
+function isBettingRoundComplete():
   active = players.filter(p => p.state in {ACTIVE, ALL_IN})
   if active.count <= 1: return true
   if active.every(p => p.state == ALL_IN): return true

@@ -42,8 +42,12 @@ export function addPlayer(
   return session;
 }
 
-/** Start a new hand and deal cards. Requires at least two players. */
-export function startHand(room: GameRoom) {
+/**
+ * Start a new hand at the room level and deal cards. Requires at least
+ * two players to be seated with chips. Updates dealer/button positions
+ * and posts blinds via {@link BlindManager}.
+ */
+export function startRoomHand(room: GameRoom) {
   if (room.players.length < 2) {
     room.stage = "waiting";
     return;
@@ -209,8 +213,12 @@ export function determineWinners(room: GameRoom): PlayerSession[] {
   return evaluated.filter((e) => e.score === best).map((e) => e.player);
 }
 
-/** Check if the current betting round is complete */
-export function isRoundComplete(room: GameRoom): boolean {
+/**
+ * Determine if the current betting round within a room is complete.
+ * A round is complete when all active players have matched the highest bet
+ * or are all-in, and the turn has returned to the appropriate player.
+ */
+export function isRoomRoundComplete(room: GameRoom): boolean {
   const active = room.players.filter((p) => !p.hasFolded);
   if (active.length <= 1) return true;
   if (active.every((p) => p.chips === 0)) return true;

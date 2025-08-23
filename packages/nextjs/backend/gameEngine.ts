@@ -7,11 +7,11 @@ import {
 import {
   createRoom as createRoomImpl,
   addPlayer as addPlayerImpl,
-  startHand as startHandImpl,
+  startRoomHand as startHandImpl,
   handleAction as handleActionImpl,
   progressStage as progressStageImpl,
   determineWinners as determineWinnersImpl,
-  isRoundComplete as isRoundCompleteImpl,
+  isRoomRoundComplete as isRoundCompleteImpl,
   payout as payoutImpl,
 } from './room';
 import { PokerStateMachine, GameState } from './stateMachine';

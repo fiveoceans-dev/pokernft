@@ -200,7 +200,7 @@ function nextToAct(table: Table, from: number): number | null {
 }
 
 /** Determine if betting round is complete */
-export function isRoundComplete(table: Table): boolean {
+export function isBettingRoundComplete(table: Table): boolean {
   const active = table.seats.filter(
     (p): p is Player =>
       !!p && (p.state === PlayerState.ACTIVE || p.state === PlayerState.ALL_IN),

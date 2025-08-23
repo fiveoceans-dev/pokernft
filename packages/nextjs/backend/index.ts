@@ -1,5 +1,6 @@
 export * from "./stateMachine";
 export * from "./constants";
+export { PlayerState } from "./types";
 export type {
   Suit,
   Rank,
@@ -10,7 +11,6 @@ export type {
   UiPlayer,
   GameState as EngineGameState,
   CardShape,
-  PlayerState,
   PlayerAction,
   Player,
   TableState,
@@ -23,7 +23,16 @@ export type {
 } from "./types";
 export type { ServerEvent, ClientCommand } from "./networking";
 export * from "./utils";
-export * from "./room";
+export {
+  createRoom,
+  addPlayer,
+  handleAction,
+  nextTurn,
+  determineWinners,
+  isRoomRoundComplete,
+  payout,
+  startRoomHand,
+} from "./room";
 export * from "./hashEvaluator";
 export * from "./handEvaluator";
 export * from "./rng";
@@ -34,9 +43,14 @@ export * from "./eventBus";
 export * from "./playerStateMachine";
 export * from "./tableStateMachine";
 export * from "./dealer";
-export * from "./bettingEngine";
+export {
+  startBettingRound,
+  applyAction,
+  applyActionFromJson,
+  isBettingRoundComplete,
+} from "./bettingEngine";
 export * from "./potManager";
 export * from "./timerService";
 export * from "./handReset";
-export * from "./handLifecycle";
+export { startTableHand, endHand } from "./handLifecycle";
 export * from "./auditLogger";

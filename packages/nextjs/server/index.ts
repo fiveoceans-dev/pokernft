@@ -1,5 +1,10 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { createRoom, addPlayer, handleAction, startHand } from "../backend";
+import {
+  createRoom,
+  addPlayer,
+  handleAction,
+  startRoomHand,
+} from "../backend";
 import type {
   GameRoom,
   ServerEvent,
@@ -111,7 +116,7 @@ wss.on("connection", (ws) => {
           });
           session.roomId = room.id;
           if (room.players.length >= 2 && room.stage === "waiting") {
-            startHand(room);
+            startRoomHand(room);
             broadcast(room.id, { type: "HAND_START" });
           }
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
