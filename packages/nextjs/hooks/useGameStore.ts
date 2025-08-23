@@ -7,6 +7,7 @@ import {
   PlayerState,
 } from "../backend";
 import type { Stage } from "../backend";
+import { shortAddress } from "../utils/address";
 
 /** Map Stage strings to numeric street indices used by the UI */
 const stageToStreet: Record<Stage, number> = {
@@ -156,19 +157,22 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
   },
 
-  /** Seat a demo player at the given index */
+  /** Seat a player using the stored session address */
   joinSeat: async (seatIdx: number) => {
     const room = engine.getState();
     // prevent double seating
     if (room.players.some((p) => p.seat === seatIdx)) return;
+    const id =
+      typeof window !== "undefined" ? localStorage.getItem("sessionId") : null;
+    const nickname = id ? shortAddress(id) : `Player ${seatIdx + 1}`;
     engine.addPlayer({
-      id: `p${seatIdx}`,
-      nickname: `Player ${seatIdx + 1}`,
+      id: id || `p${seatIdx}`,
+      nickname,
       seat: seatIdx,
       chips: 10000,
     });
     await get().reloadTableState();
-    get().addLog(`Player ${seatIdx + 1} joined`);
+    get().addLog(`${nickname} joined`);
   },
 
   /** Deal new hole cards to all players */

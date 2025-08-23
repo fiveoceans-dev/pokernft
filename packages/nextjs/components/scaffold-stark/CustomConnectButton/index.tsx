@@ -32,6 +32,12 @@ export const CustomConnectButton = () => {
     );
   }, [accountAddress, targetNetwork]);
 
+  useEffect(() => {
+    if (accountAddress) {
+      localStorage.setItem("sessionId", accountAddress);
+    }
+  }, [accountAddress]);
+
   // effect to get chain id and address from account
   useEffect(() => {
     if (account) {
