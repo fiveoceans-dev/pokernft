@@ -10,7 +10,6 @@ export function usePlayViewModel() {
   const {
     street,
     startHand,
-    dealFlop,
     dealTurn,
     dealRiver,
     playerHands,
@@ -93,7 +92,6 @@ export function usePlayViewModel() {
 
   return {
     street,
-    dealFlop,
     dealTurn,
     dealRiver,
     timer,
