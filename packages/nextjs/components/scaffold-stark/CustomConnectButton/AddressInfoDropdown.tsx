@@ -269,10 +269,13 @@ export const AddressInfoDropdown = ({
             <button
               className="menu-item text-secondary-content btn-sm !rounded-xl flex gap-3 py-3"
               type="button"
-              onClick={() => disconnect()}
+              onClick={() => {
+                localStorage.removeItem("sessionId");
+                disconnect();
+              }}
             >
               <ArrowLeftEndOnRectangleIcon className="h-6 w-4 ml-2 sm:ml-0" />{" "}
-              <span>Disconnect</span>
+              <span>Log out</span>
             </button>
           </li>
         </ul>

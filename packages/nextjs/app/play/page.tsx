@@ -8,8 +8,6 @@ import DealerWindow from "../../components/DealerWindow";
 import { CustomConnectButton } from "../../components/scaffold-stark/CustomConnectButton";
 import ActionBar from "../../components/ActionBar";
 import { usePlayViewModel } from "../../hooks/usePlayViewModel";
-import { randomAddress } from "../../utils/address";
-import { useAccount } from "@starknet-react/core";
 
 // TODO: display connected address and handle signature (Action Plan 1.3)
 
@@ -24,15 +22,7 @@ export default function PlayPage() {
     handStarted,
     handleActivate,
     socket,
-    sessionId,
   } = usePlayViewModel();
-  const { status } = useAccount();
-
-  function handleDemoPlayer() {
-    const addr = randomAddress();
-    localStorage.setItem("sessionId", addr);
-    window.location.reload();
-  }
 
   return (
     <main
@@ -47,17 +37,9 @@ export default function PlayPage() {
       <header className="relative w-full flex items-center mt-6 mb-4 px-4">
         <AnimatedTitle text="Poker Night on Starknet" />
         <div className="flex flex-1 items-center justify-end">
-          <div className="flex flex-col items-end gap-2">
-            <CustomConnectButton />
-            {status === "disconnected" && !sessionId && (
-              <button
-                className="py-1.5 px-3 text-sm rounded-full font-serif-renaissance border border-gray-500 hover:bg-gradient-nav hover:text-white"
-                onClick={handleDemoPlayer}
-              >
-                Demo Player
-              </button>
-            )}
-          </div>
+            <div className="flex flex-col items-end gap-2">
+              <CustomConnectButton />
+            </div>
           {/* TODO: persist session token and auto-reconnect (Action Plan 1.3) */}
         </div>
       </header>

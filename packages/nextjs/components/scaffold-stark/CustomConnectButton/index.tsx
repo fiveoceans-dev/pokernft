@@ -5,7 +5,7 @@ import { Balance } from "../Balance";
 import { AddressInfoDropdown } from "./AddressInfoDropdown";
 import { AddressQRCodeModal } from "./AddressQRCodeModal";
 import { WrongNetworkDropdown } from "./WrongNetworkDropdown";
-import { BlockieAvatar } from "../BlockieAvatar";
+import { DemoInfoDropdown } from "./DemoInfoDropdown";
 import { useAutoConnect, useNetworkColor } from "~~/hooks/scaffold-stark";
 import { useTargetNetwork } from "~~/hooks/scaffold-stark/useTargetNetwork";
 import { getBlockExplorerAddressLink } from "~~/utils/scaffold-stark";
@@ -83,14 +83,7 @@ export const CustomConnectButton = () => {
 
   if (status === "disconnected") {
     if (demoAddress) {
-      return (
-        <div className="btn bg-transparent btn-sm px-2 py-[0.35rem] gap-2 !h-auto border border-[#5c4fe5]">
-          <BlockieAvatar address={demoAddress} size={28} />
-          <span className="text-sm">
-            {demoAddress.slice(0, 6)}...{demoAddress.slice(-4)}
-          </span>
-        </div>
-      );
+      return <DemoInfoDropdown address={demoAddress} />;
     }
     return <ConnectModal />;
   }
