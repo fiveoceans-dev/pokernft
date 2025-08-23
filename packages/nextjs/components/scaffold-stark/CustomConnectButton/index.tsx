@@ -5,6 +5,7 @@ import { Balance } from "../Balance";
 import { AddressInfoDropdown } from "./AddressInfoDropdown";
 import { AddressQRCodeModal } from "./AddressQRCodeModal";
 import { WrongNetworkDropdown } from "./WrongNetworkDropdown";
+import { BlockieAvatar } from "../BlockieAvatar";
 import { useAutoConnect, useNetworkColor } from "~~/hooks/scaffold-stark";
 import { useTargetNetwork } from "~~/hooks/scaffold-stark/useTargetNetwork";
 import { getBlockExplorerAddressLink } from "~~/utils/scaffold-stark";
@@ -24,6 +25,9 @@ export const CustomConnectButton = () => {
   const { account, status, address: accountAddress } = useAccount();
   const [accountChainId, setAccountChainId] = useState<bigint>(0n);
   const { chain } = useNetwork();
+  const [demoAddress, setDemoAddress] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("sessionId") : null,
+  );
 
   const blockExplorerAddressLink = useMemo(() => {
     return (
@@ -37,6 +41,18 @@ export const CustomConnectButton = () => {
       localStorage.setItem("sessionId", accountAddress);
     }
   }, [accountAddress]);
+
+  useEffect(() => {
+    if (status === "disconnected") {
+      const stored =
+        typeof window !== "undefined"
+          ? localStorage.getItem("sessionId")
+          : null;
+      setDemoAddress(stored);
+    } else {
+      setDemoAddress(null);
+    }
+  }, [status]);
 
   // effect to get chain id and address from account
   useEffect(() => {
@@ -65,8 +81,21 @@ export const CustomConnectButton = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connector]);
 
-  if (status === "disconnected" || accountChainId === 0n)
+  if (status === "disconnected") {
+    if (demoAddress) {
+      return (
+        <div className="btn bg-transparent btn-sm px-2 py-[0.35rem] gap-2 !h-auto border border-[#5c4fe5]">
+          <BlockieAvatar address={demoAddress} size={28} />
+          <span className="text-sm">
+            {demoAddress.slice(0, 6)}...{demoAddress.slice(-4)}
+          </span>
+        </div>
+      );
+    }
     return <ConnectModal />;
+  }
+
+  if (accountChainId === 0n) return <ConnectModal />;
 
   if (accountChainId !== targetNetwork.id) {
     return <WrongNetworkDropdown />;

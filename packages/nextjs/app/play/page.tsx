@@ -49,7 +49,7 @@ export default function PlayPage() {
         <div className="flex flex-1 items-center justify-end">
           <div className="flex flex-col items-end gap-2">
             <CustomConnectButton />
-            {status === "disconnected" && (
+            {status === "disconnected" && !sessionId && (
               <button
                 className="py-1.5 px-3 text-sm rounded-full font-serif-renaissance border border-gray-500 hover:bg-gradient-nav hover:text-white"
                 onClick={handleDemoPlayer}
