@@ -32,6 +32,7 @@ export {
   isRoomRoundComplete,
   payout,
   startRoomHand,
+  progressStage,
 } from "./room";
 export * from "./hashEvaluator";
 export * from "./handEvaluator";

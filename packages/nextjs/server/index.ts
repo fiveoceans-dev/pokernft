@@ -4,12 +4,16 @@ import {
   addPlayer,
   handleAction,
   startRoomHand,
+  isRoomRoundComplete,
+  progressStage,
 } from "../backend";
 import type {
   GameRoom,
   ServerEvent,
   ClientCommand,
   PlayerAction,
+  Stage,
+  Round,
 } from "../backend";
 import { SessionManager, Session } from "./sessionManager";
 import { shortAddress } from "../utils/address";
@@ -141,6 +145,64 @@ wss.on("connection", (ws) => {
             action,
             amount: msg.amount,
           });
+          if (
+            isRoomRoundComplete(room) &&
+            room.stage !== "waiting" &&
+            room.stage !== "showdown"
+          ) {
+            const stageToRound: Record<Stage, Round | null> = {
+              waiting: null,
+              preflop: Round.PREFLOP,
+              flop: Round.FLOP,
+              turn: Round.TURN,
+              river: Round.RIVER,
+              showdown: null,
+            };
+            const street = stageToRound[room.stage];
+            if (street) {
+              broadcast(room.id, { type: "ROUND_END", street });
+            }
+            progressStage(room);
+            if (room.stage === "flop") {
+              broadcast(room.id, {
+                type: "DEAL_FLOP",
+                cards: [
+                  room.communityCards[0],
+                  room.communityCards[1],
+                  room.communityCards[2],
+                ],
+              });
+            } else if (room.stage === "turn") {
+              broadcast(room.id, {
+                type: "DEAL_TURN",
+                card: room.communityCards[3],
+              });
+            } else if (room.stage === "river") {
+              broadcast(room.id, {
+                type: "DEAL_RIVER",
+                card: room.communityCards[4],
+              });
+            }
+          }
+
+          if (room.stage !== "waiting" && room.stage !== "showdown") {
+            const acting = room.players[room.currentTurnIndex];
+            if (acting) {
+              const maxBet = Math.max(
+                0,
+                ...room.players.map((p) => p.currentBet),
+              );
+              const betToCall = Math.max(0, maxBet - acting.currentBet);
+              broadcast(room.id, {
+                type: "ACTION_PROMPT",
+                actingIndex: room.currentTurnIndex,
+                betToCall,
+                minRaise: room.minBet,
+                timeLeftMs: 0,
+              });
+            }
+          }
+
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
