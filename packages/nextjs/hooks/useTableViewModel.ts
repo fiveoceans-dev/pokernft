@@ -45,7 +45,7 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
   });
 };
 
-export function useTableViewModel(timer?: number | null, socket?: WebSocket | null) {
+export function useTableViewModel(timer?: number | null) {
   const {
     players,
     playerHands,
@@ -152,17 +152,6 @@ export function useTableViewModel(timer?: number | null, socket?: WebSocket | nu
   const displayTimer = actionTimer ?? timer ?? 0;
 
   const handleActionClick = (action: string) => {
-    // emit PlayerAction messages via networking contract when socket is available
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      const payload: any = {
-        cmdId: crypto.randomUUID(),
-        type: "ACTION",
-        action: action.toUpperCase(),
-        amount: action === "Bet" || action === "Raise" ? bet : undefined,
-        tableId: "demo",
-      };
-      socket.send(JSON.stringify(payload));
-    }
     switch (action) {
       case "Fold":
         playerAction({ type: "fold" });
