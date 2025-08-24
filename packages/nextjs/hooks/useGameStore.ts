@@ -25,6 +25,8 @@ let socket: WebSocket | null = null;
 
 interface GameStoreState {
   players: (string | null)[];
+  /** wallet addresses for each seated player */
+  playerIds: (string | null)[];
   playerHands: ([number, number] | null)[];
   community: (number | null)[];
   chips: number[];
@@ -41,7 +43,8 @@ interface GameStoreState {
   bigBlind: number;
   startBlindTimer: () => void;
   socket: WebSocket | null;
-  sessionId: string | null;
+  /** connected wallet identifier if any */
+  walletId: string | null;
 
   joinSeat: (seatIdx: number) => Promise<void>;
   startHand: () => Promise<void>;
@@ -58,6 +61,7 @@ interface GameStoreState {
 export const useGameStore = create<GameStoreState>((set, get) => {
   function applySnapshot(room: any) {
     const seats = Array(9).fill(null) as (string | null)[];
+    const ids = Array(9).fill(null) as (string | null)[];
     const hands = Array(9).fill(null) as ([number, number] | null)[];
     const chips = Array(9).fill(0) as number[];
     const bets = Array(9).fill(0) as number[];
@@ -65,6 +69,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     room.players?.forEach((p: any) => {
       seats[p.seat] = p.nickname ?? shortAddress(p.id);
+      ids[p.seat] = p.id;
       if (p.hand?.length === 2) {
         hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
       }
@@ -88,6 +93,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     set({
       players: seats,
+      playerIds: ids,
       playerHands: hands,
       community: comm,
       chips,
@@ -106,10 +112,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
   }
 
+  let autoSeated = false;
   if (typeof window !== "undefined" && !socket) {
     socket = new WebSocket("ws://localhost:8080");
     socket.onopen = () => {
-      const stored = localStorage.getItem("sessionId");
+      const stored = localStorage.getItem("walletAddress");
       if (stored) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
@@ -117,6 +124,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           userId: stored,
         } as any;
         socket!.send(JSON.stringify(cmd));
+        set({ walletId: stored });
       }
     };
     socket.onmessage = (ev) => {
@@ -125,28 +133,42 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         switch (msg.type) {
           case "SESSION":
             if (msg.userId) {
-              localStorage.setItem("sessionId", msg.userId);
-              set({ sessionId: msg.userId });
+              localStorage.setItem("walletAddress", msg.userId);
+              set({ walletId: msg.userId });
             }
             break;
           case "TABLE_SNAPSHOT":
             applySnapshot(msg.table as any);
+            if (!autoSeated) {
+              const id = localStorage.getItem("walletAddress");
+              if (
+                id &&
+                msg.table.players?.some((p: any) => p.id === id)
+              ) {
+                get().joinSeat(0);
+                autoSeated = true;
+              }
+            }
             break;
           case "PLAYER_JOINED":
             set((s) => {
               const arr = [...s.players];
+              const ids = [...s.playerIds];
               arr[msg.seat] = shortAddress(msg.playerId);
-              return { players: arr };
+              ids[msg.seat] = msg.playerId;
+              return { players: arr, playerIds: ids };
             });
             get().addLog(`${shortAddress(msg.playerId)} joined`);
             break;
           case "PLAYER_LEFT":
             set((s) => {
               const arr = [...s.players];
+              const ids = [...s.playerIds];
               arr[msg.seat] = null;
+              ids[msg.seat] = null;
               const states = [...s.playerStates];
               states[msg.seat] = PlayerState.EMPTY;
-              return { players: arr, playerStates: states };
+              return { players: arr, playerIds: ids, playerStates: states };
             });
             get().addLog(`${shortAddress(msg.playerId)} left`);
             break;
@@ -160,11 +182,22 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             break;
           case "PLAYER_REJOINED":
             set((s) => {
-              const arr = [...s.playerStates];
-              arr[msg.seat] = PlayerState.ACTIVE;
-              return { playerStates: arr };
+              const states = [...s.playerStates];
+              states[msg.seat] = PlayerState.ACTIVE;
+              const names = [...s.players];
+              const ids = [...s.playerIds];
+              if (!names[msg.seat]) names[msg.seat] = shortAddress(msg.playerId);
+              ids[msg.seat] = msg.playerId;
+              return { playerStates: states, players: names, playerIds: ids };
             });
             get().addLog(`${shortAddress(msg.playerId)} rejoined`);
+            if (!autoSeated) {
+              const id = localStorage.getItem("walletAddress");
+              if (id && id === msg.playerId) {
+                get().joinSeat(0);
+                autoSeated = true;
+              }
+            }
             break;
           case "ACTION_PROMPT":
             set({ currentTurn: msg.actingIndex });
@@ -235,6 +268,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
   return {
     players: Array(9).fill(null),
+    playerIds: Array(9).fill(null),
     playerHands: Array(9).fill(null),
     community: Array(5).fill(null),
     chips: Array(9).fill(0),
@@ -261,8 +295,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }, 10 * 60 * 1000);
     },
     socket,
-    sessionId:
-      typeof window !== "undefined" ? localStorage.getItem("sessionId") : null,
+    walletId:
+      typeof window !== "undefined" ? localStorage.getItem("walletAddress") : null,
 
     joinSeat: async (_seatIdx: number) => {
       if (socket && socket.readyState === WebSocket.OPEN) {

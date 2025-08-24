@@ -48,6 +48,7 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
 export function useTableViewModel(timer?: number | null) {
   const {
     players,
+    playerIds,
     playerHands,
     community,
     joinSeat,
@@ -174,6 +175,7 @@ export function useTableViewModel(timer?: number | null) {
 
   return {
     players,
+    playerIds,
     playerHands,
     community,
     joinSeat,

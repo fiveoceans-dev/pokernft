@@ -1,12 +1,14 @@
 // src/components/Table.tsx
 
-import { Fragment } from "react";
+import { Fragment, useEffect } from "react";
 import type { CSSProperties } from "react";
 import { useTableViewModel } from "../hooks/useTableViewModel";
 import Card from "./Card";
 import { indexToCard, PlayerState } from "../backend";
 import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../backend";
+import { useAccount } from "../hooks/useAccount";
+import { useConnect } from "@starknet-react/core";
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -17,6 +19,7 @@ export default function Table({
 }) {
   const {
     players,
+    playerIds,
     playerHands,
     community,
     joinSeat,
@@ -41,11 +44,34 @@ export default function Table({
     handleActionClick,
   } = useTableViewModel(timer);
 
+  const { address } = useAccount();
+  const { connect, connectors } = useConnect();
+
+  useEffect(() => {
+    if (address) {
+      localStorage.setItem("walletAddress", address);
+    }
+  }, [address]);
+
+  if (!address) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <button
+          onClick={() => connect({ connector: connectors[0] })}
+          className="px-4 py-2 rounded bg-black/60 text-white hover:bg-red-500"
+        >
+          Connect Wallet
+        </button>
+      </div>
+    );
+  }
+
   const holeCardSize = "sm";
 
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
     const nickname = players[idx];
+    const addr = playerIds[idx];
     const handCodes = playerHands[idx];
     const pos = layout[idx];
     if (!pos) return null;
@@ -94,6 +120,7 @@ export default function Table({
     // TODO: visually mark auto-folded players (Action Plan 1.2)
     const player: UiPlayer = {
       name: nickname,
+      address: addr ?? "",
       chips: chips[idx] ?? 0,
       hand,
       folded: state === PlayerState.FOLDED,
