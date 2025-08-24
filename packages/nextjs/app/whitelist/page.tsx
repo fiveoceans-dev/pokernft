@@ -10,7 +10,7 @@ const InfoCard = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div className="p-4 bg-primary/10 rounded-md border border-accent text-background text-white space-y-2">
+  <div className="p-4 bg-primary/10 rounded-md border border-border text-background text-white space-y-2">
     <h2 className="font-semibold">{title}</h2>
     <div className="text-sm leading-relaxed">{children}</div>
   </div>
@@ -139,7 +139,7 @@ const WhitelistPage: React.FC = () => {
         Whitelist Application
       </h1>
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-xs mx-auto">
           {leftCards.map(({ title, content }) => (
             <InfoCard key={title} title={title}>
               {content}
@@ -159,7 +159,7 @@ const WhitelistPage: React.FC = () => {
                 onChange={handleChange}
                 placeholder="Nickname"
                 required
-                className="w-full p-2 rounded-md bg-transparent border border-border text-background"
+                className="w-full p-2 rounded-md bg-transparent border border-accent text-background"
               />
               <input
                 name="email"
@@ -167,7 +167,7 @@ const WhitelistPage: React.FC = () => {
                 value={form.email}
                 onChange={handleChange}
                 placeholder="Email (optional)"
-                className="w-full p-2 rounded-md bg-transparent border border-border text-background"
+                className="w-full p-2 rounded-md bg-transparent border border-accent text-background"
               />
               <input
                 name="wallet"
@@ -175,23 +175,23 @@ const WhitelistPage: React.FC = () => {
                 onChange={handleChange}
                 placeholder="Starknet Wallet"
                 required
-                className="w-full p-2 rounded-md bg-transparent border border-border text-background"
+                className="w-full p-2 rounded-md bg-transparent border border-accent text-background"
               />
               <textarea
                 name="purpose"
                 value={form.purpose}
                 onChange={handleChange}
                 placeholder="Purpose of Application"
-                rows={4}
+                rows={6}
                 required
-                className="w-full p-2 rounded-md bg-transparent border border-border text-background"
+                className="w-full p-2 rounded-md bg-transparent border border-accent text-background"
               />
               <input
                 name="referral"
                 value={form.referral}
                 onChange={handleChange}
                 placeholder="Referral Code"
-                className="w-full p-2 rounded-md bg-transparent border border-border text-background"
+                className="w-full p-2 rounded-md bg-transparent border border-accent text-background"
               />
               <Button type="submit" className="w-full text-black">
                 Apply
@@ -199,7 +199,7 @@ const WhitelistPage: React.FC = () => {
             </form>
           )}
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-xs mx-auto">
           {rightCards.map(({ title, content }) => (
             <InfoCard key={title} title={title}>
               {content}
