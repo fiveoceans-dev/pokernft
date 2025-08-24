@@ -81,6 +81,25 @@ export class SessionManager {
     this.sessions.set(ws, session);
   }
 
+  /** Restore a session from persisted data */
+  restore(
+    data: { sessionId: string; userId?: string; roomId?: string },
+    ws: WebSocket,
+  ): Session {
+    const session: Session = {
+      sessionId: data.sessionId,
+      userId: data.userId,
+      roomId: data.roomId,
+      socket: ws,
+    };
+    this.sessions.set(ws, session);
+    this.bySessionId.set(session.sessionId, session);
+    if (session.userId) {
+      this.byUserId.set(session.userId, session);
+    }
+    return session;
+  }
+
   private clearTimer(session: Session) {
     if (session.timeout) {
       clearTimeout(session.timeout);

@@ -10,6 +10,13 @@ import type {
 } from "../backend";
 import { SessionManager, Session } from "./sessionManager";
 import { shortAddress } from "../utils/address";
+import {
+  saveSession,
+  removeSession,
+  saveRoom,
+  loadAllRooms,
+  loadSession,
+} from "./persistence";
 
 const wss = new WebSocketServer({ port: 8080 });
 const sessions = new SessionManager();
@@ -19,10 +26,18 @@ const tables = new Map<string, Table>();
 const seating = new Map<string, SeatingManager>();
 const seatMaps = new Map<string, Map<string, number>>();
 
-function getEngine(id: string): GameEngine {
+(async () => {
+  const rooms = await loadAllRooms();
+  rooms.forEach((r) => getEngine(r.id, r));
+})();
+
+function getEngine(id: string, snapshot?: GameRoom): GameEngine {
   let engine = engines.get(id);
   if (!engine) {
     engine = new GameEngine(id);
+    if (snapshot) {
+      engine.loadState(snapshot);
+    }
     engines.set(id, engine);
 
     const table: Table = {
@@ -49,12 +64,21 @@ function getEngine(id: string): GameEngine {
       dealAnimationDelayMs: 0,
     };
     tables.set(id, table);
-    seating.set(id, new SeatingManager(table));
-    seatMaps.set(id, new Map());
+    const mgr = new SeatingManager(table);
+    seating.set(id, mgr);
+    const seatMap = new Map<string, number>();
+    seatMaps.set(id, seatMap);
+    if (snapshot) {
+      snapshot.players.forEach((p) => {
+        const seated = mgr.seatPlayer(p.seat, p.id, p.chips);
+        if (seated) seatMap.set(p.id, p.seat);
+      });
+    }
 
     let prevStage: Stage = engine.getState().stage;
 
     engine.on("stateChanged", (room: GameRoom) => {
+      void saveRoom(room);
       broadcast(id, { type: "TABLE_SNAPSHOT", table: room });
     });
 
@@ -116,6 +140,7 @@ function broadcast(roomId: string, event: Omit<ServerEvent, "tableId">) {
 
 wss.on("connection", (ws) => {
   let session = sessions.create(ws);
+  void saveSession(session);
   ws.send(
     JSON.stringify({
       tableId: "",
@@ -125,7 +150,7 @@ wss.on("connection", (ws) => {
     } satisfies ServerEvent),
   );
 
-  ws.on("message", (data) => {
+  ws.on("message", async (data) => {
     try {
       const msg: ClientCommand = JSON.parse(data.toString());
       if (!msg.cmdId) return;
@@ -152,13 +177,20 @@ wss.on("connection", (ws) => {
 
       switch (msg.type) {
         case "REATTACH": {
-          const existing = sessions.getBySessionId(msg.sessionId);
+          let existing = sessions.getBySessionId(msg.sessionId);
+          if (!existing) {
+            const data = await loadSession(msg.sessionId);
+            if (data) {
+              existing = sessions.restore(data, ws);
+            }
+          }
           if (existing) {
             const hadTimeout = existing.timeout !== undefined;
             sessions.handleReconnect(existing);
             sessions.expire(session);
             sessions.replaceSocket(existing, ws);
             session = existing;
+            void saveSession(existing);
             ws.send(
               JSON.stringify({
                 tableId: existing.roomId ?? "",
@@ -200,6 +232,7 @@ wss.on("connection", (ws) => {
             session.userId = attached.userId;
             session.roomId = attached.roomId;
             sessions.handleReconnect(attached);
+            void saveSession(session);
             ws.send(
               JSON.stringify({
                 tableId: attached.roomId ?? "",
@@ -230,6 +263,7 @@ wss.on("connection", (ws) => {
                   table: room,
                 } satisfies ServerEvent),
               );
+              void saveRoom(room);
             }
           }
           break;
@@ -257,6 +291,7 @@ wss.on("connection", (ws) => {
             chips: msg.buyIn,
           });
           session.roomId = room.id;
+          void saveSession(session);
           broadcast(room.id, {
             type: "PLAYER_JOINED",
             seat: seatIndex,
@@ -266,6 +301,7 @@ wss.on("connection", (ws) => {
             engine.startHand();
             broadcast(room.id, { type: "HAND_START" });
           }
+          void saveRoom(room);
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
@@ -289,6 +325,8 @@ wss.on("connection", (ws) => {
           const idx = room.players.findIndex((p) => p.id === playerId);
           if (idx !== -1) room.players.splice(idx, 1);
           session.roomId = undefined;
+          void saveSession(session);
+          void saveRoom(room);
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
@@ -334,6 +372,7 @@ wss.on("connection", (ws) => {
           const playerId = session.userId ?? session.sessionId;
           const player = room.players.find((p) => p.id === playerId);
           if (player) player.chips += msg.amount;
+          void saveRoom(room);
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
@@ -342,6 +381,7 @@ wss.on("connection", (ws) => {
           if (!session.roomId) break;
           const engine = getEngine(session.roomId);
           const room = engine.getState();
+          void saveRoom(room);
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
@@ -350,6 +390,7 @@ wss.on("connection", (ws) => {
           const engine = getEngine(session.roomId);
           const room = engine.getState();
           broadcast(room.id, { type: "BLINDS_POSTED" });
+          void saveRoom(room);
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
@@ -381,14 +422,20 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     sessions.handleDisconnect(session, (s: Session) => {
-      if (!s.roomId) return;
+      if (!s.roomId) {
+        void saveSession(s);
+        return;
+      }
       const engine = getEngine(s.roomId);
       const room = engine.getState();
       const playerId = s.userId ?? s.sessionId;
       const map = seatMaps.get(room.id);
       const mgr = seating.get(room.id);
       const seatIndex = map?.get(playerId);
-      if (seatIndex === undefined) return;
+      if (seatIndex === undefined) {
+        void saveSession(s);
+        return;
+      }
 
       broadcast(room.id, {
         type: "PLAYER_DISCONNECTED",
@@ -406,9 +453,12 @@ wss.on("connection", (ws) => {
         });
         const idx = room.players.findIndex((p) => p.id === playerId);
         if (idx !== -1) room.players.splice(idx, 1);
+        void saveRoom(room);
         broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
         sessions.expire(s);
+        void removeSession(s.sessionId);
       }, sessions.disconnectGraceMs);
+      void saveSession(s);
     });
   });
 });

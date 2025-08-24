@@ -31,6 +31,11 @@ export class GameEngine extends EventEmitter {
     this.machine = new PokerStateMachine();
   }
 
+  /** Load an existing room snapshot */
+  loadState(room: GameRoom): void {
+    this.room = room;
+  }
+
   /** current high level engine phase */
   getPhase(): GameState {
     return this.machine.state;
