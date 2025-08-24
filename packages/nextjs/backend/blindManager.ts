@@ -156,11 +156,13 @@ export function assignBlindsAndButton(table: Table): boolean {
     });
   }
 
-  let sb: number | null;
-  let bb: number | null;
+  let sb: number | null = null;
+  let bb: number | null = null;
+  let sbDeclined = false;
 
-  const headsUp = isHeadsUp(table);
+  const initialActive = countActivePlayers(table);
   const computeBlinds = () => {
+    const headsUp = initialActive === 2 || sbDeclined;
     if (headsUp) {
       // Heads-up: the button also posts the small blind and the
       // opposing seat posts the big blind.
@@ -169,9 +171,12 @@ export function assignBlindsAndButton(table: Table): boolean {
     } else {
       const first = (btn + 1) % table.seats.length;
       const firstSeat = table.seats[first];
-      if (firstSeat?.state !== PlayerState.ACTIVE || firstSeat.missedBigBlind) {
+      if (firstSeat?.state !== PlayerState.ACTIVE) {
+        sb = activeSeat(btn + 1, "SB");
+        bb = sb !== null ? activeSeat(sb + 1, "BB") : null;
+      } else if (firstSeat.missedBigBlind) {
         sb = btn;
-        bb = activeSeat(btn + 1, "BB");
+        bb = activeSeat(first, "BB");
       } else {
         sb = activeSeat(btn + 1, "SB");
         bb = sb !== null ? activeSeat(sb + 1, "BB") : null;
@@ -186,6 +191,7 @@ export function assignBlindsAndButton(table: Table): boolean {
     const bbPlayer = table.seats[bb]!;
     const sbPosted = postBlind(sbPlayer, table.smallBlindAmount);
     const bbPosted = postBlind(bbPlayer, table.bigBlindAmount);
+    if (!sbPosted && !sbPlayer.autoPostBlinds) sbDeclined = true;
 
     if (sbPosted && bbPosted) break;
 

@@ -179,8 +179,10 @@ describe("room helpers", () => {
     ];
     payout(remainderRoom, remainderWinners);
     assert.strictEqual(remainderRoom.pot, 0);
-    assert.strictEqual(remainderRoom.players[1].chips, 3);
-    assert.strictEqual(remainderRoom.players[2].chips, 2);
+    const b = remainderRoom.players.find((p: any) => p.id === "b");
+    const c = remainderRoom.players.find((p: any) => p.id === "c");
+    assert.strictEqual(b?.chips, 3);
+    assert.strictEqual(c?.chips, 2);
 
     // players with zero chips are removed before the next hand
     const bustRoom = {
