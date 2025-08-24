@@ -68,6 +68,8 @@
     "@types/react-copy-to-clipboard": "^5.0.4",
     "@types/react-dom": "18.2.19",
     "@types/ws": "^8.18.1",
+    "@typescript-eslint/eslint-plugin": "^8.40.0",
+    "@typescript-eslint/parser": "^8.40.0",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-istanbul": "^2.1.1",
     "@vitest/coverage-v8": "^2.1.1",

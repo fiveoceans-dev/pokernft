@@ -12,8 +12,8 @@ export interface TimerHandlers {
  * disconnect grace periods and animation delays between game events.
  */
 export class TimerService {
-  private turnTimer?: NodeJS.Timeout;
-  private disconnectTimers = new Map<string, NodeJS.Timeout>();
+  private turnTimer?: ReturnType<typeof setTimeout>;
+  private disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(
     private table: Table,

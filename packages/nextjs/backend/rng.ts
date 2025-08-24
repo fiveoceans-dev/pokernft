@@ -22,7 +22,7 @@ export function randomInt(max: number): number {
   return Math.floor(random() * max);
 }
 
-export { RNG as RandomGenerator };
+export type { RNG as RandomGenerator };
 
 /** Create a deterministic RNG from a string seed */
 export function seededRNG(seed: string): RNG {

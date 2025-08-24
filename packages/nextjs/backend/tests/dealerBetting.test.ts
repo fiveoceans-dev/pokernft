@@ -8,7 +8,7 @@ import {
   Round,
 } from '../types';
 import { dealHole } from '../dealer';
-import { assignBlindsAndButton } from '../blindManager';
+import { assignBlindsAndButton, advanceButton } from '../blindManager';
 import {
   startBettingRound,
   applyAction,
@@ -97,6 +97,7 @@ describe('Dealer & BettingEngine', () => {
       dealAnimationDelayMs: 0,
     };
 
+    advanceButton(table);
     const ok = assignBlindsAndButton(table);
     expect(ok).toBe(true);
     startBettingRound(table, Round.PREFLOP);
