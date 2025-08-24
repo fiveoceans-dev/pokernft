@@ -21,7 +21,7 @@ export type {
   HandAction,
   HandLog,
 } from "./types";
-export type { ServerEvent, ClientCommand } from "./networking";
+export type { ServerEvent, ClientCommand, LobbyTable } from "./networking";
 export * from "./utils";
 export {
   createRoom,

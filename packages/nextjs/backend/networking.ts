@@ -1,10 +1,17 @@
 import type { Card, Table, PlayerAction, Round } from "./types";
 
+export interface LobbyTable {
+  id: string;
+  name: string;
+}
+
 export type BlindType = "SMALL" | "BIG";
 
 export type ServerEvent =
   | { tableId: string; type: "SESSION"; sessionId: string; userId?: string }
   | { tableId: string; type: "TABLE_SNAPSHOT"; table: Table }
+  | { tableId: ""; type: "TABLE_LIST"; tables: LobbyTable[] }
+  | { tableId: string; type: "TABLE_CREATED"; table: LobbyTable }
   | { tableId: string; type: "HAND_START" }
   | { tableId: string; type: "BLINDS_POSTED" }
   | { tableId: string; type: "DEAL_HOLE"; seat: number; cards: [Card, Card] }
@@ -48,6 +55,8 @@ export type ServerEvent =
 export type ClientCommand =
   | { cmdId: string; type: "ATTACH"; userId: string }
   | { cmdId: string; type: "REATTACH"; sessionId: string }
+  | { cmdId: string; type: "LIST_TABLES" }
+  | { cmdId: string; type: "CREATE_TABLE"; name: string }
   | { cmdId: string; type: "SIT"; tableId: string; buyIn: number }
   | { cmdId: string; type: "LEAVE" }
   | { cmdId: string; type: "SIT_OUT" }
