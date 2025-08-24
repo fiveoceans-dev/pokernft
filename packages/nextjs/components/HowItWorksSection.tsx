@@ -28,9 +28,9 @@ const steps = [
     icon: FaUsers,
   },
   {
-    title: "Protocol Spins Up a Poker Tournament",
+    title: "Protocol Spins Up a Tournament",
     description:
-      "Once funded, the protocol automatically launches a secure onchain poker game.",
+      "Once funded, the protocol automatically launches a secure onchain poker tournament.",
     icon: FaTable,
   },
   {
