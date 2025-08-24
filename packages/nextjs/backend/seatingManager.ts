@@ -1,4 +1,4 @@
-import { Table, Player, PlayerState, PlayerAction, TableState } from './types';
+import { Table, Player, PlayerState, PlayerAction, TableState } from "./types";
 
 /**
  * SeatingManager handles seat assignment, buy-ins, sit-out/return and leaving.

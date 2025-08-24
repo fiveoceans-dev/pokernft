@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { tableToJson, tableFromJson } from '../jsonFormats';
-import { PlayerState, PlayerAction, TableState, Round, Table } from '../types';
+import { describe, it, expect } from "vitest";
+import { tableToJson, tableFromJson } from "../jsonFormats";
+import { PlayerState, PlayerAction, TableState, Round, Table } from "../types";
 
-describe('jsonFormats table conversion', () => {
-  it('converts Table to JSON and back', () => {
+describe("jsonFormats table conversion", () => {
+  it("converts Table to JSON and back", () => {
     const table: Table = {
       seats: [
         {
-          id: 'p1',
+          id: "p1",
           seatIndex: 0,
           stack: 100,
           state: PlayerState.ACTIVE,
@@ -55,4 +55,3 @@ describe('jsonFormats table conversion', () => {
     expect(rebuiltRest).toEqual(originalRest);
   });
 });
-

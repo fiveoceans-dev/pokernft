@@ -8,7 +8,11 @@ import type {
   Stage,
   Table,
 } from "../backend";
-import { listTables, registerTable, getEngine as getRegisteredEngine } from "./lobby";
+import {
+  listTables,
+  registerTable,
+  getEngine as getRegisteredEngine,
+} from "./lobby";
 import { randomUUID } from "crypto";
 import { SessionManager, Session } from "./sessionManager";
 import { shortAddress } from "../utils/address";
@@ -299,7 +303,10 @@ wss.on("connection", (ws) => {
           const table = tables.get(room.id)!;
           const mgr = seating.get(room.id)!;
           const map = seatMaps.get(room.id)!;
-          if (map.has(playerId) || table.seats.some((p) => p?.id === playerId)) {
+          if (
+            map.has(playerId) ||
+            table.seats.some((p) => p?.id === playerId)
+          ) {
             break;
           }
           const seatIndex = table.seats.findIndex((p) => p === null);

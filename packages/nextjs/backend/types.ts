@@ -1,21 +1,21 @@
 // Suits use single lowercase letters so cards can be shared between modules
 // without relying on platform-specific symbols. The mapping is:
 // s = spades, h = hearts, d = diamonds, c = clubs.
-export type Suit = 's' | 'h' | 'd' | 'c';
+export type Suit = "s" | "h" | "d" | "c";
 export type Rank =
-  | '2'
-  | '3'
-  | '4'
-  | '5'
-  | '6'
-  | '7'
-  | '8'
-  | '9'
-  | 'T'
-  | 'J'
-  | 'Q'
-  | 'K'
-  | 'A';
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "6"
+  | "7"
+  | "8"
+  | "9"
+  | "T"
+  | "J"
+  | "Q"
+  | "K"
+  | "A";
 
 /** ← this _must_ be exported */
 export interface Card {
@@ -24,12 +24,12 @@ export interface Card {
 }
 
 export type Stage =
-  | 'waiting'
-  | 'preflop'
-  | 'flop'
-  | 'turn'
-  | 'river'
-  | 'showdown';
+  | "waiting"
+  | "preflop"
+  | "flop"
+  | "turn"
+  | "river"
+  | "showdown";
 
 /** Basic representation of a connected player */
 export interface PlayerSession {
@@ -81,7 +81,7 @@ export interface GameState {
   pot: number;
   dealerIndex: number;
   currentIndex: number;
-  street: 'preflop' | 'flop' | 'turn' | 'river' | 'showdown';
+  street: "preflop" | "flop" | "turn" | "river" | "showdown";
 }
 
 export interface CardShape {
@@ -90,24 +90,24 @@ export interface CardShape {
 }
 
 export enum PlayerState {
-  EMPTY = 'EMPTY',
-  SEATED = 'SEATED',
-  SITTING_OUT = 'SITTING_OUT',
-  ACTIVE = 'ACTIVE',
-  FOLDED = 'FOLDED',
-  ALL_IN = 'ALL_IN',
-  DISCONNECTED = 'DISCONNECTED',
-  LEAVING = 'LEAVING',
+  EMPTY = "EMPTY",
+  SEATED = "SEATED",
+  SITTING_OUT = "SITTING_OUT",
+  ACTIVE = "ACTIVE",
+  FOLDED = "FOLDED",
+  ALL_IN = "ALL_IN",
+  DISCONNECTED = "DISCONNECTED",
+  LEAVING = "LEAVING",
 }
 
 export enum PlayerAction {
-  NONE = 'NONE',
-  FOLD = 'FOLD',
-  CHECK = 'CHECK',
-  CALL = 'CALL',
-  BET = 'BET',
-  RAISE = 'RAISE',
-  ALL_IN = 'ALL_IN',
+  NONE = "NONE",
+  FOLD = "FOLD",
+  CHECK = "CHECK",
+  CALL = "CALL",
+  BET = "BET",
+  RAISE = "RAISE",
+  ALL_IN = "ALL_IN",
 }
 
 export interface Player {
@@ -131,24 +131,24 @@ export interface Player {
 }
 
 export enum TableState {
-  WAITING = 'WAITING',
-  BLINDS = 'BLINDS',
-  DEALING_HOLE = 'DEALING_HOLE',
-  PRE_FLOP = 'PRE_FLOP',
-  FLOP = 'FLOP',
-  TURN = 'TURN',
-  RIVER = 'RIVER',
-  SHOWDOWN = 'SHOWDOWN',
-  PAYOUT = 'PAYOUT',
-  ROTATE = 'ROTATE',
-  CLEANUP = 'CLEANUP',
+  WAITING = "WAITING",
+  BLINDS = "BLINDS",
+  DEALING_HOLE = "DEALING_HOLE",
+  PRE_FLOP = "PRE_FLOP",
+  FLOP = "FLOP",
+  TURN = "TURN",
+  RIVER = "RIVER",
+  SHOWDOWN = "SHOWDOWN",
+  PAYOUT = "PAYOUT",
+  ROTATE = "ROTATE",
+  CLEANUP = "CLEANUP",
 }
 
 export enum Round {
-  PREFLOP = 'PREFLOP',
-  FLOP = 'FLOP',
-  TURN = 'TURN',
-  RIVER = 'RIVER',
+  PREFLOP = "PREFLOP",
+  FLOP = "FLOP",
+  TURN = "TURN",
+  RIVER = "RIVER",
 }
 
 export interface Pot {
@@ -165,9 +165,9 @@ export interface RakeConfig {
 
 export enum DeadBlindRule {
   /** Returning players must post any missed blinds immediately */
-  POST = 'POST',
+  POST = "POST",
   /** Returning players must wait until the big blind to resume */
-  WAIT = 'WAIT',
+  WAIT = "WAIT",
 }
 
 export interface Table {

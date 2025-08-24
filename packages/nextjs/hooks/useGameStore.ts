@@ -103,7 +103,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       currentTurn:
         room.players?.length && room.players[room.currentTurnIndex]?.isTurn
           ? room.players[room.currentTurnIndex].seat
-          : room.actingIndex ?? null,
+          : (room.actingIndex ?? null),
       street: stageToStreet[room.stage as Stage] ?? 0,
       loading: false,
       error: null,
@@ -141,10 +141,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             applySnapshot(msg.table as any);
             if (!autoSeated) {
               const id = localStorage.getItem("walletAddress");
-              if (
-                id &&
-                msg.table.players?.some((p: any) => p.id === id)
-              ) {
+              if (id && msg.table.players?.some((p: any) => p.id === id)) {
                 get().joinSeat(0);
                 autoSeated = true;
               }
@@ -186,7 +183,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               states[msg.seat] = PlayerState.ACTIVE;
               const names = [...s.players];
               const ids = [...s.playerIds];
-              if (!names[msg.seat]) names[msg.seat] = shortAddress(msg.playerId);
+              if (!names[msg.seat])
+                names[msg.seat] = shortAddress(msg.playerId);
               ids[msg.seat] = msg.playerId;
               return { playerStates: states, players: names, playerIds: ids };
             });
@@ -289,14 +287,19 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           smallBlind: s.smallBlind * 2,
           bigBlind: s.bigBlind * 2,
         }));
-      setTimeout(function tick() {
-        increase();
-        setTimeout(tick, 10 * 60 * 1000);
-      }, 10 * 60 * 1000);
+      setTimeout(
+        function tick() {
+          increase();
+          setTimeout(tick, 10 * 60 * 1000);
+        },
+        10 * 60 * 1000,
+      );
     },
     socket,
     walletId:
-      typeof window !== "undefined" ? localStorage.getItem("walletAddress") : null,
+      typeof window !== "undefined"
+        ? localStorage.getItem("walletAddress")
+        : null,
 
     joinSeat: async (_seatIdx: number) => {
       if (socket && socket.readyState === WebSocket.OPEN) {
@@ -345,4 +348,3 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
   };
 });
-

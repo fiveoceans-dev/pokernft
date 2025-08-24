@@ -75,4 +75,3 @@ export const DemoInfoDropdown = ({ address }: { address: string }) => {
     </details>
   );
 };
-

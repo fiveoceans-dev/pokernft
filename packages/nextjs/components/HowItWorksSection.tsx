@@ -35,8 +35,7 @@ const steps = [
   },
   {
     title: "Prizes Distribution",
-    description:
-      "Bank split: 80% prizes, 10% creator, 10% protocol.",
+    description: "Bank split: 80% prizes, 10% creator, 10% protocol.",
     icon: FaCoins,
   },
   {
@@ -49,10 +48,7 @@ const steps = [
 
 export default function HowItWorksSection() {
   return (
-    <section
-      id="how"
-      className="py-24 text-white"
-    >
+    <section id="how" className="py-24 text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl sm:text-4xl font-bold text-center mb-16">
           Create Your Own <span className="text-accent">POKER</span> Tournament
@@ -67,7 +63,9 @@ export default function HowItWorksSection() {
                 <Icon />
               </div>
               <h3 className="text-xl font-semibold mb-2">{title}</h3>
-              <p className="text-gray-700 text-sm dark:text-gray-300">{description}</p>
+              <p className="text-gray-700 text-sm dark:text-gray-300">
+                {description}
+              </p>
             </div>
           ))}
         </div>

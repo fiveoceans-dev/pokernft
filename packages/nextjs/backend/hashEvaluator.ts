@@ -1,4 +1,4 @@
-import type { Card, Rank, Suit } from './types';
+import type { Card, Rank, Suit } from "./types";
 import {
   BINARIES_BY_ID,
   SUITBIT_BY_ID,
@@ -8,7 +8,7 @@ import {
   NO_FLUSH_5,
   NO_FLUSH_6,
   NO_FLUSH_7,
-} from './hashTables';
+} from "./hashTables";
 
 const NO_FLUSHES: Record<number, number[]> = {
   5: NO_FLUSH_5,
@@ -17,14 +17,14 @@ const NO_FLUSHES: Record<number, number[]> = {
 };
 
 const RANK_MAP: Record<Rank, number> = {
-  '2': 0,
-  '3': 1,
-  '4': 2,
-  '5': 3,
-  '6': 4,
-  '7': 5,
-  '8': 6,
-  '9': 7,
+  "2": 0,
+  "3": 1,
+  "4": 2,
+  "5": 3,
+  "6": 4,
+  "7": 5,
+  "8": 6,
+  "9": 7,
   T: 8,
   J: 9,
   Q: 10,
@@ -66,7 +66,9 @@ export function evaluateHand(cards: Card[]): number {
   const handSize = ids.length;
   const noFlush = NO_FLUSHES[handSize];
   if (!noFlush) {
-    throw new Error(`The number of cards must be between 5 and 7. passed size: ${handSize}`);
+    throw new Error(
+      `The number of cards must be between 5 and 7. passed size: ${handSize}`,
+    );
   }
 
   let suitHash = 0;

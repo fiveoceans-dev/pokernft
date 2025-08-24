@@ -22,7 +22,9 @@ const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
         className="flex flex-col min-h-screen bg-main"
       >
         <ThemeProvider>
-          <ScaffoldStarkAppWithProviders>{children}</ScaffoldStarkAppWithProviders>
+          <ScaffoldStarkAppWithProviders>
+            {children}
+          </ScaffoldStarkAppWithProviders>
         </ThemeProvider>
       </body>
     </html>

@@ -1,7 +1,7 @@
-import { describe, expect, test } from 'vitest';
-import { SeatingManager } from '../seatingManager';
-import { Table, TableState, Round, PlayerState } from '../types';
-import { resetTableForNextHand } from '../handReset';
+import { describe, expect, test } from "vitest";
+import { SeatingManager } from "../seatingManager";
+import { Table, TableState, Round, PlayerState } from "../types";
+import { resetTableForNextHand } from "../handReset";
 
 function createTable(): Table {
   return {
@@ -29,20 +29,20 @@ function createTable(): Table {
   };
 }
 
-describe('SeatingManager', () => {
-  test('seats player and enforces buy-in limits', () => {
+describe("SeatingManager", () => {
+  test("seats player and enforces buy-in limits", () => {
     const table = createTable();
     const mgr = new SeatingManager(table);
-    const p = mgr.seatPlayer(0, 'p1', 50);
+    const p = mgr.seatPlayer(0, "p1", 50);
     expect(p?.stack).toBe(50);
-    expect(mgr.seatPlayer(0, 'p2', 50)).toBeNull();
-    expect(mgr.seatPlayer(1, 'p2', 10)).toBeNull();
+    expect(mgr.seatPlayer(0, "p2", 50)).toBeNull();
+    expect(mgr.seatPlayer(1, "p2", 10)).toBeNull();
   });
 
-  test('top up and handle broke players', () => {
+  test("top up and handle broke players", () => {
     const table = createTable();
     const mgr = new SeatingManager(table);
-    const p = mgr.seatPlayer(0, 'p1', 50)!;
+    const p = mgr.seatPlayer(0, "p1", 50)!;
     expect(mgr.topUp(0, 160)).toBe(false);
     expect(mgr.topUp(0, 150)).toBe(true);
     expect(table.seats[0]?.stack).toBe(200);
@@ -52,16 +52,16 @@ describe('SeatingManager', () => {
     expect(table.seats[0]?.state).toBe(PlayerState.LEAVING);
     expect(table.seats[0]).not.toBeNull();
 
-    const p2 = mgr.seatPlayer(1, 'p2', 40)!;
+    const p2 = mgr.seatPlayer(1, "p2", 40)!;
     p2.stack = 0;
     mgr.removeBrokePlayers(true);
     expect(table.seats[1]?.state).toBe(PlayerState.SITTING_OUT);
   });
 
-  test('voluntary sit-out toggles after current hand', () => {
+  test("voluntary sit-out toggles after current hand", () => {
     const table = createTable();
     const mgr = new SeatingManager(table);
-    const p = mgr.seatPlayer(0, 'p1', 50)!;
+    const p = mgr.seatPlayer(0, "p1", 50)!;
     p.state = PlayerState.ACTIVE;
     table.state = TableState.PRE_FLOP;
     mgr.sitOut(0);
@@ -69,10 +69,10 @@ describe('SeatingManager', () => {
     expect(p.sitOutNextHand).toBe(true);
   });
 
-  test('leave during hand marks player and removes on hand end', async () => {
+  test("leave during hand marks player and removes on hand end", async () => {
     const table = createTable();
     const mgr = new SeatingManager(table);
-    const p = mgr.seatPlayer(0, 'p1', 50)!;
+    const p = mgr.seatPlayer(0, "p1", 50)!;
     p.state = PlayerState.ACTIVE;
     table.state = TableState.FLOP;
     mgr.leave(0);
