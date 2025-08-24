@@ -20,7 +20,6 @@ export default function PlayPage() {
     stageNames,
     handStarted,
     handleActivate,
-    socket,
   } = usePlayViewModel();
 
   return (
@@ -43,7 +42,7 @@ export default function PlayPage() {
         </div>
       </header>
       <div className="flex-1 flex items-center justify-center">
-        <Table timer={timer} socket={socket} />
+        <Table timer={timer} />
       </div>
       <div
         id="action-buttons"

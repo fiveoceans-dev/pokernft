@@ -1,12 +1,12 @@
 // src/hooks/useGameStore.ts
 import { create } from "zustand";
 import {
-  GameEngine,
   cardToIndex,
-  GameState as EnginePhase,
   PlayerState,
+  type Stage,
+  type ServerEvent,
+  type ClientCommand,
 } from "../backend";
-import type { Stage } from "../backend";
 import { shortAddress } from "../utils/address";
 
 /** Map Stage strings to numeric street indices used by the UI */
@@ -19,43 +19,30 @@ const stageToStreet: Record<Stage, number> = {
   showdown: 4,
 };
 
-// Single in-memory engine used for local demo / frontend state
-const engine = new GameEngine("local");
+const TABLE_ID = "demo";
+
+let socket: WebSocket | null = null;
 
 interface GameStoreState {
-  /** player nicknames occupying each of the 9 seats */
   players: (string | null)[];
-  /** optional hole cards for each seat represented as numeric codes */
   playerHands: ([number, number] | null)[];
-  /** community card codes (0..51) */
   community: (number | null)[];
-  /** chips for each seat */
   chips: number[];
-  /** current bet for each seat */
   playerBets: number[];
-  /** state for each seat */
   playerStates: PlayerState[];
-  /** total chips in the pot */
   pot: number;
-  /** seat index whose turn it is, or null */
   currentTurn: number | null;
-  /** preflop=0, flop=1, turn=2, river=3, showdown=4 */
   street: number;
-  /** high-level engine phase */
-  phase: EnginePhase;
   loading: boolean;
   error: string | null;
-  /** dealer / action log */
   logs: string[];
   addLog: (msg: string) => void;
-
-  /** small and big blind amounts */
   smallBlind: number;
   bigBlind: number;
   startBlindTimer: () => void;
+  socket: WebSocket | null;
+  sessionId: string | null;
 
-  // Actions --------------------------------------------------------------
-  reloadTableState: () => Promise<void>;
   joinSeat: (seatIdx: number) => Promise<void>;
   startHand: () => Promise<void>;
   dealFlop: () => Promise<void>;
@@ -65,24 +52,187 @@ interface GameStoreState {
     type: "fold" | "call" | "raise" | "check";
     amount?: number;
   }) => Promise<void>;
+  rebuy: (amount: number) => Promise<void>;
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => {
-  engine.on("phaseChanged", (phase: EnginePhase) => set({ phase }));
-  engine.on("stateChanged", () => get().reloadTableState());
-  engine.on("handStarted", () => get().addLog("Dealer: Hand started"));
-  engine.on("stageChanged", (stage: Stage) => {
-    const msg =
-      stage === "flop"
-        ? "Dealer: Flop dealt"
-        : stage === "turn"
-          ? "Dealer: Turn dealt"
-          : stage === "river"
-            ? "Dealer: River dealt"
-            : "";
-    if (msg) get().addLog(msg);
-  });
-  engine.on("handEnded", () => get().addLog("Dealer: Hand complete"));
+  function applySnapshot(room: any) {
+    const seats = Array(9).fill(null) as (string | null)[];
+    const hands = Array(9).fill(null) as ([number, number] | null)[];
+    const chips = Array(9).fill(0) as number[];
+    const bets = Array(9).fill(0) as number[];
+    const states = Array(9).fill(PlayerState.EMPTY) as PlayerState[];
+
+    room.players?.forEach((p: any) => {
+      seats[p.seat] = p.nickname ?? shortAddress(p.id);
+      if (p.hand?.length === 2) {
+        hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
+      }
+      chips[p.seat] = p.chips ?? p.stack ?? 0;
+      bets[p.seat] = p.currentBet ?? p.betThisRound ?? 0;
+      let state = PlayerState.ACTIVE;
+      if (p.hasFolded) state = PlayerState.FOLDED;
+      else if ((p.chips ?? p.stack ?? 0) === 0) state = PlayerState.ALL_IN;
+      states[p.seat] = p.state ?? state;
+    });
+
+    const comm = Array(5).fill(null) as (number | null)[];
+    (room.communityCards ?? room.board ?? []).forEach((c: any, i: number) => {
+      comm[i] = cardToIndex(c);
+    });
+
+    const pot =
+      room.pot ??
+      room.pots?.reduce((sum: number, pt: any) => sum + pt.amount, 0) ??
+      0;
+
+    set({
+      players: seats,
+      playerHands: hands,
+      community: comm,
+      chips,
+      playerBets: bets,
+      playerStates: states,
+      pot,
+      currentTurn:
+        room.players?.length && room.players[room.currentTurnIndex]?.isTurn
+          ? room.players[room.currentTurnIndex].seat
+          : room.actingIndex ?? null,
+      street: stageToStreet[room.stage as Stage] ?? 0,
+      loading: false,
+      error: null,
+      smallBlind: room.smallBlindAmount ?? get().smallBlind,
+      bigBlind: room.bigBlindAmount ?? get().bigBlind,
+    });
+  }
+
+  if (typeof window !== "undefined" && !socket) {
+    socket = new WebSocket("ws://localhost:8080");
+    socket.onopen = () => {
+      const stored = localStorage.getItem("sessionId");
+      if (stored) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "ATTACH",
+          userId: stored,
+        } as any;
+        socket!.send(JSON.stringify(cmd));
+      }
+    };
+    socket.onmessage = (ev) => {
+      try {
+        const msg: ServerEvent = JSON.parse(ev.data as string);
+        switch (msg.type) {
+          case "SESSION":
+            if (msg.userId) {
+              localStorage.setItem("sessionId", msg.userId);
+              set({ sessionId: msg.userId });
+            }
+            break;
+          case "TABLE_SNAPSHOT":
+            applySnapshot(msg.table as any);
+            break;
+          case "PLAYER_JOINED":
+            set((s) => {
+              const arr = [...s.players];
+              arr[msg.seat] = shortAddress(msg.playerId);
+              return { players: arr };
+            });
+            get().addLog(`${shortAddress(msg.playerId)} joined`);
+            break;
+          case "PLAYER_LEFT":
+            set((s) => {
+              const arr = [...s.players];
+              arr[msg.seat] = null;
+              const states = [...s.playerStates];
+              states[msg.seat] = PlayerState.EMPTY;
+              return { players: arr, playerStates: states };
+            });
+            get().addLog(`${shortAddress(msg.playerId)} left`);
+            break;
+          case "PLAYER_DISCONNECTED":
+            set((s) => {
+              const arr = [...s.playerStates];
+              arr[msg.seat] = PlayerState.DISCONNECTED;
+              return { playerStates: arr };
+            });
+            get().addLog(`${shortAddress(msg.playerId)} disconnected`);
+            break;
+          case "PLAYER_REJOINED":
+            set((s) => {
+              const arr = [...s.playerStates];
+              arr[msg.seat] = PlayerState.ACTIVE;
+              return { playerStates: arr };
+            });
+            get().addLog(`${shortAddress(msg.playerId)} rejoined`);
+            break;
+          case "ACTION_PROMPT":
+            set({ currentTurn: msg.actingIndex });
+            break;
+          case "PLAYER_ACTION_APPLIED": {
+            const name = shortAddress(msg.playerId);
+            let text = ``;
+            switch (msg.action) {
+              case "FOLD":
+                text = `${name} folds`;
+                break;
+              case "CHECK":
+                text = `${name} checks`;
+                break;
+              case "CALL":
+                text = `${name} calls ${msg.amount ?? ""}`.trim();
+                break;
+              case "BET":
+              case "RAISE":
+              case "ALL_IN":
+                text = `${name} ${msg.action.toLowerCase()} ${
+                  msg.amount ?? ""
+                }`.trim();
+                break;
+            }
+            if (text) get().addLog(text);
+            break;
+          }
+          case "DEAL_FLOP":
+            set((s) => {
+              const comm = [...s.community];
+              msg.cards.forEach((c, i) => (comm[i] = cardToIndex(c)));
+              return { community: comm };
+            });
+            break;
+          case "DEAL_TURN":
+            set((s) => {
+              const comm = [...s.community];
+              comm[3] = cardToIndex(msg.card);
+              return { community: comm };
+            });
+            break;
+          case "DEAL_RIVER":
+            set((s) => {
+              const comm = [...s.community];
+              comm[4] = cardToIndex(msg.card);
+              return { community: comm };
+            });
+            break;
+          case "HAND_START":
+            get().addLog("Dealer: Hand started");
+            break;
+          case "HAND_END":
+            get().addLog("Dealer: Hand complete");
+            break;
+          case "ROUND_END":
+            break;
+          case "ERROR":
+            set({ error: msg.msg });
+            break;
+        }
+      } catch {
+        /* ignore malformed */
+      }
+    };
+    set({ socket });
+  }
+
   return {
     players: Array(9).fill(null),
     playerHands: Array(9).fill(null),
@@ -93,7 +243,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     pot: 0,
     currentTurn: null,
     street: 0,
-    phase: engine.getPhase(),
     loading: false,
     error: null,
     logs: [],
@@ -106,131 +255,60 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           smallBlind: s.smallBlind * 2,
           bigBlind: s.bigBlind * 2,
         }));
-      setTimeout(
-        function tick() {
-          increase();
-          setTimeout(tick, 10 * 60 * 1000);
-        },
-        10 * 60 * 1000,
-      );
+      setTimeout(function tick() {
+        increase();
+        setTimeout(tick, 10 * 60 * 1000);
+      }, 10 * 60 * 1000);
     },
+    socket,
+    sessionId:
+      typeof window !== "undefined" ? localStorage.getItem("sessionId") : null,
 
-    /** Sync Zustand state from the current room object */
-    reloadTableState: async () => {
-      const room = engine.getState();
-      const seats = Array(9).fill(null) as (string | null)[];
-      const hands = Array(9).fill(null) as ([number, number] | null)[];
-      const chips = Array(9).fill(0) as number[];
-      const bets = Array(9).fill(0) as number[];
-      const states = Array(9).fill(PlayerState.EMPTY) as PlayerState[];
-      room.players.forEach((p) => {
-        seats[p.seat] = p.nickname;
-        if (p.hand.length === 2) {
-          hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
-        }
-        chips[p.seat] = p.chips;
-        bets[p.seat] = p.currentBet;
-        let state = PlayerState.ACTIVE;
-        if (p.hasFolded) state = PlayerState.FOLDED;
-        else if (p.chips === 0) state = PlayerState.ALL_IN;
-        states[p.seat] = state;
-      });
-
-      const comm = Array(5).fill(null) as (number | null)[];
-      room.communityCards.forEach((c, i) => {
-        comm[i] = cardToIndex(c);
-      });
-
-      set({
-        players: seats,
-        playerHands: hands,
-        community: comm,
-        chips,
-        playerBets: bets,
-        playerStates: states,
-        pot: room.pot,
-        currentTurn:
-          room.players.length && room.players[room.currentTurnIndex]?.isTurn
-            ? room.players[room.currentTurnIndex].seat
-            : null,
-        street: stageToStreet[room.stage],
-        phase: engine.getPhase(),
-        loading: false,
-        error: null,
-      });
-    },
-
-    /** Seat a player using the stored session address */
-    joinSeat: async (seatIdx: number) => {
-      const room = engine.getState();
-      // prevent double seating or multiple seats per user
-      if (room.players.some((p) => p.seat === seatIdx)) return;
-      const id =
-        typeof window !== "undefined"
-          ? localStorage.getItem("sessionId")
-          : null;
-      if (!id) return;
-      if (room.players.some((p) => p.id === id)) return;
-      const nickname = shortAddress(id);
-      engine.addPlayer({
-        id,
-        nickname,
-        seat: seatIdx,
-        chips: 10000,
-      });
-      await get().reloadTableState();
-      get().addLog(`${nickname} joined`);
-    },
-
-    /** Deal new hole cards to all players */
-    startHand: async () => {
-      engine.startHand();
-      await get().reloadTableState();
-    },
-
-    /** Reveal the flop (dev control) */
-    dealFlop: async () => {
-      if (engine.getState().stage === "preflop") {
-        engine.progressStage();
+    joinSeat: async (_seatIdx: number) => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "SIT",
+          tableId: TABLE_ID,
+          buyIn: 10000,
+        } as any;
+        socket.send(JSON.stringify(cmd));
       }
     },
 
-    /** Reveal the turn (dev control) */
-    dealTurn: async () => {
-      if (engine.getState().stage === "flop") {
-        engine.progressStage();
-      }
-    },
+    startHand: async () => {},
+    dealFlop: async () => {},
+    dealTurn: async () => {},
+    dealRiver: async () => {},
 
-    /** Reveal the river (dev control) */
-    dealRiver: async () => {
-      if (engine.getState().stage === "turn") {
-        engine.progressStage();
-      }
-    },
-
-    /** Apply a betting action for the current turn player */
     playerAction: async (action) => {
-      const room = engine.getState();
-      const current = room.players[room.currentTurnIndex];
-      engine.handleAction(current.id, action);
-      const acted = engine.getState().players.find((p) => p.id === current.id)!;
-      let msg = "";
-      switch (action.type) {
-        case "fold":
-          msg = `${acted.nickname} folds`;
-          break;
-        case "check":
-          msg = `${acted.nickname} checks`;
-          break;
-        case "call":
-          msg = `${acted.nickname} calls ${acted.currentBet}`;
-          break;
-        case "raise":
-          msg = `${acted.nickname} bets ${action.amount ?? acted.currentBet}`;
-          break;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const map: Record<string, string> = {
+          fold: "FOLD",
+          call: "CALL",
+          raise: "RAISE",
+          check: "CHECK",
+        };
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "ACTION",
+          action: map[action.type] as any,
+          amount: action.amount,
+        };
+        socket.send(JSON.stringify(cmd));
       }
-      get().addLog(msg);
+    },
+
+    rebuy: async (amount: number) => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "REBUY",
+          amount,
+        };
+        socket.send(JSON.stringify(cmd));
+      }
     },
   };
 });
+
