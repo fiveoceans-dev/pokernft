@@ -8,6 +8,8 @@ import type {
   Stage,
   Table,
 } from "../backend";
+import { listTables, registerTable, getEngine as getRegisteredEngine } from "./lobby";
+import { randomUUID } from "crypto";
 import { SessionManager, Session } from "./sessionManager";
 import { shortAddress } from "../utils/address";
 import {
@@ -20,7 +22,6 @@ import {
 
 const wss = new WebSocketServer({ port: 8080 });
 const sessions = new SessionManager();
-const engines = new Map<string, GameEngine>();
 const processed = new Map<WebSocket, Set<string>>();
 const tables = new Map<string, Table>();
 const seating = new Map<string, SeatingManager>();
@@ -32,13 +33,13 @@ const seatMaps = new Map<string, Map<string, number>>();
 })();
 
 function getEngine(id: string, snapshot?: GameRoom): GameEngine {
-  let engine = engines.get(id);
+  let engine = getRegisteredEngine(id);
   if (!engine) {
     engine = new GameEngine(id);
     if (snapshot) {
       engine.loadState(snapshot);
     }
-    engines.set(id, engine);
+    registerTable(id, engine);
 
     const table: Table = {
       seats: Array(6).fill(null),
@@ -176,6 +177,29 @@ wss.on("connection", (ws) => {
       set.add(msg.cmdId);
 
       switch (msg.type) {
+        case "LIST_TABLES": {
+          ws.send(
+            JSON.stringify({
+              tableId: "",
+              type: "TABLE_LIST",
+              tables: listTables(),
+            } satisfies ServerEvent),
+          );
+          break;
+        }
+        case "CREATE_TABLE": {
+          const id = randomUUID();
+          const engine = getEngine(id);
+          registerTable(id, engine, msg.name);
+          ws.send(
+            JSON.stringify({
+              tableId: id,
+              type: "TABLE_CREATED",
+              table: { id, name: msg.name },
+            } satisfies ServerEvent),
+          );
+          break;
+        }
         case "REATTACH": {
           let existing = sessions.getBySessionId(msg.sessionId);
           if (!existing) {
