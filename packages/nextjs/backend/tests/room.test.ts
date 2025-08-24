@@ -243,9 +243,24 @@ describe("room helpers", () => {
 
   it("awards pot immediately when all but one fold", () => {
     const room = createRoom("foldwin");
-    const p1 = addPlayer(room, { id: "p1", nickname: "A", seat: 0, chips: 100 });
-    const p2 = addPlayer(room, { id: "p2", nickname: "B", seat: 1, chips: 100 });
-    const p3 = addPlayer(room, { id: "p3", nickname: "C", seat: 2, chips: 100 });
+    const p1 = addPlayer(room, {
+      id: "p1",
+      nickname: "A",
+      seat: 0,
+      chips: 100,
+    });
+    const p2 = addPlayer(room, {
+      id: "p2",
+      nickname: "B",
+      seat: 1,
+      chips: 100,
+    });
+    const p3 = addPlayer(room, {
+      id: "p3",
+      nickname: "C",
+      seat: 2,
+      chips: 100,
+    });
     room.stage = "preflop";
     room.pot = 30;
     room.currentTurnIndex = 0;

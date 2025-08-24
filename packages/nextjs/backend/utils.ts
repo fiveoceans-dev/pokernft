@@ -1,6 +1,6 @@
-import { RANKS, SUITS } from './constants';
-import type { Card } from './types';
-import { randomInt, seededRNG } from './rng';
+import { RANKS, SUITS } from "./constants";
+import type { Card } from "./types";
+import { randomInt, seededRNG } from "./rng";
 
 /* ─────── Random + Deck helpers ─────── */
 
@@ -35,7 +35,7 @@ export function shuffleWithSeed<T>(array: T[], seed: string): T[] {
 /** Draws & returns the **top** card (mutates deck) */
 export function draw(deck: Card[]): Card {
   const card = deck.pop();
-  if (!card) throw new Error('Deck underflow');
+  if (!card) throw new Error("Deck underflow");
   return card;
 }
 
@@ -50,4 +50,3 @@ export function indexToCard(code: number): Card {
 export function cardToIndex(card: Card): number {
   return SUITS.indexOf(card.suit) * RANKS.length + RANKS.indexOf(card.rank);
 }
-

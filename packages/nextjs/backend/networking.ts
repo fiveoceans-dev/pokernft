@@ -17,7 +17,12 @@ export type ServerEvent =
   | { tableId: string; type: "DEAL_HOLE"; seat: number; cards: [Card, Card] }
   | { tableId: string; type: "PLAYER_JOINED"; seat: number; playerId: string }
   | { tableId: string; type: "PLAYER_LEFT"; seat: number; playerId: string }
-  | { tableId: string; type: "PLAYER_DISCONNECTED"; seat: number; playerId: string }
+  | {
+      tableId: string;
+      type: "PLAYER_DISCONNECTED";
+      seat: number;
+      playerId: string;
+    }
   | { tableId: string; type: "PLAYER_REJOINED"; seat: number; playerId: string }
   | {
       tableId: string;

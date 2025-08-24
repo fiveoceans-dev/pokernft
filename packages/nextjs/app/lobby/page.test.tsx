@@ -14,7 +14,10 @@ class MockWebSocket {
       type: "TABLE_LIST",
       tables: [{ id: "demo", name: "Demo" }],
     };
-    setTimeout(() => this.onmessage && this.onmessage({ data: JSON.stringify(payload) }), 0);
+    setTimeout(
+      () => this.onmessage && this.onmessage({ data: JSON.stringify(payload) }),
+      0,
+    );
   }
   close() {}
 }
@@ -28,4 +31,3 @@ test("renders lobby with table links", async () => {
   const link = await screen.findByRole("link", { name: "Join" });
   expect(link).toHaveAttribute("href", "/play?table=demo");
 });
-

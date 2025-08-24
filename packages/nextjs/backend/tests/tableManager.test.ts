@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import TableManager from '../tableManager';
+import { describe, it, expect } from "vitest";
+import TableManager from "../tableManager";
 import {
   Table,
   Player,
@@ -7,7 +7,7 @@ import {
   PlayerAction,
   TableState,
   Round,
-} from '../types';
+} from "../types";
 
 const createPlayer = (
   id: string,
@@ -53,11 +53,11 @@ const createTable = (seats: (Player | null)[]): Table => ({
   dealAnimationDelayMs: 0,
 });
 
-describe('TableManager', () => {
-  it('completes a hand when the first player folds preflop', async () => {
+describe("TableManager", () => {
+  it("completes a hand when the first player folds preflop", async () => {
     const table = createTable([
-      createPlayer('a', 0, 100),
-      createPlayer('b', 1, 100),
+      createPlayer("a", 0, 100),
+      createPlayer("b", 1, 100),
     ]);
     const mgr = new TableManager(table);
     const started = mgr.startHand();

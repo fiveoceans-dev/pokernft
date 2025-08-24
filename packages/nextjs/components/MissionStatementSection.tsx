@@ -5,9 +5,7 @@ const message =
 
 export default function MissionStatementSection() {
   return (
-    <section
-      className="py-6 text-accent"
-    >
+    <section className="py-6 text-accent">
       <div className="whitespace-nowrap">
         <div className="animate-marquee inline-block text-lg tracking-wide">
           <span className="mx-8">{message}</span>

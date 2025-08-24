@@ -12,11 +12,7 @@ import { useConnect } from "@starknet-react/core";
 
 /* ─────────────────────────────────────────────────────── */
 
-export default function Table({
-  timer,
-}: {
-  timer?: number | null;
-}) {
+export default function Table({ timer }: { timer?: number | null }) {
   const {
     players,
     playerIds,

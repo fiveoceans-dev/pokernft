@@ -1,6 +1,9 @@
-import { RANKS } from './constants';
-import type { Card } from './types';
-import type { HandEvaluatorRequest, HandEvaluatorResponse } from './jsonFormats';
+import { RANKS } from "./constants";
+import type { Card } from "./types";
+import type {
+  HandEvaluatorRequest,
+  HandEvaluatorResponse,
+} from "./jsonFormats";
 
 export interface RankedHand {
   rankValue: number; // lower = better
@@ -27,7 +30,13 @@ function isStraight(ranks: number[]): number | null {
     if (ok) return uniq[i];
   }
   // wheel straight (A-2-3-4-5)
-  if (uniq.includes(12) && uniq.includes(3) && uniq.includes(2) && uniq.includes(1) && uniq.includes(0)) {
+  if (
+    uniq.includes(12) &&
+    uniq.includes(3) &&
+    uniq.includes(2) &&
+    uniq.includes(1) &&
+    uniq.includes(0)
+  ) {
     return 3; // treat 5 as high card (rank index 3)
   }
   return null;
@@ -62,7 +71,8 @@ function evaluateFive(cards: Card[]): RankedHand {
     .sort((a, b) => b - a)
     .filter((r) => !orderedRanks.includes(r));
   const merged = [...orderedRanks, ...kickers].slice(0, 5);
-  const toCards = (arr: number[]): Card[] => arr.map((r) => cards.find((c) => RANKS.indexOf(c.rank) === r)!);
+  const toCards = (arr: number[]): Card[] =>
+    arr.map((r) => cards.find((c) => RANKS.indexOf(c.rank) === r)!);
 
   if (isFlush && straightHigh !== null) {
     const bestRanks: number[] = [];
@@ -75,7 +85,10 @@ function evaluateFive(cards: Card[]): RankedHand {
     return { rankValue: 1, bestCards: best };
   }
   if (entries[0].count === 4) {
-    const best = toCards([...Array(4).fill(entries[0].rank), merged.find((r) => r !== entries[0].rank)!]);
+    const best = toCards([
+      ...Array(4).fill(entries[0].rank),
+      merged.find((r) => r !== entries[0].rank)!,
+    ]);
     return { rankValue: 2, bestCards: best };
   }
   if (entries[0].count === 3 && entries[1]?.count === 2) {
@@ -126,11 +139,7 @@ function evaluateFive(cards: Card[]): RankedHand {
   }
   if (entries[0].count === 2) {
     const kick = merged.filter((r) => r !== entries[0].rank).slice(0, 3);
-    const best = toCards([
-      entries[0].rank,
-      entries[0].rank,
-      ...kick,
-    ]);
+    const best = toCards([entries[0].rank, entries[0].rank, ...kick]);
     return { rankValue: 8, bestCards: best };
   }
   const best = sortRanks(cards).slice(0, 5);
@@ -139,7 +148,7 @@ function evaluateFive(cards: Card[]): RankedHand {
 
 export function rankHand(cards: Card[]): RankedHand {
   if (cards.length < 5) {
-    throw new Error('Need at least 5 cards');
+    throw new Error("Need at least 5 cards");
   }
   const seven = cards.slice();
   if (seven.length === 5) return evaluateFive(seven);

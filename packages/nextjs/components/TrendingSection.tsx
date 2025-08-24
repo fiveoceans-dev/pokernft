@@ -19,10 +19,7 @@ const items: PopularNftCardProps[] = Array.from({ length: 7 }).map((_, i) => ({
  */
 export default function TrendingSection() {
   return (
-    <section
-      id="marketplace"
-      className="py-24 text-white"
-    >
+    <section id="marketplace" className="py-24 text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-10">
           <span className="text-accent">Trending</span>

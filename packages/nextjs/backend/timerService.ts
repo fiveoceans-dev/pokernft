@@ -1,6 +1,6 @@
-import { Player, PlayerAction, PlayerState, Table, Round } from './types';
-import { draw } from './utils';
-import { ACTION_TIMEOUT_MS } from './constants';
+import { Player, PlayerAction, PlayerState, Table, Round } from "./types";
+import { draw } from "./utils";
+import { ACTION_TIMEOUT_MS } from "./constants";
 
 /** Handlers invoked when timers resolve to auto actions */
 export interface TimerHandlers {

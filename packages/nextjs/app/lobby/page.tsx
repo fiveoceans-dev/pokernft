@@ -12,7 +12,7 @@ export default function LobbyPage() {
     const ws = new WebSocket("ws://localhost:8080");
     ws.onopen = () => {
       ws.send(
-        JSON.stringify({ cmdId: Date.now().toString(), type: "LIST_TABLES" })
+        JSON.stringify({ cmdId: Date.now().toString(), type: "LIST_TABLES" }),
       );
     };
     ws.onmessage = (e) => {
@@ -52,4 +52,3 @@ export default function LobbyPage() {
     </main>
   );
 }
-

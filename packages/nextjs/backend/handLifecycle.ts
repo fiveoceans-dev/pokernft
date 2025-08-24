@@ -63,4 +63,3 @@ export async function endHand(table: Table, audit?: AuditLogger) {
   table.state = TableState.PAYOUT;
   await resetTableForNextHand(table);
 }
-

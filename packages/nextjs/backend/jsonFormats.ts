@@ -1,4 +1,4 @@
-import type { Card, PlayerAction, Table } from './types';
+import type { Card, PlayerAction, Table } from "./types";
 
 export interface HandEvaluatorRequest {
   cards: Card[];
@@ -9,7 +9,7 @@ export interface HandEvaluatorResponse {
   bestCards: Card[];
 }
 
-export interface JsonTable extends Omit<Table, 'actedSinceLastRaise'> {
+export interface JsonTable extends Omit<Table, "actedSinceLastRaise"> {
   actedSinceLastRaise: number[];
 }
 
@@ -29,5 +29,8 @@ export function tableFromJson(json: JsonTable): Table {
 }
 
 export function tableToJson(table: Table): JsonTable {
-  return { ...table, actedSinceLastRaise: Array.from(table.actedSinceLastRaise) };
+  return {
+    ...table,
+    actedSinceLastRaise: Array.from(table.actedSinceLastRaise),
+  };
 }

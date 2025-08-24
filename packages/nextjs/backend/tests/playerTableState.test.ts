@@ -51,7 +51,9 @@ describe("playerStateReducer", () => {
   });
 
   it("auto folds disconnected player on timeout", () => {
-    const state = playerStateReducer(PlayerState.DISCONNECTED, { type: "FOLD" });
+    const state = playerStateReducer(PlayerState.DISCONNECTED, {
+      type: "FOLD",
+    });
     expect(state).toBe(PlayerState.FOLDED);
   });
 
