@@ -34,9 +34,9 @@ const steps = [
     icon: FaTable,
   },
   {
-    title: "Fund Distribution",
+    title: "Prizes Distribution",
     description:
-      "Funds split: 80% prizes, 10% creator, 10% protocol.",
+      "Bank split: 80% prizes, 10% creator, 10% protocol.",
     icon: FaCoins,
   },
   {
