@@ -66,6 +66,8 @@ export interface GameRoom {
 
 export interface UiPlayer {
   name: string;
+  /** full wallet address */
+  address?: string;
   chips: number;
   hand: [Card, Card] | null;
   folded: boolean;
