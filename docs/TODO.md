@@ -23,3 +23,4 @@ tie back to features discussed across the documents in this directory. See
 - Refactor frontend store to consume WebSocket events instead of a local engine.
 - Add integration tests covering connect → seat → action → disconnect → reconnect.
 - (Optional) Persist sessions and tables in Redis to survive server restarts.
+- Fix failing tests, lint, and type checks to keep baseline green.
