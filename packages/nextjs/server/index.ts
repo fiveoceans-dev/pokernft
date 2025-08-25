@@ -133,6 +133,10 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
   return engine;
 }
 
+function getRoom(id: string): GameRoom {
+  return getEngine(id).getState();
+}
+
 function broadcast(roomId: string, event: Omit<ServerEvent, "tableId">) {
   const msg = JSON.stringify({ tableId: roomId, ...event });
   wss.clients.forEach((client) => {
@@ -296,15 +300,19 @@ wss.on("connection", (ws) => {
           break;
         }
         case "SIT": {
-          const room = getRoom(msg.tableId);
+          const engine = getEngine(msg.tableId);
+          const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const nickname = shortAddress(playerId);
-          addPlayer(room, {
+          const seatIndex = msg.seat;
+          if (seatIndex === undefined) break;
+          engine.addPlayer({
             id: playerId,
             nickname,
             seat: seatIndex,
             chips: msg.buyIn,
           });
+          seatMaps.get(room.id)?.set(playerId, seatIndex);
           session.roomId = room.id;
           void saveSession(session);
           broadcast(room.id, {
