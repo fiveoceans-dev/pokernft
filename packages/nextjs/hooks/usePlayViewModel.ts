@@ -17,41 +17,9 @@ export function usePlayViewModel() {
     startBlindTimer,
   } = useGameStore();
   const [timer, setTimer] = useState<number | null>(null);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const handStarted = playerHands.some((h) => h !== null);
   const activePlayers = players.filter(Boolean).length;
-
-  // establish websocket connection and persist session token
-  useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("sessionId") : null;
-    const ws = new WebSocket("ws://localhost:8080");
-    ws.onopen = () => {
-      if (stored) {
-        ws.send(
-          JSON.stringify({
-            cmdId: crypto.randomUUID(),
-            type: "ATTACH",
-            sessionId: stored,
-          }),
-        );
-      }
-    };
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data as string);
-        if (msg.type === "SESSION" && msg.userId) {
-          setSessionId(msg.userId);
-          localStorage.setItem("sessionId", msg.userId);
-        }
-      } catch {
-        /* ignore malformed */
-      }
-    };
-    setSocket(ws);
-    return () => ws.close();
-  }, []);
 
   useEffect(() => {
     const originalBody = document.body.style.overflow;
@@ -98,7 +66,5 @@ export function usePlayViewModel() {
     stageNames,
     handStarted,
     handleActivate,
-    socket,
-    sessionId,
   };
 }

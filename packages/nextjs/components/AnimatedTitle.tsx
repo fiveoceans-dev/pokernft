@@ -8,11 +8,15 @@ interface AnimatedTitleProps {
   interval?: number; // seconds between animation repeats
 }
 
-export default function AnimatedTitle({ text, delay = 0.05, interval = 10 }: AnimatedTitleProps) {
+export default function AnimatedTitle({
+  text,
+  delay = 0.05,
+  interval = 10,
+}: AnimatedTitleProps) {
   const [iteration, setIteration] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setIteration(i => i + 1), interval * 1000);
+    const id = setInterval(() => setIteration((i) => i + 1), interval * 1000);
     return () => clearInterval(id);
   }, [interval]);
 

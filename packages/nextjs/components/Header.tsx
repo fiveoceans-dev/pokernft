@@ -145,6 +145,9 @@ export const Header = () => {
           <HeaderMenuLinks />
         </ul>
       </div>
+      <div className="navbar-end flex-1 justify-end pr-4">
+        <CustomConnectButton />
+      </div>
     </div>
   );
 };

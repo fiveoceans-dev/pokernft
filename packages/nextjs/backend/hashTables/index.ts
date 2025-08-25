@@ -1,9 +1,9 @@
 // Precomputed tables from HenryRLee/PokerHandEvaluator
-export { CHOOSE, DP, SUITS } from './dptables';
-export { FLUSH } from './hashtable';
-export { NO_FLUSH_5 } from './hashtable5';
-export { NO_FLUSH_6 } from './hashtable6';
-export { NO_FLUSH_7 } from './hashtable7';
+export { CHOOSE, DP, SUITS } from "./dptables";
+export { FLUSH } from "./hashtable";
+export { NO_FLUSH_5 } from "./hashtable5";
+export { NO_FLUSH_6 } from "./hashtable6";
+export { NO_FLUSH_7 } from "./hashtable7";
 
 export const BINARIES_BY_ID: number[] = (() => {
   const arr: number[] = [];

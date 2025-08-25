@@ -26,9 +26,9 @@ const tournaments: Tournament[] = [
     nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Saturday $200,000",
     game: "NLH",
-    date: "2024-06-01",
+    date: "2024-10-01",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "CryptoKitties",
+    creator: "Satoshi",
     prize: 80,
     creatorShare: 10,
     protocolFee: 10,
@@ -41,9 +41,9 @@ const tournaments: Tournament[] = [
     nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Saturday Million",
     game: "NLH",
-    date: "2024-06-15",
+    date: "2025-10-07",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "Cool Cats",
+    creator: "Stark Foundation",
     prize: 80,
     creatorShare: 10,
     protocolFee: 10,
@@ -56,9 +56,9 @@ const tournaments: Tournament[] = [
     nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Sunday Showdown",
     game: "NLH",
-    date: "2024-07-04",
+    date: "2025-10-14",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "Doodles",
+    creator: "PokerNFTs",
     prize: 80,
     creatorShare: 10,
     protocolFee: 10,
@@ -71,9 +71,9 @@ const tournaments: Tournament[] = [
     nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Nightly Brawl",
     game: "NLH",
-    date: "2024-07-20",
+    date: "2025-10-21",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "CryptoPunks",
+    creator: "NFTMillionaires",
     prize: 80,
     creatorShare: 10,
     protocolFee: 10,
@@ -86,9 +86,9 @@ const tournaments: Tournament[] = [
     nft: "https://placehold.co/220x320.png?text=NFT",
     name: "High Roller",
     game: "Hold'em",
-    date: "2024-08-05",
+    date: "2025-10-28",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "Azuki",
+    creator: "Cryptopunks",
     prize: 80,
     creatorShare: 10,
     protocolFee: 10,
@@ -101,9 +101,9 @@ const tournaments: Tournament[] = [
     nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Daily Spin",
     game: "Hold'em",
-    date: "2024-08-20",
+    date: "2025-09-20",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "Moonbirds",
+    creator: "Bored",
     prize: 80,
     creatorShare: 10,
     protocolFee: 10,
@@ -130,10 +130,10 @@ const tournaments: Tournament[] = [
     id: 8,
     nft: "https://placehold.co/320x320.png?text=NFT",
     name: "Grand Finale",
-    date: "2024-09-30",
+    date: "2025-12-30",
     game: "Hold'em",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "CloneX",
+    creator: "LastSurvivors",
     prize: 80,
     creatorShare: 10,
     protocolFee: 10,
@@ -189,13 +189,10 @@ export default function TournamentsTableSection() {
   };
 
   return (
-    <section
-      id="tournaments"
-      className="py-24 text-gray-900 dark:text-white"
-    >
+    <section id="tournaments" className="py-24 text-gray-900 dark:text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl font-bold text-center mb-8">
-          <span className="text-accent">Tournaments</span>
+          <span className="text-accent">Upcoming Tournaments</span>
         </h2>
         <div className="overflow-auto rounded-lg border border-gray-300 dark:border-gray-700">
           <table className="min-w-full text-xs sm:text-sm table-auto">

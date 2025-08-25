@@ -179,8 +179,10 @@ describe("room helpers", () => {
     ];
     payout(remainderRoom, remainderWinners);
     assert.strictEqual(remainderRoom.pot, 0);
-    assert.strictEqual(remainderRoom.players[1].chips, 3);
-    assert.strictEqual(remainderRoom.players[2].chips, 2);
+    const b = remainderRoom.players.find((p: any) => p.id === "b");
+    const c = remainderRoom.players.find((p: any) => p.id === "c");
+    assert.strictEqual(b?.chips, 3);
+    assert.strictEqual(c?.chips, 2);
 
     // players with zero chips are removed before the next hand
     const bustRoom = {
@@ -241,9 +243,24 @@ describe("room helpers", () => {
 
   it("awards pot immediately when all but one fold", () => {
     const room = createRoom("foldwin");
-    const p1 = addPlayer(room, { id: "p1", nickname: "A", seat: 0, chips: 100 });
-    const p2 = addPlayer(room, { id: "p2", nickname: "B", seat: 1, chips: 100 });
-    const p3 = addPlayer(room, { id: "p3", nickname: "C", seat: 2, chips: 100 });
+    const p1 = addPlayer(room, {
+      id: "p1",
+      nickname: "A",
+      seat: 0,
+      chips: 100,
+    });
+    const p2 = addPlayer(room, {
+      id: "p2",
+      nickname: "B",
+      seat: 1,
+      chips: 100,
+    });
+    const p3 = addPlayer(room, {
+      id: "p3",
+      nickname: "C",
+      seat: 2,
+      chips: 100,
+    });
     room.stage = "preflop";
     room.pot = 30;
     room.currentTurnIndex = 0;

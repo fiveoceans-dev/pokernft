@@ -1,6 +1,6 @@
-import { Player, PlayerAction, PlayerState, Table, Round } from './types';
-import { draw } from './utils';
-import { ACTION_TIMEOUT_MS } from './constants';
+import { Player, PlayerAction, PlayerState, Table, Round } from "./types";
+import { draw } from "./utils";
+import { ACTION_TIMEOUT_MS } from "./constants";
 
 /** Handlers invoked when timers resolve to auto actions */
 export interface TimerHandlers {
@@ -12,8 +12,8 @@ export interface TimerHandlers {
  * disconnect grace periods and animation delays between game events.
  */
 export class TimerService {
-  private turnTimer?: NodeJS.Timeout;
-  private disconnectTimers = new Map<string, NodeJS.Timeout>();
+  private turnTimer?: ReturnType<typeof setTimeout>;
+  private disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(
     private table: Table,

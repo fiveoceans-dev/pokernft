@@ -32,9 +32,7 @@ export default function PlayerSeat({
   ];
 
   return (
-    <div
-      className={clsx("relative w-24 h-8", player.folded && "opacity-60")}
-    >
+    <div className={clsx("relative w-24 h-8", player.folded && "opacity-60")}>
       {/* Hole cards are rendered only after the dealer deals them */}
       {player.hand && (
         <div
@@ -48,10 +46,7 @@ export default function PlayerSeat({
 
       {/* Seat box with player name */}
       <div
-        className={clsx(
-          "relative w-full h-full",
-          isActive && "animate-pulse",
-        )}
+        className={clsx("relative w-full h-full", isActive && "animate-pulse")}
       >
         {/* Dealer marker */}
         {isDealer && (
@@ -65,30 +60,34 @@ export default function PlayerSeat({
           </span>
         )}
 
-      <div
-        className={clsx(
-          "absolute inset-0 flex items-center justify-center rounded border font-semibold text-center truncate px-1 transition-colors",
-          isActive
-            ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
-            : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
+        <div
+          className={clsx(
+            "absolute inset-0 flex flex-col items-center justify-center rounded border font-semibold text-center px-1 transition-colors",
+            isActive
+              ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
+              : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
+          )}
+        >
+          <span className="text-[var(--color-highlight)] truncate w-full">
+            {player.name}
+          </span>
+          {player.address && (
+            <span className="text-xs w-full truncate">
+              {shortAddress(player.address)}
+            </span>
+          )}
+        </div>
+        {state === PlayerState.ALL_IN && (
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-yellow-300 font-bold">
+            ALL IN
+          </span>
         )}
-      >
-        <span className="text-[var(--color-highlight)]">
-          {shortAddress(player.name)}
-        </span>
+        {state === PlayerState.FOLDED && (
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-gray-300">
+            Folded
+          </span>
+        )}
       </div>
-      {state === PlayerState.ALL_IN && (
-        <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-yellow-300 font-bold">
-          ALL IN
-        </span>
-      )}
-      {state === PlayerState.FOLDED && (
-        <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-gray-300">
-          Folded
-        </span>
-      )}
-      </div>
-
     </div>
   );
 }

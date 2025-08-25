@@ -1,24 +1,20 @@
 // src/components/Table.tsx
 
-import { Fragment } from "react";
+import { Fragment, useEffect } from "react";
 import type { CSSProperties } from "react";
 import { useTableViewModel } from "../hooks/useTableViewModel";
 import Card from "./Card";
 import { indexToCard, PlayerState } from "../backend";
 import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../backend";
+import { useAccount } from "../hooks/useAccount";
 
 /* ─────────────────────────────────────────────────────── */
 
-export default function Table({
-  timer,
-  socket,
-}: {
-  timer?: number | null;
-  socket?: WebSocket | null;
-}) {
+export default function Table({ timer }: { timer?: number | null }) {
   const {
     players,
+    playerIds,
     playerHands,
     community,
     joinSeat,
@@ -41,13 +37,37 @@ export default function Table({
     displayTimer,
     actionDisabled,
     handleActionClick,
-  } = useTableViewModel(timer, socket);
+  } = useTableViewModel(timer);
+
+  const { address } = useAccount();
+
+  useEffect(() => {
+    if (address) {
+      localStorage.setItem("walletAddress", address);
+    }
+  }, [address]);
+
+  const handleSeatRequest = (idx: number) => {
+    const session =
+      typeof window !== "undefined" ? localStorage.getItem("sessionId") : null;
+    if (!session) {
+      const modal = document.getElementById("connect-modal") as
+        | HTMLInputElement
+        | null;
+      if (modal) modal.checked = true;
+      return;
+    }
+    joinSeat(idx);
+  };
+
+  // The table is always visible; wallet connections are handled elsewhere.
 
   const holeCardSize = "sm";
 
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
     const nickname = players[idx];
+    const addr = playerIds[idx];
     const handCodes = playerHands[idx];
     const pos = layout[idx];
     if (!pos) return null;
@@ -78,7 +98,7 @@ export default function Table({
           <div>
             {badge}
             <button
-              onClick={() => joinSeat(idx)}
+              onClick={() => handleSeatRequest(idx)}
               className="w-24 h-8 flex items-center justify-center rounded text-xs text-gray-300 border border-dashed border-gray-500 bg-black/20 transition-colors duration-150 hover:bg-red-500 hover:text-white"
             >
               Play
@@ -96,6 +116,7 @@ export default function Table({
     // TODO: visually mark auto-folded players (Action Plan 1.2)
     const player: UiPlayer = {
       name: nickname,
+      address: addr ?? "",
       chips: chips[idx] ?? 0,
       hand,
       folded: state === PlayerState.FOLDED,

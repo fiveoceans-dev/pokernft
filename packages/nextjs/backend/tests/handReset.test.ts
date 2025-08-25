@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   Table,
   Player,
@@ -6,8 +6,8 @@ import {
   PlayerAction,
   TableState,
   Round,
-} from '../types';
-import { resetTableForNextHand } from '../handReset';
+} from "../types";
+import { resetTableForNextHand } from "../handReset";
 
 const createPlayer = (
   id: string,
@@ -24,7 +24,7 @@ const createPlayer = (
   timebankMs: 0,
   betThisRound: 0,
   totalCommitted: 0,
-  holeCards: ['X' as any, 'Y' as any],
+  holeCards: ["X" as any, "Y" as any],
   lastAction: PlayerAction.BET,
   missedSmallBlind: false,
   missedBigBlind: false,
@@ -40,8 +40,8 @@ const createTable = (seats: (Player | null)[]): Table => ({
   minBuyIn: 0,
   maxBuyIn: 0,
   state: TableState.CLEANUP,
-  deck: ['c'] as any,
-  board: ['b'] as any,
+  deck: ["c"] as any,
+  board: ["b"] as any,
   pots: [{ amount: 100, eligibleSeatSet: [0, 1] }],
   currentRound: Round.RIVER,
   actingIndex: null,
@@ -54,11 +54,11 @@ const createTable = (seats: (Player | null)[]): Table => ({
   dealAnimationDelayMs: 0,
 });
 
-describe('resetTableForNextHand', () => {
-  it('removes leaving players, advances button and starts next hand', async () => {
-    const p1 = createPlayer('a', 0, 100);
-    const p2 = createPlayer('b', 1, 100);
-    const p3 = createPlayer('c', 2, 100, PlayerState.LEAVING);
+describe("resetTableForNextHand", () => {
+  it("removes leaving players, advances button and starts next hand", async () => {
+    const p1 = createPlayer("a", 0, 100);
+    const p2 = createPlayer("b", 1, 100);
+    const p3 = createPlayer("c", 2, 100, PlayerState.LEAVING);
     const table = createTable([p1, p2, p3]);
 
     await resetTableForNextHand(table);
@@ -71,9 +71,9 @@ describe('resetTableForNextHand', () => {
     expect(table.seats[0]?.holeCards.length).toBe(0);
   });
 
-  it('waits for more players when fewer than two can post', async () => {
-    const p1 = createPlayer('a', 0, 100);
-    const p2 = createPlayer('b', 1, 0);
+  it("waits for more players when fewer than two can post", async () => {
+    const p1 = createPlayer("a", 0, 100);
+    const p2 = createPlayer("b", 1, 0);
     const table = createTable([p1, p2]);
 
     await resetTableForNextHand(table);
@@ -81,9 +81,9 @@ describe('resetTableForNextHand', () => {
     expect(table.state).toBe(TableState.WAITING);
   });
 
-  it('removes broke players when re-buy disabled', async () => {
-    const p1 = createPlayer('a', 0, 0);
-    const p2 = createPlayer('b', 1, 100);
+  it("removes broke players when re-buy disabled", async () => {
+    const p1 = createPlayer("a", 0, 0);
+    const p2 = createPlayer("b", 1, 100);
     const table = createTable([p1, p2]);
 
     await resetTableForNextHand(table, false);

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { startTableHand, endHand } from '../handLifecycle';
+import { describe, it, expect } from "vitest";
+import { startTableHand, endHand } from "../handLifecycle";
 import {
   Table,
   Player,
@@ -7,7 +7,7 @@ import {
   PlayerAction,
   TableState,
   Round,
-} from '../types';
+} from "../types";
 
 const createPlayer = (
   id: string,
@@ -53,11 +53,11 @@ const createTable = (seats: (Player | null)[]): Table => ({
   dealAnimationDelayMs: 0,
 });
 
-describe('handLifecycle', () => {
-  it('starts a hand when blinds can be posted', () => {
+describe("handLifecycle", () => {
+  it("starts a hand when blinds can be posted", () => {
     const table = createTable([
-      createPlayer('a', 0, 100),
-      createPlayer('b', 1, 100),
+      createPlayer("a", 0, 100),
+      createPlayer("b", 1, 100),
     ]);
     const ok = startTableHand(table);
     expect(ok).toBe(true);
@@ -66,9 +66,9 @@ describe('handLifecycle', () => {
     expect(table.seats[1]?.betThisRound).toBeGreaterThan(0);
   });
 
-  it('awards pot to last player and resets table', async () => {
-    const p1 = createPlayer('a', 0, 90);
-    const p2 = createPlayer('b', 1, 90);
+  it("awards pot to last player and resets table", async () => {
+    const p1 = createPlayer("a", 0, 90);
+    const p2 = createPlayer("b", 1, 90);
     p1.totalCommitted = 10;
     p2.totalCommitted = 10;
     p2.state = PlayerState.FOLDED;

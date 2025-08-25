@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events';
-import type { ServerEvent, ClientCommand } from './networking';
+import { EventEmitter } from "events";
+import type { ServerEvent, ClientCommand } from "./networking";
 
 /**
  * Simple event bus broadcasting server events to listeners and queuing
@@ -11,12 +11,12 @@ export class EventBus {
 
   /** Emit a server event to all listeners */
   emit(event: ServerEvent) {
-    this.emitter.emit('event', event);
+    this.emitter.emit("event", event);
   }
 
   /** Subscribe to server events */
   onEvent(listener: (event: ServerEvent) => void) {
-    this.emitter.on('event', listener);
+    this.emitter.on("event", listener);
   }
 
   /** Enqueue a client command for later processing */
@@ -36,7 +36,7 @@ export class EventBus {
 
   /** Remove all event listeners */
   clearListeners() {
-    this.emitter.removeAllListeners('event');
+    this.emitter.removeAllListeners("event");
   }
 }
 

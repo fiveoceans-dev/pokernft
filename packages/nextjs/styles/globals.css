@@ -145,7 +145,6 @@ body {
   }
 }
 
-
 .circle-gradient-dark {
   position: absolute;
   top: 0;
@@ -176,11 +175,7 @@ body {
       rgba(224, 255, 0, 0.15),
       transparent 60%
     ),
-    radial-gradient(
-      circle at 70% 70%,
-      rgba(0, 255, 209, 0.15),
-      transparent 60%
-    );
+    radial-gradient(circle at 70% 70%, rgba(0, 255, 209, 0.15), transparent 60%);
 }
 
 @layer utilities {
