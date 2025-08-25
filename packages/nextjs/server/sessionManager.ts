@@ -59,14 +59,12 @@ export class SessionManager {
 
   handleDisconnect(session: Session, onDisconnect: (session: Session) => void) {
     this.clearTimer(session);
-    session.timeout = setTimeout(() => {
-      this.sessions.delete(session.socket);
-      this.bySessionId.delete(session.sessionId);
-      if (session.userId) {
-        this.byUserId.delete(session.userId);
-      }
-      onExpire(session);
-    }, this.disconnectGraceMs);
+    onDisconnect(session);
+    if (!session.timeout) {
+      session.timeout = setTimeout(() => {
+        this.expire(session);
+      }, this.disconnectGraceMs);
+    }
   }
 
   handleReconnect(session: Session) {
