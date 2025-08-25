@@ -16,6 +16,7 @@ describe("EventBus", () => {
       cmdId: "1",
       type: "SIT",
       tableId: "t1",
+      seat: 0,
       buyIn: 100,
     };
     bus.enqueueCommand(cmd);

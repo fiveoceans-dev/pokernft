@@ -301,15 +301,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         ? localStorage.getItem("walletAddress")
         : null,
 
-    joinSeat: async (_seatIdx: number) => {
+    joinSeat: async (seatIdx: number) => {
       if (socket && socket.readyState === WebSocket.OPEN) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
           type: "SIT",
           tableId: TABLE_ID,
+          seat: seatIdx,
           buyIn: 10000,
-          userId: get().walletId ?? undefined,
-        } as any;
+        } as ClientCommand;
         socket.send(JSON.stringify(cmd));
       }
     },
