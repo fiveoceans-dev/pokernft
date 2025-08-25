@@ -40,6 +40,7 @@ describe("jsonFormats table conversion", () => {
       actedSinceLastRaise: new Set([0]),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
     };
 

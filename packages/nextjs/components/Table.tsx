@@ -51,9 +51,9 @@ export default function Table({ timer }: { timer?: number | null }) {
     const session =
       typeof window !== "undefined" ? localStorage.getItem("sessionId") : null;
     if (!session) {
-      const modal = document.getElementById("connect-modal") as
-        | HTMLInputElement
-        | null;
+      const modal = document.getElementById(
+        "connect-modal",
+      ) as HTMLInputElement | null;
       if (modal) modal.checked = true;
       return;
     }

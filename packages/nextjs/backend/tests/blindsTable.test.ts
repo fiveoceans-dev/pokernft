@@ -57,6 +57,7 @@ describe("assignBlindsAndButton", () => {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
     };
 
@@ -93,6 +94,7 @@ describe("assignBlindsAndButton", () => {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
     };
 
@@ -131,6 +133,7 @@ describe("assignBlindsAndButton", () => {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
     };
 
@@ -169,6 +172,7 @@ describe("assignBlindsAndButton", () => {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
       deadBlindRule: DeadBlindRule.POST,
     };
@@ -203,6 +207,7 @@ describe("assignBlindsAndButton", () => {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
       deadBlindRule: DeadBlindRule.WAIT,
     };
@@ -241,6 +246,7 @@ describe("assignBlindsAndButton", () => {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
       deadBlindRule: DeadBlindRule.POST,
     };
@@ -277,6 +283,7 @@ describe("assignBlindsAndButton", () => {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
     };
 
@@ -315,6 +322,7 @@ describe("assignBlindsAndButton", () => {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
     };
     table.seats[2]!.autoPostBlinds = false;
@@ -350,6 +358,7 @@ describe("assignBlindsAndButton", () => {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
     };
     table.seats[0]!.autoPostBlinds = false;

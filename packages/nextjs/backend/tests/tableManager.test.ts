@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import TableManager from "../tableManager";
 import {
   Table,
@@ -50,6 +50,7 @@ const createTable = (seats: (Player | null)[]): Table => ({
   actedSinceLastRaise: new Set(),
   actionTimer: 0,
   interRoundDelayMs: 0,
+  handStartDelayMs: 1000,
   dealAnimationDelayMs: 0,
 });
 
@@ -67,5 +68,20 @@ describe("TableManager", () => {
     await mgr.handleAction(actor, { type: PlayerAction.FOLD });
     expect(table.state).toBe(TableState.BLINDS);
     expect(table.seats[1]?.stack).toBe(105);
+  });
+
+  it("auto-starts a hand after players seat", async () => {
+    vi.useFakeTimers();
+    const table: Table = {
+      ...createTable([null, null]),
+      state: TableState.WAITING,
+    };
+    const mgr = new TableManager(table);
+    table.seats[0] = createPlayer("a", 0, 100);
+    table.seats[1] = createPlayer("b", 1, 100);
+    mgr.handleSeatChange();
+    vi.advanceTimersByTime(table.handStartDelayMs);
+    expect(table.state).toBe(TableState.PRE_FLOP);
+    vi.useRealTimers();
   });
 });

@@ -44,6 +44,7 @@ const createTable = (player: Player, extra: Partial<Table> = {}): Table => ({
   actedSinceLastRaise: new Set(),
   actionTimer: 50,
   interRoundDelayMs: 0,
+  handStartDelayMs: 0,
   dealAnimationDelayMs: 0,
   ...extra,
 });

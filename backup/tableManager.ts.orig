@@ -53,14 +53,11 @@ export class TableManager {
       type: "START_HAND",
       activeSeats: countActivePlayers(this.table),
     });
-    this.table.state = this.fsm.state;
     if (this.fsm.state !== TableState.BLINDS) return false;
     const ok = startHandLifecycle(this.table, this.audit);
     if (ok) {
       this.fsm.dispatch({ type: "BLINDS_POSTED" });
-      this.table.state = this.fsm.state;
       this.fsm.dispatch({ type: "DEALING_COMPLETE" });
-      this.table.state = this.fsm.state;
     }
     return ok;
   }
@@ -78,7 +75,6 @@ export class TableManager {
       type: "BETTING_COMPLETE",
       remainingPlayers: remaining,
     });
-    this.table.state = this.fsm.state;
 
     switch (this.fsm.state) {
       case TableState.FLOP:
@@ -100,14 +96,11 @@ export class TableManager {
       case TableState.PAYOUT:
         await endHand(this.table, this.audit);
         this.fsm.dispatch({ type: "PAYOUT_COMPLETE" });
-        this.table.state = this.fsm.state;
         this.fsm.dispatch({ type: "ROTATION_COMPLETE" });
-        this.table.state = this.fsm.state;
         this.fsm.dispatch({
           type: "CLEANUP_COMPLETE",
           activeSeats: countActivePlayers(this.table),
         });
-        this.table.state = this.fsm.state;
         break;
     }
     this.handleSeatChange();
