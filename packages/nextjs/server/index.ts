@@ -256,7 +256,6 @@ wss.on("connection", (ws) => {
         case "ATTACH": {
           const attached = sessions.attach(ws, msg.userId);
           if (attached) {
-            const hadTimeout = attached.timeout !== undefined;
             session.userId = attached.userId;
             session.roomId = attached.roomId;
             sessions.handleReconnect(attached);
@@ -297,25 +296,11 @@ wss.on("connection", (ws) => {
           break;
         }
         case "SIT": {
-          const engine = getEngine(msg.tableId);
-          const room = engine.getState();
+          const room = getRoom(msg.tableId);
           const playerId = session.userId ?? session.sessionId;
-          const table = tables.get(room.id)!;
-          const mgr = seating.get(room.id)!;
-          const map = seatMaps.get(room.id)!;
-          if (
-            map.has(playerId) ||
-            table.seats.some((p) => p?.id === playerId)
-          ) {
-            break;
-          }
-          const seatIndex = table.seats.findIndex((p) => p === null);
-          if (seatIndex === -1) break;
-          const seated = mgr.seatPlayer(seatIndex, playerId, msg.buyIn);
-          if (!seated) break;
-          map.set(playerId, seatIndex);
           const nickname = shortAddress(playerId);
-          engine.addPlayer({
+          addPlayer(room, {
+
             id: playerId,
             nickname,
             seat: seatIndex,
@@ -338,21 +323,8 @@ wss.on("connection", (ws) => {
         }
         case "LEAVE": {
           if (!session.roomId) break;
-          const engine = getEngine(session.roomId);
-          const room = engine.getState();
+          const room = getRoom(session.roomId);
           const playerId = session.userId ?? session.sessionId;
-          const map = seatMaps.get(room.id);
-          const mgr = seating.get(room.id);
-          const seatIndex = map?.get(playerId);
-          if (seatIndex !== undefined) {
-            mgr?.leave(seatIndex);
-            map?.delete(playerId);
-            broadcast(room.id, {
-              type: "PLAYER_LEFT",
-              seat: seatIndex,
-              playerId,
-            });
-          }
           const idx = room.players.findIndex((p) => p.id === playerId);
           if (idx !== -1) room.players.splice(idx, 1);
           session.roomId = undefined;
@@ -363,11 +335,11 @@ wss.on("connection", (ws) => {
         }
         case "ACTION": {
           if (!session.roomId) break;
-          const engine = getEngine(session.roomId);
-          const room = engine.getState();
+          const room = getRoom(session.roomId);
           const playerId = session.userId ?? session.sessionId;
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
-          engine.handleAction(playerId, {
+          handleAction(room, playerId, {
+
             type: action.toLowerCase() as any,
             amount: msg.amount,
           });
@@ -398,8 +370,7 @@ wss.on("connection", (ws) => {
         }
         case "REBUY": {
           if (!session.roomId) break;
-          const engine = getEngine(session.roomId);
-          const room = engine.getState();
+          const room = getRoom(session.roomId);
           const playerId = session.userId ?? session.sessionId;
           const player = room.players.find((p) => p.id === playerId);
           if (player) player.chips += msg.amount;
@@ -453,43 +424,13 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     sessions.handleDisconnect(session, (s: Session) => {
-      if (!s.roomId) {
-        void saveSession(s);
-        return;
-      }
-      const engine = getEngine(s.roomId);
-      const room = engine.getState();
+      if (!s.roomId) return;
+      const room = getRoom(s.roomId);
       const playerId = s.userId ?? s.sessionId;
-      const map = seatMaps.get(room.id);
-      const mgr = seating.get(room.id);
-      const seatIndex = map?.get(playerId);
-      if (seatIndex === undefined) {
-        void saveSession(s);
-        return;
-      }
+      const idx = room.players.findIndex((p) => p.id === playerId);
+      if (idx !== -1) room.players.splice(idx, 1);
+      broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
 
-      broadcast(room.id, {
-        type: "PLAYER_DISCONNECTED",
-        seat: seatIndex,
-        playerId,
-      });
-
-      s.timeout = setTimeout(() => {
-        mgr?.leave(seatIndex);
-        map?.delete(playerId);
-        broadcast(room.id, {
-          type: "PLAYER_LEFT",
-          seat: seatIndex,
-          playerId,
-        });
-        const idx = room.players.findIndex((p) => p.id === playerId);
-        if (idx !== -1) room.players.splice(idx, 1);
-        void saveRoom(room);
-        broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
-        sessions.expire(s);
-        void removeSession(s.sessionId);
-      }, sessions.disconnectGraceMs);
-      void saveSession(s);
     });
   });
 });

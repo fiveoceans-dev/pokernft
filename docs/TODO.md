@@ -11,7 +11,15 @@ tie back to features discussed across the documents in this directory. See
   - Min-raise reopen scenarios.
   - Side pots with three or more all-ins.
   - Dead-blind returns.
-
 - Enforce turn order with a dedicated manager that advances `actingIndex` and rejects out-of-turn commands.
 - Maintain seats as persistent structures to prevent index reshuffling when players join, leave, or sit out.
-- Implement session management that assigns a Starknet-style public address per connection and enforces one user per session.
+
+## Multiplayer Tasks
+
+- Integrate `GameEngine` into the WebSocket server and broadcast engine events.
+- Enforce one seat per wallet using `SeatingManager`.
+- Emit lifecycle events (`PLAYER_JOINED`, `PLAYER_LEFT`, `PLAYER_DISCONNECTED`, `PLAYER_REJOINED`).
+- Support graceful disconnect and reconnection in `SessionManager`.
+- Refactor frontend store to consume WebSocket events instead of a local engine.
+- Add integration tests covering connect → seat → action → disconnect → reconnect.
+- (Optional) Persist sessions and tables in Redis to survive server restarts.

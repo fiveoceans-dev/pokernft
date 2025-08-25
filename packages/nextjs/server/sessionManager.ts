@@ -21,8 +21,7 @@ export class SessionManager {
   private sessions = new Map<WebSocket, Session>();
   private bySessionId = new Map<string, Session>();
   private byUserId = new Map<string, Session>();
-  constructor(public readonly disconnectGraceMs = 5000) {}
-
+  constructor(private disconnectGraceMs = 5000) {}
   create(ws: WebSocket): Session {
     const sessionId = createAddress();
     const session: Session = { sessionId, socket: ws };
@@ -60,7 +59,14 @@ export class SessionManager {
 
   handleDisconnect(session: Session, onDisconnect: (session: Session) => void) {
     this.clearTimer(session);
-    onDisconnect(session);
+    session.timeout = setTimeout(() => {
+      this.sessions.delete(session.socket);
+      this.bySessionId.delete(session.sessionId);
+      if (session.userId) {
+        this.byUserId.delete(session.userId);
+      }
+      onExpire(session);
+    }, this.disconnectGraceMs);
   }
 
   handleReconnect(session: Session) {

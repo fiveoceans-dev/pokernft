@@ -59,16 +59,7 @@ export type ServerEvent =
 
 export type ClientCommand =
   | { cmdId: string; type: "ATTACH"; userId: string }
-  | { cmdId: string; type: "REATTACH"; sessionId: string }
-  | { cmdId: string; type: "LIST_TABLES" }
-  | { cmdId: string; type: "CREATE_TABLE"; name: string }
-  | {
-      cmdId: string;
-      type: "SIT";
-      tableId: string;
-      buyIn: number;
-      userId?: string;
-    }
+  | { cmdId: string; type: "SIT"; tableId: string; buyIn: number }
   | { cmdId: string; type: "LEAVE" }
   | { cmdId: string; type: "SIT_OUT" }
   | { cmdId: string; type: "SIT_IN" }
