@@ -30,6 +30,8 @@ const processed = new Map<WebSocket, Set<string>>();
 const tables = new Map<string, Table>();
 const seating = new Map<string, SeatingManager>();
 const seatMaps = new Map<string, Map<string, number>>();
+const gameStartTimers = new Map<string, NodeJS.Timeout>();
+const actionTimers = new Map<string, NodeJS.Timeout>();
 
 (async () => {
   const rooms = await loadAllRooms();
@@ -138,6 +140,9 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
         minRaise: turnInfo.minRaise,
         timeLeftMs: turnInfo.timeLeftMs,
       });
+      
+      // Start action timer for the current player
+      startActionTimer(id, turnInfo.playerId);
     });
   }
   return engine;
@@ -155,6 +160,84 @@ function broadcast(roomId: string, event: Omit<ServerEvent, "tableId">) {
       client.send(msg);
     }
   });
+}
+
+function startGameCountdown(roomId: string) {
+  // Clear existing timer
+  const existingTimer = gameStartTimers.get(roomId);
+  if (existingTimer) {
+    clearInterval(existingTimer);
+  }
+
+  let countdown = 10;
+  broadcast(roomId, { type: "GAME_START_COUNTDOWN", countdown });
+
+  const timer = setInterval(() => {
+    countdown--;
+    broadcast(roomId, { type: "GAME_START_COUNTDOWN", countdown });
+
+    if (countdown <= 0) {
+      clearInterval(timer);
+      gameStartTimers.delete(roomId);
+      
+      // Start the hand
+      const engine = getEngine(roomId);
+      const room = engine.getState();
+      if (room.players.length >= 2 && room.stage === "waiting") {
+        engine.startHand();
+        broadcast(roomId, { type: "HAND_START" });
+      }
+    }
+  }, 1000);
+
+  gameStartTimers.set(roomId, timer);
+}
+
+function startActionTimer(roomId: string, playerId: string) {
+  // Clear existing timer
+  const existingTimer = actionTimers.get(roomId);
+  if (existingTimer) {
+    clearInterval(existingTimer);
+  }
+
+  let countdown = 10;
+  broadcast(roomId, { type: "ACTION_TIMEOUT", countdown });
+
+  const timer = setInterval(() => {
+    countdown--;
+    broadcast(roomId, { type: "ACTION_TIMEOUT", countdown });
+
+    if (countdown <= 0) {
+      clearInterval(timer);
+      actionTimers.delete(roomId);
+      
+      // Auto-action (fold or check based on rules)
+      const engine = getEngine(roomId);
+      const room = engine.getState();
+      const player = room.players.find(p => p.id === playerId);
+      
+      if (player && player.isTurn) {
+        const maxBet = Math.max(0, ...room.players.map((p) => p.currentBet));
+        const betToCall = maxBet - player.currentBet;
+        
+        // If no bet to call, check; otherwise fold
+        const autoAction = betToCall === 0 ? "check" : "fold";
+        
+        try {
+          engine.handleAction(playerId, { type: autoAction });
+          broadcast(roomId, {
+            type: "PLAYER_ACTION_APPLIED",
+            playerId,
+            action: autoAction.toUpperCase() as any,
+          });
+        } catch (error) {
+          console.error("Auto-action failed:", error);
+        }
+      }
+    }
+  }, 1000);
+
+  actionTimers.set(roomId, timer);
 }
 
 wss.on("connection", (ws) => {
@@ -387,10 +470,12 @@ wss.on("connection", (ws) => {
             seat: seatIndex,
             playerId,
           });
+          
+          // Start countdown when we have 2+ players
           if (room.players.length >= 2 && room.stage === "waiting") {
-            engine.startHand();
-            broadcast(room.id, { type: "HAND_START" });
+            startGameCountdown(room.id);
           }
+          
           void saveRoom(room);
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
@@ -433,6 +518,13 @@ wss.on("connection", (ws) => {
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
           
           try {
+            // Clear action timer when player takes action
+            const timer = actionTimers.get(room.id);
+            if (timer) {
+              clearInterval(timer);
+              actionTimers.delete(room.id);
+            }
+            
             engine.handleAction(playerId, {
               type: action.toLowerCase() as any,
               amount: msg.amount,

@@ -10,6 +10,7 @@ import DealerWindow from "../../components/DealerWindow";
 import ActionBar from "../../components/ActionBar";
 import { usePlayViewModel } from "../../hooks/usePlayViewModel";
 import { useGameStore } from "../../hooks/useGameStore";
+import { useWalletGameSync } from "../../hooks/useWalletGameSync";
 
 // TODO: display connected address and handle signature (Action Plan 1.3)
 
@@ -17,6 +18,7 @@ export default function PlayPage() {
   const searchParams = useSearchParams();
   const tableId = searchParams.get("table");
   const { joinTable } = useGameStore();
+  const { isConnected, address } = useWalletGameSync();
   
   const {
     street,

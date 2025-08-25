@@ -58,6 +58,9 @@ export function useTableViewModel(timer?: number | null) {
     playerBets,
     playerAction,
     playerStates,
+    dealerIndex,
+    gameStartCountdown,
+    actionCountdown,
   } = useGameStore();
 
   const isMobile = useIsMobile();
@@ -199,5 +202,8 @@ export function useTableViewModel(timer?: number | null) {
     displayTimer,
     actionDisabled,
     handleActionClick,
+    dealerIndex,
+    gameStartCountdown,
+    actionCountdown,
   };
 }

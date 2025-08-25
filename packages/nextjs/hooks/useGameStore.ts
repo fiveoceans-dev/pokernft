@@ -30,6 +30,8 @@ interface GameStoreState {
   chips: number[];
   playerBets: number[];
   playerStates: PlayerState[];
+  /** which seat is the dealer */
+  dealerIndex: number | null;
   pot: number;
   currentTurn: number | null;
   street: number;
@@ -45,10 +47,16 @@ interface GameStoreState {
   walletId: string | null;
   /** current table ID */
   tableId: string | null;
+  /** game start countdown */
+  gameStartCountdown: number | null;
+  /** current player turn timer */
+  actionCountdown: number | null;
   
+  connectWallet: (address: string) => void;
   joinTable: (tableId: string) => void;
   createTable: (name: string) => Promise<void>;
   joinSeat: (seatIdx: number, tableId?: string) => Promise<void>;
+  playerAction: (action: string, amount?: number) => Promise<void>;
   startHand: () => Promise<void>;
   dealFlop: () => Promise<void>;
   dealTurn: () => Promise<void>;
@@ -101,6 +109,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       chips,
       playerBets: bets,
       playerStates: states,
+      dealerIndex: room.dealerIndex ?? null,
       pot,
       currentTurn:
         room.players?.length && room.players[room.currentTurnIndex]?.isTurn
@@ -117,15 +126,19 @@ export const useGameStore = create<GameStoreState>((set, get) => {
   if (typeof window !== "undefined" && !socket) {
     socket = new WebSocket("ws://localhost:8080");
     socket.onopen = () => {
-      const stored = localStorage.getItem("walletAddress");
-      if (stored) {
+      // Check for Starknet wallet address from localStorage (set by CustomConnectButton)
+      const starknetAddress = localStorage.getItem("sessionId");
+      const walletAddress = localStorage.getItem("walletAddress");
+      const address = starknetAddress || walletAddress;
+      
+      if (address) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
           type: "ATTACH",
-          userId: stored,
+          userId: address,
         } as any;
         socket!.send(JSON.stringify(cmd));
-        set({ walletId: stored });
+        set({ walletId: address });
       }
     };
     socket.onmessage = (ev) => {
@@ -246,6 +259,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             break;
           case "ROUND_END":
             break;
+          case "GAME_START_COUNTDOWN":
+            set({ gameStartCountdown: msg.countdown });
+            if (msg.countdown === 0) {
+              set({ gameStartCountdown: null });
+            }
+            break;
+          case "ACTION_TIMEOUT":
+            set({ actionCountdown: msg.countdown });
+            if (msg.countdown === 0) {
+              set({ actionCountdown: null });
+            }
+            break;
           case "ERROR":
             set({ error: msg.msg });
             break;
@@ -265,6 +290,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     chips: Array(9).fill(0),
     playerBets: Array(9).fill(0),
     playerStates: Array(9).fill(PlayerState.EMPTY),
+    dealerIndex: null,
     pot: 0,
     currentTurn: null,
     street: 0,
@@ -291,9 +317,24 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     socket,
     walletId:
       typeof window !== "undefined"
-        ? localStorage.getItem("walletAddress")
+        ? localStorage.getItem("sessionId") || localStorage.getItem("walletAddress")
         : null,
     tableId: null,
+    gameStartCountdown: null,
+    actionCountdown: null,
+
+    connectWallet: (address: string) => {
+      set({ walletId: address });
+      // Attach to WebSocket if connected
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "ATTACH",
+          userId: address,
+        } as any;
+        socket.send(JSON.stringify(cmd));
+      }
+    },
 
     joinTable: (tableId: string) => {
       set({ tableId });
@@ -324,6 +365,23 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           seat: seatIdx,
           buyIn: 10000,
         } as ClientCommand;
+        socket.send(JSON.stringify(cmd));
+      }
+    },
+
+    playerAction: async (action: string, amount?: number) => {
+      const currentTableId = get().tableId;
+      if (!currentTableId) {
+        set({ error: "No table joined" });
+        return;
+      }
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd = {
+          cmdId: crypto.randomUUID(),
+          type: "ACTION",
+          action: action.charAt(0).toUpperCase() + action.slice(1).toLowerCase(),
+          amount,
+        } as any;
         socket.send(JSON.stringify(cmd));
       }
     },

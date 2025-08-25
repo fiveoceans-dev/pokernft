@@ -7,7 +7,9 @@ import Card from "./Card";
 import { indexToCard, PlayerState } from "../backend";
 import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../backend";
-import { useAccount } from "../hooks/useAccount";
+import { useAccount } from "@starknet-react/core";
+import { useWalletGameSync } from "../hooks/useWalletGameSync";
+import ActionButtons from "./ActionButtons";
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -37,28 +39,23 @@ export default function Table({ timer }: { timer?: number | null }) {
     displayTimer,
     actionDisabled,
     handleActionClick,
+    dealerIndex,
+    gameStartCountdown,
+    actionCountdown,
   } = useTableViewModel(timer);
 
-  const { address } = useAccount();
-
-  useEffect(() => {
-    if (address) {
-      localStorage.setItem("walletAddress", address);
-    }
-  }, [address]);
+  const { isConnected, address } = useWalletGameSync();
 
   const handleSeatRequest = (idx: number) => {
-    const wallet =
-      typeof window !== "undefined"
-        ? localStorage.getItem("walletAddress")
-        : null;
-    if (!wallet) {
+    if (!isConnected || !address) {
+      // Show wallet connect modal
       const modal = document.getElementById(
         "connect-modal",
       ) as HTMLInputElement | null;
       if (modal) modal.checked = true;
       return;
     }
+    // Join seat using the connected wallet address as player ID
     joinSeat(idx);
   };
 
@@ -124,7 +121,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       folded: state === PlayerState.FOLDED,
       currentBet: playerBets[idx] ?? 0,
     };
-    const isDealer = idx === 1;
+    const isDealer = idx === dealerIndex;
     const isActive = idx === currentTurn;
     const reveal = idx === localIdx;
 
@@ -208,6 +205,26 @@ export default function Table({ timer }: { timer?: number | null }) {
       <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
         {displayTimer.toString().padStart(2, "0")}
       </div>
+      
+      {/* Game start countdown */}
+      {gameStartCountdown !== null && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 text-center">
+          <div className="bg-black/80 text-white px-4 py-2 rounded-lg">
+            <div className="text-lg font-bold">Game Starting In</div>
+            <div className="text-3xl font-mono text-yellow-400">
+              {gameStartCountdown}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Action countdown */}
+      {actionCountdown !== null && (
+        <div className="absolute top-16 right-4 bg-red-600/80 text-white px-3 py-2 rounded-lg">
+          <div className="text-sm">Time Left</div>
+          <div className="text-2xl font-mono">{actionCountdown}</div>
+        </div>
+      )}
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
@@ -223,63 +240,9 @@ export default function Table({ timer }: { timer?: number | null }) {
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
-      <div className="mt-12 flex flex-col items-center gap-2">
-        <div className="flex gap-2">
-          {actions.map((action) => (
-            <button
-              key={action}
-              className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => handleActionClick(action)}
-              disabled={actionDisabled}
-            >
-              {action}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center mt-1">
-          <input
-            type="range"
-            min={bigBlind}
-            max={maxBet}
-            value={bet}
-            onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
-            className="w-40"
-            disabled={actionDisabled || !betEnabled}
-          />
-          <input
-            type="number"
-            min={bigBlind}
-            max={maxBet}
-            value={bet}
-            onChange={(e) => setBet(Math.min(Number(e.target.value), maxBet))}
-            className="w-16 ml-2 text-black rounded"
-            disabled={actionDisabled || !betEnabled}
-          />
-        </div>
-        <div className="flex gap-2 mt-2">
-          <button
-            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => setBet(Math.min(bet * 2, maxBet))}
-            disabled={actionDisabled || !betEnabled}
-          >
-            2x
-          </button>
-          <button
-            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => setBet(Math.min(bet * 3, maxBet))}
-            disabled={actionDisabled || !betEnabled}
-          >
-            3x
-          </button>
-          <button
-            className="px-3 py-2 rounded bg-black/60 text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => setBet(maxBet)}
-            disabled={actionDisabled || !betEnabled}
-          >
-            All In
-          </button>
-        </div>
-      </div>
+      
+      {/* Smart Action Buttons */}
+      <ActionButtons />
     </div>
   );
 }
