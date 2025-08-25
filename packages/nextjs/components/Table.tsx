@@ -47,6 +47,19 @@ export default function Table({ timer }: { timer?: number | null }) {
     }
   }, [address]);
 
+  const handleSeatRequest = (idx: number) => {
+    const session =
+      typeof window !== "undefined" ? localStorage.getItem("sessionId") : null;
+    if (!session) {
+      const modal = document.getElementById("connect-modal") as
+        | HTMLInputElement
+        | null;
+      if (modal) modal.checked = true;
+      return;
+    }
+    joinSeat(idx);
+  };
+
   // The table is always visible; wallet connections are handled elsewhere.
 
   const holeCardSize = "sm";
@@ -85,7 +98,7 @@ export default function Table({ timer }: { timer?: number | null }) {
           <div>
             {badge}
             <button
-              onClick={() => joinSeat(idx)}
+              onClick={() => handleSeatRequest(idx)}
               className="w-24 h-8 flex items-center justify-center rounded text-xs text-gray-300 border border-dashed border-gray-500 bg-black/20 transition-colors duration-150 hover:bg-red-500 hover:text-white"
             >
               Play

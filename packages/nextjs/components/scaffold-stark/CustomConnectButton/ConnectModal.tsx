@@ -101,6 +101,9 @@ const ConnectModal = () => {
               ✕
             </label>
           </div>
+          {!isBurnerWallet && (
+            <p className="mt-2 text-sm">Please login with one of the wallets.</p>
+          )}
           <div className="flex flex-col flex-1 lg:grid">
             <div className="flex flex-col gap-4 w-full px-8 py-10">
               {!isBurnerWallet ? (
@@ -113,7 +116,7 @@ const ConnectModal = () => {
                     }`}
                     onClick={handleDemoPlayer}
                   >
-                    <div className="h-[1.5rem] w-[1.5rem]" />
+                    <div className="h-[1.5rem] w-[1.5rem] rounded-full bg-orange-500" />
                     <span className="text-start m-0">Demo Player</span>
                   </button>
                   {connectors.map((connector, index) => (
