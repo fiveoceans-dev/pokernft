@@ -308,6 +308,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           type: "SIT",
           tableId: TABLE_ID,
           buyIn: 10000,
+          userId: get().walletId ?? undefined,
         } as any;
         socket.send(JSON.stringify(cmd));
       }
