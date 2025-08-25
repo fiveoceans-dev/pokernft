@@ -2,15 +2,22 @@
 
 // Play poker interface with wallet connect
 
+import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Table from "../../components/Table";
 import AnimatedTitle from "../../components/AnimatedTitle";
 import DealerWindow from "../../components/DealerWindow";
 import ActionBar from "../../components/ActionBar";
 import { usePlayViewModel } from "../../hooks/usePlayViewModel";
+import { useGameStore } from "../../hooks/useGameStore";
 
 // TODO: display connected address and handle signature (Action Plan 1.3)
 
 export default function PlayPage() {
+  const searchParams = useSearchParams();
+  const tableId = searchParams.get("table");
+  const { joinTable } = useGameStore();
+  
   const {
     street,
     dealTurn,
@@ -20,6 +27,15 @@ export default function PlayPage() {
     handStarted,
     handleActivate,
   } = usePlayViewModel();
+
+  useEffect(() => {
+    if (tableId) {
+      joinTable(tableId);
+    } else {
+      // Default table for backward compatibility
+      joinTable("demo");
+    }
+  }, [tableId, joinTable]);
 
   return (
     <main

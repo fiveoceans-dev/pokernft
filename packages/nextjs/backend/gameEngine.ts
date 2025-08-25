@@ -52,6 +52,15 @@ export class GameEngine extends EventEmitter {
     return addPlayerImpl(this.room, player);
   }
 
+  /** Remove a player from the room */
+  removePlayer(playerId: string): boolean {
+    const idx = this.room.players.findIndex((p) => p.id === playerId);
+    if (idx === -1) return false;
+    this.room.players.splice(idx, 1);
+    this.emit("stateChanged", this.room);
+    return true;
+  }
+
   /** Start a fresh hand */
   startHand() {
     this.machine.dispatch({ type: "PLAYERS_READY" });
@@ -61,6 +70,20 @@ export class GameEngine extends EventEmitter {
     this.emit("stateChanged", this.room);
     this.emit("phaseChanged", this.machine.state);
     this.emit("handStarted", this.room);
+    
+    // Emit turn event for first player to act
+    const currentPlayer = this.room.players[this.room.currentTurnIndex];
+    if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting") {
+      const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
+      const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
+      this.emit("turnChanged", {
+        playerId: currentPlayer.id,
+        actingIndex: this.room.currentTurnIndex,
+        betToCall,
+        minRaise: this.room.minBet,
+        timeLeftMs: 0
+      });
+    }
   }
 
   /** Apply an action for the given player */
@@ -70,6 +93,21 @@ export class GameEngine extends EventEmitter {
   ) {
     handleActionImpl(this.room, playerId, action);
     this.emit("stateChanged", this.room);
+    
+    // Emit turn changed event if there's an active player
+    const currentPlayer = this.room.players[this.room.currentTurnIndex];
+    if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting" && this.room.stage !== "showdown") {
+      const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
+      const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
+      this.emit("turnChanged", {
+        playerId: currentPlayer.id,
+        actingIndex: this.room.currentTurnIndex,
+        betToCall,
+        minRaise: this.room.minBet,
+        timeLeftMs: 0
+      });
+    }
+    
     if (isRoundCompleteImpl(this.room)) {
       this.resolveRound();
     }

@@ -129,6 +129,16 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
     engine.on("handEnded", () => {
       broadcast(id, { type: "HAND_END" });
     });
+
+    engine.on("turnChanged", (turnInfo: any) => {
+      broadcast(id, {
+        type: "ACTION_PROMPT",
+        actingIndex: turnInfo.actingIndex,
+        betToCall: turnInfo.betToCall,
+        minRaise: turnInfo.minRaise,
+        timeLeftMs: turnInfo.timeLeftMs,
+      });
+    });
   }
   return engine;
 }
@@ -260,6 +270,7 @@ wss.on("connection", (ws) => {
         case "ATTACH": {
           const attached = sessions.attach(ws, msg.userId);
           if (attached) {
+            const hadTimeout = attached.timeout !== undefined;
             session.userId = attached.userId;
             session.roomId = attached.roomId;
             sessions.handleReconnect(attached);
@@ -306,6 +317,62 @@ wss.on("connection", (ws) => {
           const nickname = shortAddress(playerId);
           const seatIndex = msg.seat;
           if (seatIndex === undefined) break;
+          
+          const seatingMgr = seating.get(room.id);
+          const table = tables.get(room.id);
+          
+          // Validate seat availability and buy-in using SeatingManager
+          if (seatingMgr && table) {
+            if (seatIndex < 0 || seatIndex >= table.seats.length) {
+              ws.send(
+                JSON.stringify({
+                  tableId: room.id,
+                  type: "ERROR",
+                  code: "INVALID_SEAT",
+                  msg: "Invalid seat index",
+                } satisfies ServerEvent),
+              );
+              break;
+            }
+            if (table.seats[seatIndex]) {
+              ws.send(
+                JSON.stringify({
+                  tableId: room.id,
+                  type: "ERROR",
+                  code: "SEAT_TAKEN",
+                  msg: "Seat already taken",
+                } satisfies ServerEvent),
+              );
+              break;
+            }
+            if (msg.buyIn < table.minBuyIn || msg.buyIn > table.maxBuyIn) {
+              ws.send(
+                JSON.stringify({
+                  tableId: room.id,
+                  type: "ERROR",
+                  code: "INVALID_BUYIN",
+                  msg: `Buy-in must be between ${table.minBuyIn} and ${table.maxBuyIn}`,
+                } satisfies ServerEvent),
+              );
+              break;
+            }
+            
+            // Use SeatingManager to seat the player in the Table
+            const tablePlayer = seatingMgr.seatPlayer(seatIndex, playerId, msg.buyIn);
+            if (!tablePlayer) {
+              ws.send(
+                JSON.stringify({
+                  tableId: room.id,
+                  type: "ERROR",
+                  code: "SEATING_FAILED",
+                  msg: "Failed to take seat",
+                } satisfies ServerEvent),
+              );
+              break;
+            }
+          }
+          
+          // Add player to GameEngine
           engine.addPlayer({
             id: playerId,
             nickname,
@@ -330,10 +397,28 @@ wss.on("connection", (ws) => {
         }
         case "LEAVE": {
           if (!session.roomId) break;
-          const room = getRoom(session.roomId);
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
-          const idx = room.players.findIndex((p) => p.id === playerId);
-          if (idx !== -1) room.players.splice(idx, 1);
+          const seatIndex = seatMaps.get(room.id)?.get(playerId);
+          
+          // Remove from SeatingManager
+          const seatingMgr = seating.get(room.id);
+          if (seatingMgr && seatIndex !== undefined) {
+            seatingMgr.leave(seatIndex);
+          }
+          
+          // Remove from GameEngine
+          if (engine.removePlayer(playerId)) {
+            seatMaps.get(room.id)?.delete(playerId);
+            if (seatIndex !== undefined) {
+              broadcast(room.id, {
+                type: "PLAYER_LEFT",
+                seat: seatIndex,
+                playerId,
+              });
+            }
+          }
           session.roomId = undefined;
           void saveSession(session);
           void saveRoom(room);
@@ -342,44 +427,61 @@ wss.on("connection", (ws) => {
         }
         case "ACTION": {
           if (!session.roomId) break;
-          const room = getRoom(session.roomId);
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
-          handleAction(room, playerId, {
-            type: action.toLowerCase() as any,
-            amount: msg.amount,
-          });
-          broadcast(room.id, {
-            type: "PLAYER_ACTION_APPLIED",
-            playerId,
-            action,
-            amount: msg.amount,
-          });
-          if (room.stage !== "waiting" && room.stage !== "showdown") {
-            const acting = room.players[room.currentTurnIndex];
-            if (acting) {
-              const maxBet = Math.max(
-                0,
-                ...room.players.map((p) => p.currentBet),
-              );
-              const betToCall = Math.max(0, maxBet - acting.currentBet);
-              broadcast(room.id, {
-                type: "ACTION_PROMPT",
-                actingIndex: room.currentTurnIndex,
-                betToCall,
-                minRaise: room.minBet,
-                timeLeftMs: 0,
-              });
-            }
+          
+          try {
+            engine.handleAction(playerId, {
+              type: action.toLowerCase() as any,
+              amount: msg.amount,
+            });
+            broadcast(room.id, {
+              type: "PLAYER_ACTION_APPLIED",
+              playerId,
+              action,
+              amount: msg.amount,
+            });
+          } catch (error) {
+            ws.send(
+              JSON.stringify({
+                tableId: room.id,
+                type: "ERROR",
+                code: "ACTION_FAILED",
+                msg: String(error),
+              } satisfies ServerEvent),
+            );
           }
           break;
         }
         case "REBUY": {
           if (!session.roomId) break;
-          const room = getRoom(session.roomId);
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
+          const seatIndex = seatMaps.get(room.id)?.get(playerId);
+          const seatingMgr = seating.get(room.id);
+          
+          // Update SeatingManager
+          if (seatingMgr && seatIndex !== undefined) {
+            if (!seatingMgr.topUp(seatIndex, msg.amount)) {
+              ws.send(
+                JSON.stringify({
+                  tableId: room.id,
+                  type: "ERROR",
+                  code: "REBUY_FAILED",
+                  msg: "Invalid rebuy amount or exceeds table maximum",
+                } satisfies ServerEvent),
+              );
+              break;
+            }
+          }
+          
+          // Update GameEngine
           const player = room.players.find((p) => p.id === playerId);
           if (player) player.chips += msg.amount;
+          
           void saveRoom(room);
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
@@ -389,6 +491,18 @@ wss.on("connection", (ws) => {
           if (!session.roomId) break;
           const engine = getEngine(session.roomId);
           const room = engine.getState();
+          const playerId = session.userId ?? session.sessionId;
+          const seatIndex = seatMaps.get(room.id)?.get(playerId);
+          const seatingMgr = seating.get(room.id);
+          
+          if (seatingMgr && seatIndex !== undefined) {
+            if (msg.type === "SIT_OUT") {
+              seatingMgr.sitOut(seatIndex);
+            } else {
+              seatingMgr.sitIn(seatIndex);
+            }
+          }
+          
           void saveRoom(room);
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
@@ -431,11 +545,16 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     sessions.handleDisconnect(session, (s: Session) => {
       if (!s.roomId) return;
-      const room = getRoom(s.roomId);
       const playerId = s.userId ?? s.sessionId;
-      const idx = room.players.findIndex((p) => p.id === playerId);
-      if (idx !== -1) room.players.splice(idx, 1);
-      broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
+      const seatIndex = seatMaps.get(s.roomId)?.get(playerId);
+      if (seatIndex !== undefined) {
+        broadcast(s.roomId, {
+          type: "PLAYER_DISCONNECTED",
+          seat: seatIndex,
+          playerId,
+        });
+      }
+      // Note: Don't immediately remove from engine - handled by timeout in SessionManager
     });
   });
 });

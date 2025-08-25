@@ -19,8 +19,6 @@ const stageToStreet: Record<Stage, number> = {
   showdown: 4,
 };
 
-const TABLE_ID = "demo";
-
 let socket: WebSocket | null = null;
 
 interface GameStoreState {
@@ -45,8 +43,12 @@ interface GameStoreState {
   socket: WebSocket | null;
   /** connected wallet identifier if any */
   walletId: string | null;
-
-  joinSeat: (seatIdx: number) => Promise<void>;
+  /** current table ID */
+  tableId: string | null;
+  
+  joinTable: (tableId: string) => void;
+  createTable: (name: string) => Promise<void>;
+  joinSeat: (seatIdx: number, tableId?: string) => Promise<void>;
   startHand: () => Promise<void>;
   dealFlop: () => Promise<void>;
   dealTurn: () => Promise<void>;
@@ -112,7 +114,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
   }
 
-  let autoSeated = false;
   if (typeof window !== "undefined" && !socket) {
     socket = new WebSocket("ws://localhost:8080");
     socket.onopen = () => {
@@ -137,15 +138,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               set({ walletId: msg.userId });
             }
             break;
+          case "TABLE_CREATED":
+            // Automatically join the table that was just created
+            set({ tableId: msg.table.id });
+            get().addLog(`Created table: ${msg.table.name}`);
+            break;
           case "TABLE_SNAPSHOT":
             applySnapshot(msg.table as any);
-            if (!autoSeated) {
-              const id = localStorage.getItem("walletAddress");
-              if (id && msg.table.players?.some((p: any) => p.id === id)) {
-                get().joinSeat(0);
-                autoSeated = true;
-              }
-            }
+            // Don't auto-seat - let the user choose their seat manually
             break;
           case "PLAYER_JOINED":
             set((s) => {
@@ -189,13 +189,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               return { playerStates: states, players: names, playerIds: ids };
             });
             get().addLog(`${shortAddress(msg.playerId)} rejoined`);
-            if (!autoSeated) {
-              const id = localStorage.getItem("walletAddress");
-              if (id && id === msg.playerId) {
-                get().joinSeat(0);
-                autoSeated = true;
-              }
-            }
             break;
           case "ACTION_PROMPT":
             set({ currentTurn: msg.actingIndex });
@@ -300,13 +293,34 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       typeof window !== "undefined"
         ? localStorage.getItem("walletAddress")
         : null,
+    tableId: null,
 
-    joinSeat: async (seatIdx: number) => {
+    joinTable: (tableId: string) => {
+      set({ tableId });
+    },
+
+    createTable: async (name: string) => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "CREATE_TABLE",
+          name,
+        } as ClientCommand;
+        socket.send(JSON.stringify(cmd));
+      }
+    },
+
+    joinSeat: async (seatIdx: number, tableId?: string) => {
+      const currentTableId = tableId || get().tableId;
+      if (!currentTableId) {
+        set({ error: "No table selected" });
+        return;
+      }
       if (socket && socket.readyState === WebSocket.OPEN) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
           type: "SIT",
-          tableId: TABLE_ID,
+          tableId: currentTableId,
           seat: seatIdx,
           buyIn: 10000,
         } as ClientCommand;
