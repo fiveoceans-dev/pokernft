@@ -195,6 +195,8 @@ export interface Table {
   actedSinceLastRaise: Set<number>;
   actionTimer: number;
   interRoundDelayMs: number;
+  /** milliseconds to wait after enough players join before auto-starting a hand */
+  handStartDelayMs: number;
   dealAnimationDelayMs: number;
   rakeConfig?: RakeConfig;
   /** Behaviour for players who missed blinds while sitting out */

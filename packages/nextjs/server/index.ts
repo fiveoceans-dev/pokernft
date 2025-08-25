@@ -300,7 +300,6 @@ wss.on("connection", (ws) => {
           const playerId = session.userId ?? session.sessionId;
           const nickname = shortAddress(playerId);
           addPlayer(room, {
-
             id: playerId,
             nickname,
             seat: seatIndex,
@@ -339,7 +338,6 @@ wss.on("connection", (ws) => {
           const playerId = session.userId ?? session.sessionId;
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
           handleAction(room, playerId, {
-
             type: action.toLowerCase() as any,
             amount: msg.amount,
           });
@@ -430,7 +428,6 @@ wss.on("connection", (ws) => {
       const idx = room.players.findIndex((p) => p.id === playerId);
       if (idx !== -1) room.players.splice(idx, 1);
       broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
-
     });
   });
 });

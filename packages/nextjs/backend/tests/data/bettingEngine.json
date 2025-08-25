@@ -60,6 +60,7 @@
     "actedSinceLastRaise": [],
     "actionTimer": 0,
     "interRoundDelayMs": 0,
+    "handStartDelayMs": 0,
     "dealAnimationDelayMs": 0
   },
   "actions": [

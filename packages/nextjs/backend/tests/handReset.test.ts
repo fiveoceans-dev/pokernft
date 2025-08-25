@@ -51,6 +51,7 @@ const createTable = (seats: (Player | null)[]): Table => ({
   actedSinceLastRaise: new Set(),
   actionTimer: 0,
   interRoundDelayMs: 0,
+  handStartDelayMs: 0,
   dealAnimationDelayMs: 0,
 });
 
