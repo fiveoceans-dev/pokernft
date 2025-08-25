@@ -2,8 +2,11 @@ import { randomBytes } from "crypto";
 import type { WebSocket } from "ws";
 
 export interface Session {
-  id: string;
+  /** Unique identifier for this websocket connection */
+  sessionId: string;
   socket: WebSocket;
+  /** Persistent user identifier (wallet address) if attached */
+  userId?: string;
   roomId?: string;
   timeout?: NodeJS.Timeout;
 }
@@ -16,14 +19,15 @@ export function createAddress(): string {
 /** Simple in-memory session registry */
 export class SessionManager {
   private sessions = new Map<WebSocket, Session>();
-  private byId = new Map<string, Session>();
+  private bySessionId = new Map<string, Session>();
+  private byUserId = new Map<string, Session>();
   constructor(private disconnectGraceMs = 5000) {}
 
   create(ws: WebSocket): Session {
-    const id = createAddress();
-    const session: Session = { id, socket: ws };
+    const sessionId = createAddress();
+    const session: Session = { sessionId, socket: ws };
     this.sessions.set(ws, session);
-    this.byId.set(id, session);
+    this.bySessionId.set(sessionId, session);
     return session;
   }
 
@@ -31,13 +35,26 @@ export class SessionManager {
     return this.sessions.get(ws);
   }
 
+  getByUserId(id: string): Session | undefined {
+    return this.byUserId.get(id);
+  }
+
+  getBySessionId(id: string): Session | undefined {
+    return this.bySessionId.get(id);
+  }
+
   /** Prevent multiple logins with the same id */
-  attach(ws: WebSocket, id: string): Session | undefined {
-    const existing = this.byId.get(id);
+  attach(ws: WebSocket, userId: string): Session | undefined {
+    const existing = this.byUserId.get(userId);
     if (existing && existing.socket !== ws) return undefined;
-    const session: Session = { id, socket: ws };
-    this.sessions.set(ws, session);
-    this.byId.set(id, session);
+    let session = this.sessions.get(ws);
+    if (!session) {
+      session = { sessionId: createAddress(), socket: ws };
+      this.sessions.set(ws, session);
+      this.bySessionId.set(session.sessionId, session);
+    }
+    session.userId = userId;
+    this.byUserId.set(userId, session);
     return session;
   }
 
@@ -45,7 +62,10 @@ export class SessionManager {
     this.clearTimer(session);
     session.timeout = setTimeout(() => {
       this.sessions.delete(session.socket);
-      this.byId.delete(session.id);
+      this.bySessionId.delete(session.sessionId);
+      if (session.userId) {
+        this.byUserId.delete(session.userId);
+      }
       onExpire(session);
     }, this.disconnectGraceMs);
   }

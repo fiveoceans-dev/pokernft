@@ -1,23 +1,28 @@
 # Multiplayer Server & Session Management
 
-This document outlines how the poker server tracks connected players and
-guarantees unique identities. For message formats and commands, see
-[`networking-contract.md`](./networking-contract.md).
+This document explains how the WebSocket server tracks client sessions and wallet-based player identities.
+For message formats and command shapes, see [`networking-contract.md`](./networking-contract.md).
 
 ## Session Lifecycle
 
-- When a client connects, the server creates a new session object scoped to that network connection.
-- Each session is associated with **exactly one user**. Additional connections must negotiate a separate session.
-- Sessions terminate when the connection closes or when the server explicitly revokes them.
+- When a client connects, the server issues a random **`sessionId`** and stores the WebSocket in `SessionManager`.
+- A session becomes associated with a persistent user only after the client sends an `ATTACH` command containing its wallet address.
+- The same session record holds both the temporary `sessionId` and the attached `userId`.
+- Disconnects trigger a grace timer via `handleDisconnect`. Reconnecting with the same `userId` before expiry cancels the timer and restores the session.
 
 ## User Identifier
 
-- Upon session creation the server assigns a `userId` representing the player.
-- The identifier is formatted like a Starknet public address: a 0x-prefixed hexadecimal string.
-- Commands and events carry this `userId` so that state changes can be attributed to a single wallet-like address.
+- The `userId` is the player's wallet address (`0x`-prefixed hexadecimal string).
+- Clients supply this identifier when issuing `ATTACH`; the server no longer generates new user IDs on connect.
+- `SessionManager.attach` rejects multiple simultaneous logins with the same `userId`, ensuring a single active connection per wallet.
 
 ## Guarantees
 
-- Only one user may exist per session; attempts to reuse or share a session are rejected.
-- A fresh `userId` is generated for each new session, preventing collisions across reconnects.
-- Future extensions may sign messages with a Starknet private key to prove control over the `userId`.
+- One active WebSocket session per wallet address.
+- `ServerEvent` messages include both `sessionId` and `userId` so clients can reconcile their identity after reattaching.
+- Reconnecting within the grace window preserves table membership; expired sessions are removed from room state.
+
+## Current Implementation Status
+
+- Wallet-based session attachment and reconnection timers are implemented.
+- Table state is still managed via simple room helpers; integration with `GameEngine` and richer lifecycle events remain TODO.
