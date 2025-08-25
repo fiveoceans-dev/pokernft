@@ -66,7 +66,7 @@ export default function HeroSection() {
           {slides[index].title}
         </h1>
         <a
-          href="/play"
+          href="/lobby"
           className="px-8 py-4 text-sm rounded-full font-serif-renaissance bg-[var(--color-neon-yellow)] text-[#0c1a3a] shadow-[0_0_15px_var(--color-neon-yellow)] hover:bg-gradient-nav hover:text-white hover:shadow-none"
         >
           Play

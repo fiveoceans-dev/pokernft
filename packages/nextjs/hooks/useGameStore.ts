@@ -56,15 +56,14 @@ interface GameStoreState {
   joinTable: (tableId: string) => void;
   createTable: (name: string) => Promise<void>;
   joinSeat: (seatIdx: number, tableId?: string) => Promise<void>;
-  playerAction: (action: string, amount?: number) => Promise<void>;
-  startHand: () => Promise<void>;
-  dealFlop: () => Promise<void>;
-  dealTurn: () => Promise<void>;
-  dealRiver: () => Promise<void>;
   playerAction: (action: {
     type: "fold" | "call" | "raise" | "check";
     amount?: number;
   }) => Promise<void>;
+  startHand: () => Promise<void>;
+  dealFlop: () => Promise<void>;
+  dealTurn: () => Promise<void>;
+  dealRiver: () => Promise<void>;
   rebuy: (amount: number) => Promise<void>;
 }
 
@@ -365,23 +364,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           seat: seatIdx,
           buyIn: 10000,
         } as ClientCommand;
-        socket.send(JSON.stringify(cmd));
-      }
-    },
-
-    playerAction: async (action: string, amount?: number) => {
-      const currentTableId = get().tableId;
-      if (!currentTableId) {
-        set({ error: "No table joined" });
-        return;
-      }
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        const cmd = {
-          cmdId: crypto.randomUUID(),
-          type: "ACTION",
-          action: action.charAt(0).toUpperCase() + action.slice(1).toLowerCase(),
-          amount,
-        } as any;
         socket.send(JSON.stringify(cmd));
       }
     },

@@ -36,7 +36,26 @@ const actionTimers = new Map<string, NodeJS.Timeout>();
 (async () => {
   const rooms = await loadAllRooms();
   rooms.forEach((r) => getEngine(r.id, r));
+  
+  // Create persistent space-themed tables
+  ensurePersistentTables();
 })();
+
+function ensurePersistentTables() {
+  const persistentTables = [
+    { id: "andromeda", name: "🌌 Andromeda Station", blinds: { small: 25, big: 50 } },
+    { id: "orion", name: "🚀 Orion Outpost", blinds: { small: 50, big: 100 } }
+  ];
+
+  persistentTables.forEach(({ id, name, blinds }) => {
+    let engine = getRegisteredEngine(id);
+    if (!engine) {
+      engine = new GameEngine(id);
+      engine.getState().minBet = blinds.big;
+      registerTable(id, engine, name);
+    }
+  });
+}
 
 function getEngine(id: string, snapshot?: GameRoom): GameEngine {
   let engine = getRegisteredEngine(id);

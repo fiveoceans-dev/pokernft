@@ -3,6 +3,11 @@ import type { Card, Table, PlayerAction, Round } from "./types";
 export interface LobbyTable {
   id: string;
   name: string;
+  gameType: string;
+  playerCount: number;
+  maxPlayers: number;
+  smallBlind: number;
+  bigBlind: number;
 }
 
 export type BlindType = "SMALL" | "BIG";
