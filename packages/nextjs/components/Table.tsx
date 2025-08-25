@@ -8,7 +8,6 @@ import { indexToCard, PlayerState } from "../backend";
 import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../backend";
 import { useAccount } from "../hooks/useAccount";
-import { useConnect } from "@starknet-react/core";
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -41,7 +40,6 @@ export default function Table({ timer }: { timer?: number | null }) {
   } = useTableViewModel(timer);
 
   const { address } = useAccount();
-  const { connect, connectors } = useConnect();
 
   useEffect(() => {
     if (address) {
@@ -49,18 +47,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     }
   }, [address]);
 
-  if (!address) {
-    return (
-      <div className="flex items-center justify-center w-full h-full">
-        <button
-          onClick={() => connect({ connector: connectors[0] })}
-          className="px-4 py-2 rounded bg-black/60 text-white hover:bg-red-500"
-        >
-          Connect Wallet
-        </button>
-      </div>
-    );
-  }
+  // The table is always visible; wallet connections are handled elsewhere.
 
   const holeCardSize = "sm";
 
