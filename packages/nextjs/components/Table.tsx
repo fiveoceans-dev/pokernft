@@ -48,9 +48,11 @@ export default function Table({ timer }: { timer?: number | null }) {
   }, [address]);
 
   const handleSeatRequest = (idx: number) => {
-    const session =
-      typeof window !== "undefined" ? localStorage.getItem("sessionId") : null;
-    if (!session) {
+    const wallet =
+      typeof window !== "undefined"
+        ? localStorage.getItem("walletAddress")
+        : null;
+    if (!wallet) {
       const modal = document.getElementById(
         "connect-modal",
       ) as HTMLInputElement | null;
