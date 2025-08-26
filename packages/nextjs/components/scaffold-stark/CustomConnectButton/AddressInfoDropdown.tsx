@@ -4,6 +4,7 @@ import CopyToClipboard from "react-copy-to-clipboard";
 import { createPortal } from "react-dom";
 import {
   ArrowLeftEndOnRectangleIcon,
+  ArrowLeftStartOnRectangleIcon,
   ArrowTopRightOnSquareIcon,
   ArrowsRightLeftIcon,
   CheckCircleIcon,
@@ -23,6 +24,7 @@ import { getStarknetPFPIfExists } from "~~/utils/profile";
 import { useScaffoldStarkProfile } from "~~/hooks/scaffold-stark/useScaffoldStarkProfile";
 import { useTheme } from "next-themes";
 import { default as NextImage } from "next/image";
+import { useGameStore } from "~~/hooks/useGameStore";
 
 const allowedNetworks = getTargetNetworks();
 
@@ -48,6 +50,7 @@ export const AddressInfoDropdown = ({
   const { connectors, connect } = useConnect();
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
+  const { leaveSeat } = useGameStore();
   const dropdownRef = useRef<HTMLDetailsElement>(null);
   const closeDropdown = () => {
     setSelectingNetwork(false);
@@ -110,6 +113,18 @@ export const AddressInfoDropdown = ({
           className={`dropdown-content menu z-[2] p-2 mt-2 rounded-[5px] gap-1 border border-[#5c4fe5] bg-base-100`}
         >
           <NetworkOptions hidden={!selectingNetwork} />
+          <li className={selectingNetwork ? "hidden" : ""}>
+            <button
+              className="btn-sm !rounded-xl flex gap-3 py-3"
+              type="button"
+              onClick={() => {
+                leaveSeat();
+              }}
+            >
+              <ArrowLeftStartOnRectangleIcon className="h-6 w-4 ml-2 sm:ml-0" />
+              <span className="whitespace-nowrap">Leave seat</span>
+            </button>
+          </li>
           <li className={selectingNetwork ? "hidden" : ""}>
             {addressCopied ? (
               <div className="btn-sm !rounded-xl flex gap-3 py-3">
