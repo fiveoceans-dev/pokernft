@@ -4,7 +4,7 @@ export * from "./constants";
 export * from "./utils";
 
 // Export specific types and enums from types
-export { PlayerState } from "./types";
+export { PlayerState, TableState, Round } from "./types";
 export type {
   Suit,
   Rank,
@@ -17,8 +17,6 @@ export type {
   CardShape,
   PlayerAction,
   Player,
-  TableState,
-  Round,
   Pot,
   RakeConfig,
   Table,

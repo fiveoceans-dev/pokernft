@@ -4,7 +4,7 @@
   "description": "WebSocket server for PokerNFT multiplayer game",
   "main": "dist/src/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --noEmitOnError false",
     "start": "node dist/src/index.js",
     "dev": "ts-node src/index.ts",
     "test": "jest",

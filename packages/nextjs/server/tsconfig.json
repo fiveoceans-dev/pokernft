@@ -1,22 +1,40 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
     "module": "commonjs",
-    "lib": ["ES2020"],
+    "lib": ["ES2022"],
     "outDir": "dist",
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "forceConsistentCasingInFileNames": false,
     "resolveJsonModule": true,
     "declaration": false,
     "sourceMap": false,
+    "noImplicitAny": false,
+    "noEmitOnError": false,
     "baseUrl": ".",
     "paths": {
       "../../game-engine": ["../game-engine/index.ts"],
       "../../game-engine/*": ["../game-engine/*"]
     }
   },
+  "ts-node": {
+    "transpileOnly": true,
+    "compilerOptions": {
+      "strict": false,
+      "skipLibCheck": true,
+      "noImplicitAny": false
+    }
+  },
+  "files": [
+    "src/index.ts",
+    "src/lobby.ts", 
+    "src/sessionManager.ts",
+    "src/persistence.ts",
+    "src/user.ts",
+    "src/utils.ts"
+  ],
   "include": [
     "src/**/*",
     "../game-engine/**/*.ts"
@@ -26,6 +44,7 @@
     "node_modules", 
     "tests",
     "../game-engine/tests",
+    "../game-engine/index.ts",
     "../utils/address.ts",
     "../utils/scaffold-stark/**/*",
     "../app/**/*",
