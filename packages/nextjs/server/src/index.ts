@@ -24,7 +24,8 @@ import {
   loadSession,
 } from "./persistence";
 
-const wss = new WebSocketServer({ port: 8080 });
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
+const wss = new WebSocketServer({ port: PORT });
 const sessions = new SessionManager();
 const processed = new Map<WebSocket, Set<string>>();
 const tables = new Map<string, Table>();
@@ -670,4 +671,4 @@ wss.on("connection", (ws) => {
   });
 });
 
-console.log("WebSocket server running on ws://localhost:8080");
+console.log(`WebSocket server running on ws://localhost:${PORT}`);
