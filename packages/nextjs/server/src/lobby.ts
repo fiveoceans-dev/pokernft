@@ -27,5 +27,8 @@ export function getEngine(id: string): GameEngine | undefined {
 }
 
 export function registerTable(id: string, engine: GameEngine, name?: string) {
-  registry.set(id, { id, name: name ?? id, engine });
+  const tableName = name ?? id;
+  console.log(`📝 Registering table in lobby: ${tableName} (ID: ${id})`);
+  registry.set(id, { id, name: tableName, engine });
+  console.log(`🎯 Lobby now has ${registry.size} tables registered`);
 }

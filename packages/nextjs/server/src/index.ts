@@ -28,6 +28,9 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
 const wss = new WebSocketServer({ port: PORT });
 const sessions = new SessionManager();
 const processed = new Map<WebSocket, Set<string>>();
+
+// Track connection count for logging
+let connectionCount = 0;
 const tables = new Map<string, Table>();
 const seating = new Map<string, SeatingManager>();
 const seatMaps = new Map<string, Map<string, number>>();
@@ -35,10 +38,16 @@ const gameStartTimers = new Map<string, NodeJS.Timeout>();
 const actionTimers = new Map<string, NodeJS.Timeout>();
 
 (async () => {
+  console.log('📂 Loading persisted rooms from storage...');
   const rooms = await loadAllRooms();
-  rooms.forEach((r) => getEngine(r.id, r));
+  console.log(`📂 Loaded ${rooms.length} persisted rooms`);
+  rooms.forEach((r) => {
+    console.log(`🎲 Restoring room: ${r.id} with ${r.players.length} players`);
+    getEngine(r.id, r);
+  });
   
   // Create persistent space-themed tables
+  console.log('🌌 Creating persistent tables...');
   ensurePersistentTables();
 })();
 
@@ -51,11 +60,17 @@ function ensurePersistentTables() {
   persistentTables.forEach(({ id, name, blinds }) => {
     let engine = getRegisteredEngine(id);
     if (!engine) {
+      console.log(`🎲 Creating persistent table: ${name} (${id}) with blinds ${blinds.small}/${blinds.big}`);
       engine = new GameEngine(id);
       engine.getState().minBet = blinds.big;
       registerTable(id, engine, name);
+      console.log(`✅ Table ${name} created and registered`);
+    } else {
+      console.log(`🔄 Table ${name} (${id}) already exists`);
     }
   });
+  
+  console.log(`🎯 Total tables available: ${listTables().length}`);
 }
 
 function getEngine(id: string, snapshot?: GameRoom): GameEngine {
@@ -261,8 +276,13 @@ function startActionTimer(roomId: string, playerId: string) {
 }
 
 wss.on("connection", (ws) => {
+  connectionCount++;
+  const clientId = `client-${connectionCount}`;
+  console.log(`🔗 [${clientId}] WebSocket connection established (Total connections: ${wss.clients.size})`);
+  
   let session = sessions.create(ws);
   void saveSession(session);
+  console.log(`📝 [${clientId}] Session created: ${session.sessionId}`);
   ws.send(
     JSON.stringify({
       tableId: "",
@@ -299,13 +319,15 @@ wss.on("connection", (ws) => {
 
       switch (msg.type) {
         case "LIST_TABLES": {
-          ws.send(
-            JSON.stringify({
-              tableId: "",
-              type: "TABLE_LIST",
-              tables: listTables(),
-            } satisfies ServerEvent),
-          );
+          const tables = listTables();
+          console.log(`🎲 [${clientId}] LIST_TABLES request - returning ${tables.length} tables:`, tables);
+          const response = {
+            tableId: "",
+            type: "TABLE_LIST",
+            tables,
+          } satisfies ServerEvent;
+          ws.send(JSON.stringify(response));
+          console.log(`📤 [${clientId}] Sent TABLE_LIST response`);
           break;
         }
         case "CREATE_TABLE": {
@@ -654,7 +676,8 @@ wss.on("connection", (ws) => {
     }
   });
 
-  ws.on("close", () => {
+  ws.on("close", (code, reason) => {
+    console.log(`🔌 [${clientId}] WebSocket connection closed (Code: ${code}, Reason: ${reason?.toString() || 'none'}) (Remaining connections: ${wss.clients.size - 1})`);
     sessions.handleDisconnect(session, (s: Session) => {
       if (!s.roomId) return;
       const playerId = s.userId ?? s.sessionId;
@@ -671,4 +694,8 @@ wss.on("connection", (ws) => {
   });
 });
 
-console.log(`WebSocket server running on ws://localhost:${PORT}`);
+console.log(`🚀 WebSocket server running on ws://localhost:${PORT}`);
+console.log(`🌍 Environment: NODE_ENV=${process.env.NODE_ENV}`);
+console.log(`🔗 ALLOWED_ORIGINS: ${process.env.ALLOWED_ORIGINS || 'not set'}`);
+console.log(`💾 REDIS_URL: ${process.env.REDIS_URL ? 'configured' : 'not configured (using memory)'}`);
+console.log(`🎯 Ready to accept WebSocket connections...`);
