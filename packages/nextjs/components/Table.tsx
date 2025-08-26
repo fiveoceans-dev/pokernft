@@ -1,13 +1,12 @@
 // src/components/Table.tsx
 
-import { Fragment, useEffect } from "react";
+import { Fragment } from "react";
 import type { CSSProperties } from "react";
 import { useTableViewModel } from "../hooks/useTableViewModel";
 import Card from "./Card";
 import { indexToCard, PlayerState } from "../game-engine";
 import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../game-engine";
-import { useAccount } from "@starknet-react/core";
 import { useWalletGameSync } from "../hooks/useWalletGameSync";
 import ActionButtons from "./ActionButtons";
 
@@ -26,7 +25,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     playerBets,
     playerStates,
     layout,
-    localIdx,
+    walletSeatIdx,
     tableScale,
     bet,
     setBet,
@@ -123,7 +122,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     };
     const isDealer = idx === dealerIndex;
     const isActive = idx === currentTurn;
-    const reveal = idx === localIdx;
+    const reveal = idx === walletSeatIdx;
 
     const badge = (
       <span

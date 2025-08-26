@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "./useGameStore";
 import useIsMobile from "./useIsMobile";
+import { useWalletGameSync } from "./useWalletGameSync";
 
 interface SeatPos {
   x: string;
@@ -104,6 +105,14 @@ export function useTableViewModel(timer?: number | null) {
     return max;
   }, [layout]);
 
+  const { address } = useWalletGameSync();
+  const walletSeatIdx = useMemo(() => {
+    if (!address) return -1;
+    return playerIds.findIndex(
+      (id) => id?.toLowerCase() === address.toLowerCase(),
+    );
+  }, [playerIds, address]);
+
   useEffect(() => {
     if (currentTurn !== null) {
       setActionTimer(10);
@@ -190,6 +199,7 @@ export function useTableViewModel(timer?: number | null) {
     playerStates,
     layout,
     localIdx,
+    walletSeatIdx,
     tableScale,
     bet,
     setBet,
