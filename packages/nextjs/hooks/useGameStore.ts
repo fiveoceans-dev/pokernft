@@ -47,10 +47,8 @@ interface GameStoreState {
   walletId: string | null;
   /** current table ID */
   tableId: string | null;
-  /** game start countdown */
-  gameStartCountdown: number | null;
-  /** current player turn timer */
-  actionCountdown: number | null;
+  /** unified countdown timer from server */
+  timer: number | null;
   
   connectWallet: (address: string) => void;
   joinTable: (tableId: string) => void;
@@ -279,16 +277,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             break;
           case "ROUND_END":
             break;
-          case "GAME_START_COUNTDOWN":
-            set({ gameStartCountdown: msg.countdown });
+          case "TIMER":
+            set({ timer: msg.countdown });
             if (msg.countdown === 0) {
-              set({ gameStartCountdown: null });
-            }
-            break;
-          case "ACTION_TIMEOUT":
-            set({ actionCountdown: msg.countdown });
-            if (msg.countdown === 0) {
-              set({ actionCountdown: null });
+              set({ timer: null });
             }
             break;
           case "ERROR":
@@ -340,8 +332,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         ? localStorage.getItem("sessionId") || localStorage.getItem("walletAddress")
         : null,
     tableId: null,
-    gameStartCountdown: null,
-    actionCountdown: null,
+    timer: null,
 
     connectWallet: (address: string) => {
       set({ walletId: address });

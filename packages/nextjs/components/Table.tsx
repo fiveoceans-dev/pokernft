@@ -1,6 +1,6 @@
 // src/components/Table.tsx
 
-import { Fragment, useEffect } from "react";
+import { Fragment } from "react";
 import type { CSSProperties } from "react";
 import { useTableViewModel } from "../hooks/useTableViewModel";
 import Card from "./Card";
@@ -40,8 +40,6 @@ export default function Table({ timer }: { timer?: number | null }) {
     actionDisabled,
     handleActionClick,
     dealerIndex,
-    gameStartCountdown,
-    actionCountdown,
   } = useTableViewModel(timer);
 
   const { isConnected, address } = useWalletGameSync();
@@ -202,29 +200,13 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   return (
     <div className="relative flex flex-col items-center justify-center w-full h-full">
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
-        {displayTimer.toString().padStart(2, "0")}
-      </div>
-      
-      {/* Game start countdown */}
-      {gameStartCountdown !== null && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 text-center">
-          <div className="bg-black/80 text-white px-4 py-2 rounded-lg">
-            <div className="text-lg font-bold">Game Starting In</div>
-            <div className="text-3xl font-mono text-yellow-400">
-              {gameStartCountdown}
-            </div>
+      {displayTimer !== null &&
+        (currentTurn === null || currentTurn === localIdx) && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
+            {displayTimer.toString().padStart(2, "0")}
           </div>
-        </div>
-      )}
-      
-      {/* Action countdown */}
-      {actionCountdown !== null && (
-        <div className="absolute top-16 right-4 bg-red-600/80 text-white px-3 py-2 rounded-lg">
-          <div className="text-sm">Time Left</div>
-          <div className="text-2xl font-mono">{actionCountdown}</div>
-        </div>
-      )}
+        )}
+
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
@@ -240,7 +222,7 @@ export default function Table({ timer }: { timer?: number | null }) {
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
-      
+
       {/* Smart Action Buttons */}
       <ActionButtons />
     </div>

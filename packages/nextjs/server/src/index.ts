@@ -226,11 +226,11 @@ function startGameCountdown(roomId: string) {
   }
 
   let countdown = 10;
-  broadcast(roomId, { type: "GAME_START_COUNTDOWN", countdown });
+  broadcast(roomId, { type: "TIMER", countdown });
 
   const timer = setInterval(() => {
     countdown--;
-    broadcast(roomId, { type: "GAME_START_COUNTDOWN", countdown });
+    broadcast(roomId, { type: "TIMER", countdown });
 
     if (countdown <= 0) {
       clearInterval(timer);
@@ -257,11 +257,11 @@ function startActionTimer(roomId: string, playerId: string) {
   }
 
   let countdown = 10;
-  broadcast(roomId, { type: "ACTION_TIMEOUT", countdown });
+  broadcast(roomId, { type: "TIMER", countdown });
 
   const timer = setInterval(() => {
     countdown--;
-    broadcast(roomId, { type: "ACTION_TIMEOUT", countdown });
+    broadcast(roomId, { type: "TIMER", countdown });
 
     if (countdown <= 0) {
       clearInterval(timer);
