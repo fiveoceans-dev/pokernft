@@ -40,6 +40,13 @@ describe("SeatingManager", () => {
     expect(mgr.seatPlayer(1, "p2", 10)).toBeNull();
   });
 
+  test("rejects seating a player with duplicate id", () => {
+    const table = createTable();
+    const mgr = new SeatingManager(table);
+    expect(mgr.seatPlayer(0, "p1", 50)).not.toBeNull();
+    expect(mgr.seatPlayer(1, "p1", 60)).toBeNull();
+  });
+
   test("top up and handle broke players", () => {
     const table = createTable();
     const mgr = new SeatingManager(table);

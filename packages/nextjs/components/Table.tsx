@@ -53,6 +53,10 @@ export default function Table({ timer }: { timer?: number | null }) {
       if (modal) modal.checked = true;
       return;
     }
+    if (playerIds.includes(address)) {
+      alert("You are already seated at this table.");
+      return;
+    }
     // Join seat using the connected wallet address as player ID
     joinSeat(idx);
   };
