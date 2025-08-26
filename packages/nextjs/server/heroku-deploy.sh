@@ -68,7 +68,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # Ask for frontend URL for CORS
-read -p "Enter your frontend URL (e.g., https://yourapp.vercel.app): " FRONTEND_URL
+read -p "Enter your frontend URL (e.g., https://www.pokernfts.com): " FRONTEND_URL
 if [ ! -z "$FRONTEND_URL" ]; then
     heroku config:set ALLOWED_ORIGINS="$FRONTEND_URL" -a "$APP_NAME"
     echo "✅ CORS configured for: $FRONTEND_URL"
