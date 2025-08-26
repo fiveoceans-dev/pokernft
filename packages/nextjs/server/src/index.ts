@@ -340,6 +340,33 @@ wss.on("connection", (ws) => {
           console.log(`📤 [${clientId}] Sent TABLE_LIST response`);
           break;
         }
+        case "JOIN_TABLE": {
+          console.log(`🎯 [${clientId}] JOIN_TABLE request for table: ${msg.tableId}`);
+          const engine = getRegisteredEngine(msg.tableId);
+          if (!engine) {
+            ws.send(
+              JSON.stringify({
+                tableId: msg.tableId,
+                type: "ERROR",
+                code: "TABLE_NOT_FOUND",
+                msg: `Table ${msg.tableId} not found`,
+              } satisfies ServerEvent),
+            );
+            console.log(`❌ [${clientId}] Table ${msg.tableId} not found`);
+            break;
+          }
+          
+          const room = engine.getState();
+          console.log(`📊 [${clientId}] Sending TABLE_SNAPSHOT for ${msg.tableId} with ${room.players.length} players`);
+          ws.send(
+            JSON.stringify({
+              tableId: msg.tableId,
+              type: "TABLE_SNAPSHOT",
+              table: room,
+            } satisfies ServerEvent),
+          );
+          break;
+        }
         case "CREATE_TABLE": {
           const id = randomUUID();
           const engine = getEngine(id);
@@ -403,6 +430,7 @@ wss.on("connection", (ws) => {
           break;
         }
         case "ATTACH": {
+          console.log(`🔗 [${clientId}] ATTACH request with userId: ${msg.userId}`);
           const attached = sessions.attach(ws, msg.userId);
           if (attached) {
             const hadTimeout = attached.timeout !== undefined;
@@ -410,6 +438,7 @@ wss.on("connection", (ws) => {
             session.roomId = attached.roomId;
             sessions.handleReconnect(attached);
             void saveSession(session);
+            console.log(`✅ [${clientId}] Session attached successfully - userId: ${attached.userId}, roomId: ${attached.roomId || 'none'}`);
             ws.send(
               JSON.stringify({
                 tableId: attached.roomId ?? "",
@@ -446,12 +475,17 @@ wss.on("connection", (ws) => {
           break;
         }
         case "SIT": {
+          console.log(`🪑 [${clientId}] SIT request - tableId: ${msg.tableId}, seat: ${msg.seat}, buyIn: ${msg.buyIn}`);
           const engine = getEngine(msg.tableId);
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const nickname = shortAddress(playerId);
           const seatIndex = msg.seat;
-          if (seatIndex === undefined) break;
+          console.log(`👤 [${clientId}] Player ${nickname} (${playerId}) attempting to sit at seat ${seatIndex}`);
+          if (seatIndex === undefined) {
+            console.log(`❌ [${clientId}] Invalid seat index: ${seatIndex}`);
+            break;
+          }
           
           const seatingMgr = seating.get(room.id);
           const table = tables.get(room.id);
@@ -517,14 +551,20 @@ wss.on("connection", (ws) => {
           seatMaps.get(room.id)?.set(playerId, seatIndex);
           session.roomId = room.id;
           void saveSession(session);
+          console.log(`✅ [${clientId}] Player ${nickname} successfully seated at ${seatIndex} with ${msg.buyIn} chips`);
+          
           broadcast(room.id, {
             type: "PLAYER_JOINED",
             seat: seatIndex,
             playerId,
           });
           
+          const updatedRoom = engine.getState();
+          console.log(`📊 [${clientId}] Table now has ${updatedRoom.players.length} players, stage: ${updatedRoom.stage}`);
+          
           // Start countdown when we have 2+ players
-          if (room.players.length >= 2 && room.stage === "waiting") {
+          if (updatedRoom.players.length >= 2 && updatedRoom.stage === "waiting") {
+            console.log(`🎮 [${clientId}] Starting game countdown - ${updatedRoom.players.length} players ready`);
             startGameCountdown(room.id);
           }
           

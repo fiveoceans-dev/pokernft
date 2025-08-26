@@ -124,12 +124,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
   if (typeof window !== "undefined" && !socket) {
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
+    console.log("🔗 Connecting to WebSocket:", wsUrl);
     socket = new WebSocket(wsUrl);
     socket.onopen = () => {
+      console.log("✅ WebSocket connected successfully");
       // Check for Starknet wallet address from localStorage (set by CustomConnectButton)
       const starknetAddress = localStorage.getItem("sessionId");
       const walletAddress = localStorage.getItem("walletAddress");
       const address = starknetAddress || walletAddress;
+      
+      console.log("🔍 Checking for stored addresses:", { starknetAddress, walletAddress, finalAddress: address });
       
       if (address) {
         const cmd: ClientCommand = {
@@ -138,7 +142,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           userId: address,
         } as any;
         socket!.send(JSON.stringify(cmd));
+        console.log("📤 Sent ATTACH command with userId:", address);
         set({ walletId: address });
+      } else {
+        console.log("ℹ️ No wallet address found, continuing without attachment");
       }
     };
     socket.onmessage = (ev) => {
@@ -146,9 +153,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const msg: ServerEvent = JSON.parse(ev.data as string);
         switch (msg.type) {
           case "SESSION":
+            console.log("📨 Received SESSION message:", msg);
             if (msg.userId) {
               localStorage.setItem("walletAddress", msg.userId);
               set({ walletId: msg.userId });
+              console.log("💾 Stored wallet address:", msg.userId);
             }
             break;
           case "TABLE_CREATED":
@@ -338,6 +347,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     joinTable: (tableId: string) => {
       set({ tableId });
+      // Send JOIN_TABLE command to server to get table snapshot
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "JOIN_TABLE",
+          tableId,
+        } as any;
+        socket.send(JSON.stringify(cmd));
+        console.log(`🎯 Joining table: ${tableId}`);
+      }
     },
 
     createTable: async (name: string) => {
