@@ -1,0 +1,21 @@
+{
+  "cards": [
+    { "rank": "A", "suit": "s" },
+    { "rank": "K", "suit": "s" },
+    { "rank": "Q", "suit": "s" },
+    { "rank": "J", "suit": "s" },
+    { "rank": "T", "suit": "s" },
+    { "rank": "9", "suit": "c" },
+    { "rank": "2", "suit": "h" }
+  ],
+  "expected": {
+    "rankValue": 1,
+    "bestCards": [
+      { "rank": "A", "suit": "s" },
+      { "rank": "K", "suit": "s" },
+      { "rank": "Q", "suit": "s" },
+      { "rank": "J", "suit": "s" },
+      { "rank": "T", "suit": "s" }
+    ]
+  }
+}

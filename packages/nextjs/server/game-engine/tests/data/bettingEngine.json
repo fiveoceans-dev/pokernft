@@ -1,0 +1,74 @@
+{
+  "table": {
+    "seats": [
+      {
+        "id": "a",
+        "seatIndex": 0,
+        "stack": 100,
+        "state": "ACTIVE",
+        "hasButton": false,
+        "autoPostBlinds": true,
+        "timebankMs": 0,
+        "betThisRound": 0,
+        "totalCommitted": 0,
+        "holeCards": [],
+        "lastAction": "NONE"
+      },
+      {
+        "id": "b",
+        "seatIndex": 1,
+        "stack": 95,
+        "state": "ACTIVE",
+        "hasButton": false,
+        "autoPostBlinds": true,
+        "timebankMs": 0,
+        "betThisRound": 5,
+        "totalCommitted": 5,
+        "holeCards": [],
+        "lastAction": "NONE"
+      },
+      {
+        "id": "c",
+        "seatIndex": 2,
+        "stack": 90,
+        "state": "ACTIVE",
+        "hasButton": false,
+        "autoPostBlinds": true,
+        "timebankMs": 0,
+        "betThisRound": 10,
+        "totalCommitted": 10,
+        "holeCards": [],
+        "lastAction": "NONE"
+      }
+    ],
+    "buttonIndex": 0,
+    "smallBlindIndex": 1,
+    "bigBlindIndex": 2,
+    "smallBlindAmount": 5,
+    "bigBlindAmount": 10,
+    "minBuyIn": 0,
+    "maxBuyIn": 0,
+    "state": "PRE_FLOP",
+    "deck": [],
+    "board": [],
+    "pots": [],
+    "currentRound": "PREFLOP",
+    "actingIndex": 0,
+    "betToCall": 10,
+    "minRaise": 10,
+    "lastFullRaise": null,
+    "actedSinceLastRaise": [],
+    "actionTimer": 0,
+    "interRoundDelayMs": 0,
+    "handStartDelayMs": 0,
+    "dealAnimationDelayMs": 0
+  },
+  "actions": [
+    { "seatIndex": 0, "action": { "type": "RAISE", "amount": 20 } },
+    { "seatIndex": 1, "action": { "type": "FOLD" } },
+    { "seatIndex": 2, "action": { "type": "CALL" } }
+  ],
+  "expected": {
+    "actingIndex": null
+  }
+}
