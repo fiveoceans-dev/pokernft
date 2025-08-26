@@ -641,7 +641,19 @@ wss.on("connection", (ws) => {
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
-          
+          const currentPlayer = room.players[room.currentTurnIndex];
+          if (!currentPlayer || currentPlayer.id !== playerId) {
+            ws.send(
+              JSON.stringify({
+                tableId: room.id,
+                type: "ERROR",
+                code: "NOT_YOUR_TURN",
+                msg: "It's not your turn",
+              } satisfies ServerEvent),
+            );
+            break;
+          }
+
           try {
             // Clear action timer when player takes action
             const timer = actionTimers.get(room.id);
