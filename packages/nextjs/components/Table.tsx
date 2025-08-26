@@ -53,8 +53,10 @@ export default function Table({ timer }: { timer?: number | null }) {
       if (modal) modal.checked = true;
       return;
     }
-    if (playerIds.includes(address)) {
-      alert("You are already seated at this table.");
+    // Prevent seating if this wallet is already seated at the table
+    if (playerIds.some((id) => id === address)) {
+      alert("You are already seated at this table");
+
       return;
     }
     // Join seat using the connected wallet address as player ID

@@ -15,7 +15,13 @@ class SeatingManager {
   seatPlayer(seatIndex, id, stack) {
     if (seatIndex < 0 || seatIndex >= this.table.seats.length) return null;
     if (this.table.seats[seatIndex]) return null;
-    if (this.table.seats.some((p) => p && p.id === id)) return null;
+    if (
+      this.table.seats.some(
+        (p) => (p === null || p === void 0 ? void 0 : p.id) === id,
+      )
+    )
+      return null;
+
     if (stack < this.table.minBuyIn || stack > this.table.maxBuyIn) return null;
     const player = {
       id,
@@ -80,6 +86,7 @@ class SeatingManager {
           p.state = types_1.PlayerState.SITTING_OUT;
         } else {
           p.state = types_1.PlayerState.LEAVING;
+
     /** Mark a player as sitting out. */
     sitOut(seatIndex, remove = false) {
         const player = this.table.seats[seatIndex];
