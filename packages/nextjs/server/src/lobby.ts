@@ -1,5 +1,5 @@
-import { GameEngine } from "../backend";
-import type { LobbyTable } from "../backend";
+import { GameEngine } from "../../game-engine";
+import type { LobbyTable } from "../../game-engine";
 
 interface RegistryEntry extends LobbyTable {
   engine: GameEngine;

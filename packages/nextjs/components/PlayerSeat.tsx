@@ -2,8 +2,8 @@
 
 import clsx from "clsx";
 import Card from "./Card";
-import type { UiPlayer, Card as TCard } from "../backend";
-import { PlayerState } from "../backend";
+import type { UiPlayer, Card as TCard } from "../game-engine";
+import { PlayerState } from "../game-engine";
 import { shortAddress } from "../utils/address";
 
 interface PlayerSeatProps {

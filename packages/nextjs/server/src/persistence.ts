@@ -1,5 +1,5 @@
 import type { Session } from "./sessionManager";
-import type { GameRoom } from "../backend";
+import type { GameRoom } from "../../game-engine";
 
 type RedisClientType = import("redis").RedisClientType;
 

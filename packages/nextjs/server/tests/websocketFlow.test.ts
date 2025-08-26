@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { EventEmitter } from "events";
 import { describe, it, expect } from "vitest";
-import { GameEngine, type ServerEvent } from "../../backend";
-import { SessionManager, type Session } from "../sessionManager";
+import { GameEngine, type ServerEvent } from "../../game-engine";
+import { SessionManager, type Session } from "../src/sessionManager";
 
 class MockSocket extends EventEmitter {
   public sent: ServerEvent[] = [];

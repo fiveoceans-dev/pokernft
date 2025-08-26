@@ -1,22 +1,36 @@
-# 🏗 PokerNFTs
+# 🎮 PokerNFT - Multiplayer Poker on Starknet
 
-## Getting Started
+Real-time multiplayer Texas Hold'em poker with Starknet wallet integration.
+
+## 🏗️ Architecture
+
+- 🎮 **Frontend**: Next.js on Vercel (`packages/nextjs/app/`, `components/`, `hooks/`)  
+- 🎲 **Game Engine**: Pure TypeScript poker logic (`packages/nextjs/game-engine/`)
+- 🔌 **WebSocket Server**: Real-time multiplayer on Heroku (`packages/nextjs/server/`)
+- ⛓️ **Smart Contracts**: Cairo contracts for future blockchain integration (`packages/snfoundry/`)
+
+## 🚀 Quick Start
 
 This repository uses **Node 20** and **Yarn 3** workspaces.
-For an overview of the directory layout and core backend design, see the
-documents in [`docs/`](docs). The key entry points are
-[project-structure.md](docs/project-structure.md), which describes the
-workspace layout, and [modules.md](docs/modules.md), which outlines the
-server modules that drive the poker engine.
 
 ```bash
 corepack enable
 yarn install
 ```
 
-### Development
+### Development - Run Both Services
 
-Use the development server for instant feedback without rebuilding:
+```bash
+# Terminal 1: Frontend (Next.js)
+cd packages/nextjs
+yarn dev                    # http://localhost:3005
+
+# Terminal 2: WebSocket Server  
+cd packages/nextjs/server
+npm run dev                 # ws://localhost:8080
+```
+
+### Single Command Development
 
 ```bash
 yarn dev          # run Next.js dev server with hot reload
@@ -40,15 +54,31 @@ yarn test:nextjs
 yarn test          # snfoundry tests
 ```
 
-### Deployment
+## 🚀 Deployment
 
-Deployments to Vercel use [`packages/nextjs/vercel.json`](packages/nextjs/vercel.json), which pins the Node version and build command. Trigger a build with:
-
+### Frontend → Vercel
 ```bash
-yarn vercel
+cd packages/nextjs
+yarn vercel                 # Deploy frontend to Vercel
 ```
 
-Environment variables such as `NEXT_PUBLIC_PROVIDER_URL` configure Starknet RPC endpoints. The app falls back to `NEXT_PUBLIC_DEVNET_PROVIDER_URL` when the primary endpoint is unavailable.
+Set environment variable in Vercel dashboard:
+```
+NEXT_PUBLIC_WS_URL=wss://your-poker-server.herokuapp.com
+```
+
+### WebSocket Server → Heroku
+```bash
+cd packages/nextjs/server
+./heroku-deploy.sh          # Deploy server to Heroku
+```
+
+**Complete deployment guide**: [packages/nextjs/server/README.md](packages/nextjs/server/README.md)
+
+### Environment Configuration
+- `NEXT_PUBLIC_PROVIDER_URL`: Starknet RPC endpoints
+- `NEXT_PUBLIC_WS_URL`: WebSocket server URL for production
+- Frontend falls back to `NEXT_PUBLIC_DEVNET_PROVIDER_URL` when primary endpoint unavailable
 
 ### Documentation
 
@@ -66,3 +96,55 @@ engine and networking layer:
 
 These references provide enough detail for a senior developer to implement or
 modify the poker backend.
+
+## 🎯 Game Features
+
+- ✅ **Real-time Multiplayer**: WebSocket-based instant updates
+- ✅ **Starknet Wallet Integration**: Connect with Starknet wallets
+- ✅ **Space-themed Tables**: 2 persistent tables (Andromeda Station, Orion Outpost)  
+- ✅ **Game Flow**: 10s countdown → dealing → betting → showdown
+- ✅ **Action Timers**: 10s player action timeouts with auto-fold/check
+- ✅ **Texas Hold'em**: Complete No Limit Hold'em implementation
+- ✅ **Session Management**: Automatic reconnection handling
+
+## 🎲 Project Structure
+
+```
+packages/
+├── nextjs/                    # Main application
+│   ├── app/                   # Next.js 14 app router (Vercel)
+│   ├── components/            # React components  
+│   ├── hooks/                 # React hooks for game logic
+│   ├── game-engine/           # 🎯 Poker game logic (TypeScript)
+│   │   ├── gameEngine.ts      # Core game engine
+│   │   ├── handEvaluator.ts   # Hand evaluation
+│   │   ├── room.ts            # Game room management
+│   │   └── types.ts           # Game types
+│   ├── server/                # 🚀 WebSocket server (Heroku)
+│   │   ├── src/
+│   │   │   ├── index.ts       # Server entry point
+│   │   │   ├── lobby.ts       # Table management
+│   │   │   └── sessionManager.ts # Session handling
+│   │   ├── Procfile           # Heroku configuration
+│   │   └── README.md          # Deployment guide
+│   └── blockchain/            # 🔮 Future: Blockchain integration layer
+└── snfoundry/                 # 🔗 Smart contracts (Cairo)
+    ├── contracts/             # Starknet contracts
+    └── scripts/               # Deployment scripts
+```
+
+## 🔮 Future Blockchain Integration
+
+**Current**: Pure TypeScript implementation in `game-engine/`  
+**Future**: Gradual migration to Starknet smart contracts
+
+### Migration Path
+1. **Phase 1**: Keep current game logic, add smart contract interfaces
+2. **Phase 2**: Replace critical components (hand evaluation, RNG) with on-chain calls
+3. **Phase 3**: Full on-chain game state with provable randomness and card secrecy
+
+### Planned Features
+- 🔐 **Provable Fairness**: On-chain hand evaluation
+- 🎲 **VRF Randomness**: Verifiable random card dealing  
+- 🃏 **Card Secrecy**: Mental poker protocols in Cairo
+- 💰 **On-chain Payouts**: Smart contract pot distribution

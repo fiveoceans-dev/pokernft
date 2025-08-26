@@ -6,7 +6,7 @@ import {
   type Stage,
   type ServerEvent,
   type ClientCommand,
-} from "../backend";
+} from "../game-engine";
 import { shortAddress } from "../utils/address";
 
 /** Map Stage strings to numeric street indices used by the UI */

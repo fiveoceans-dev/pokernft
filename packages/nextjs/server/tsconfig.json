@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "sourceMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "../../game-engine": ["../game-engine/index.ts"],
+      "../../game-engine/*": ["../game-engine/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "../game-engine/**/*.ts"
+  ],
+  "exclude": [
+    "dist", 
+    "node_modules", 
+    "tests",
+    "../game-engine/tests",
+    "../utils/scaffold-stark/**/*",
+    "../app/**/*",
+    "../components/**/*",
+    "../hooks/**/*",
+    "../services/**/*"
+  ]
+}

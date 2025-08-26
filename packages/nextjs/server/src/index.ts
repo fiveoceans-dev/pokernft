@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { GameEngine, SeatingManager, TableState, Round } from "../backend";
+import { GameEngine, SeatingManager, TableState, Round } from "../../game-engine";
 import type {
   GameRoom,
   ServerEvent,
@@ -7,7 +7,7 @@ import type {
   PlayerAction,
   Stage,
   Table,
-} from "../backend";
+} from "../../game-engine";
 import {
   listTables,
   registerTable,
@@ -15,7 +15,7 @@ import {
 } from "./lobby";
 import { randomUUID } from "crypto";
 import { SessionManager, Session } from "./sessionManager";
-import { shortAddress } from "../utils/address";
+import { shortAddress } from "./utils";
 import {
   saveSession,
   removeSession,

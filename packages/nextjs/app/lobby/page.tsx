@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { LobbyTable } from "../../backend";
+import type { LobbyTable } from "../../game-engine";
 
 export default function LobbyPage() {
   const [tables, setTables] = useState<LobbyTable[]>([]);
