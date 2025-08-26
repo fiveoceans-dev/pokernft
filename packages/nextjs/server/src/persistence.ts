@@ -7,19 +7,33 @@ let client: RedisClientType | null;
 const memorySessions = new Map<string, Omit<Session, "socket" | "timeout">>();
 const memoryRooms = new Map<string, GameRoom>();
 
+let redisConnectionAttempted = false;
+
 async function getClient(): Promise<RedisClientType | null> {
   if (client !== undefined) return client;
-  try {
-    const mod = await import("redis");
-    const c = mod.createClient({ url: process.env.REDIS_URL });
-    c.on("error", (err) => {
-      console.warn("Redis error", err);
-    });
-    await c.connect();
-    client = c;
-  } catch (err) {
-    console.warn("Redis unavailable, using in-memory store");
-    client = null;
+  if (!redisConnectionAttempted) {
+    redisConnectionAttempted = true;
+    try {
+      const mod = await import("redis");
+      const c = mod.createClient({ url: process.env.REDIS_URL });
+      
+      // Silence error logging after first attempt
+      let errorCount = 0;
+      c.on("error", (err) => {
+        errorCount++;
+        if (errorCount === 1) {
+          console.warn("📡 Redis connection failed, using in-memory storage");
+        }
+        // Don't log subsequent Redis errors to avoid spam
+      });
+      
+      await c.connect();
+      console.log("📡 Redis connected successfully");
+      client = c;
+    } catch (err) {
+      console.warn("📡 Redis unavailable, using in-memory storage");
+      client = null;
+    }
   }
   return client;
 }

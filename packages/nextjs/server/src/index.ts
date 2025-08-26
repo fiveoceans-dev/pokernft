@@ -37,18 +37,25 @@ const seatMaps = new Map<string, Map<string, number>>();
 const gameStartTimers = new Map<string, NodeJS.Timeout>();
 const actionTimers = new Map<string, NodeJS.Timeout>();
 
+// Initialize tables immediately without waiting for persistence layer
+console.log('🌌 Creating persistent tables...');
+ensurePersistentTables();
+
+// Load persisted rooms in background (don't block server startup)
 (async () => {
-  console.log('📂 Loading persisted rooms from storage...');
-  const rooms = await loadAllRooms();
-  console.log(`📂 Loaded ${rooms.length} persisted rooms`);
-  rooms.forEach((r) => {
-    console.log(`🎲 Restoring room: ${r.id} with ${r.players.length} players`);
-    getEngine(r.id, r);
-  });
-  
-  // Create persistent space-themed tables
-  console.log('🌌 Creating persistent tables...');
-  ensurePersistentTables();
+  try {
+    console.log('📂 Loading persisted rooms from storage...');
+    const rooms = await loadAllRooms();
+    console.log(`📂 Loaded ${rooms.length} persisted rooms`);
+    rooms.forEach((r) => {
+      console.log(`🎲 Restoring room: ${r.id} with ${r.players.length} players`);
+      getEngine(r.id, r);
+    });
+    console.log('✅ Room restoration completed');
+  } catch (error) {
+    console.error('❌ Room restoration failed:', error);
+    console.log('ℹ️  Continuing with default tables only');
+  }
 })();
 
 function ensurePersistentTables() {
@@ -61,8 +68,11 @@ function ensurePersistentTables() {
     let engine = getRegisteredEngine(id);
     if (!engine) {
       console.log(`🎲 Creating persistent table: ${name} (${id}) with blinds ${blinds.small}/${blinds.big}`);
-      engine = new GameEngine(id);
+      // Create the engine and register it properly by calling the local getEngine function
+      // This will ensure the table is set up with all necessary maps and event handlers
+      engine = getEngine(id);
       engine.getState().minBet = blinds.big;
+      // The registerTable call happens inside getEngine, but we need to update the name
       registerTable(id, engine, name);
       console.log(`✅ Table ${name} created and registered`);
     } else {
@@ -91,11 +101,11 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
       bigBlindAmount: engine.getState().minBet,
       minBuyIn: engine.getState().minBet,
       maxBuyIn: engine.getState().minBet * 100,
-      state: TableState.WAITING,
+      state: "WAITING" as any, // TableState.WAITING
       deck: [],
       board: [],
       pots: [],
-      currentRound: Round.PREFLOP,
+      currentRound: "PREFLOP" as any, // Round.PREFLOP
       actingIndex: null,
       betToCall: 0,
       minRaise: engine.getState().minBet,
@@ -128,10 +138,10 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
       const room = engine!.getState();
       const stageToRound: Record<Stage, Round | null> = {
         waiting: null,
-        preflop: Round.PREFLOP,
-        flop: Round.FLOP,
-        turn: Round.TURN,
-        river: Round.RIVER,
+        preflop: "PREFLOP" as any, // Round.PREFLOP
+        flop: "FLOP" as any, // Round.FLOP
+        turn: "TURN" as any, // Round.TURN
+        river: "RIVER" as any, // Round.RIVER
         showdown: null,
       };
       const street = stageToRound[prevStage];
