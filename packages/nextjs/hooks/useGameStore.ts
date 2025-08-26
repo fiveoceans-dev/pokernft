@@ -54,6 +54,7 @@ interface GameStoreState {
   joinTable: (tableId: string) => void;
   createTable: (name: string) => Promise<void>;
   joinSeat: (seatIdx: number, tableId?: string) => Promise<void>;
+  leaveSeat: () => Promise<void>;
   playerAction: (action: {
     type: "fold" | "call" | "raise" | "check";
     amount?: number;
@@ -391,6 +392,27 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         } as ClientCommand;
         socket.send(JSON.stringify(cmd));
       }
+    },
+
+    leaveSeat: async () => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "LEAVE",
+        } as ClientCommand;
+        socket.send(JSON.stringify(cmd));
+      }
+      set((s) => {
+        const idx = s.playerIds.findIndex((id) => id === s.walletId);
+        if (idx === -1) return {};
+        const players = [...s.players];
+        const ids = [...s.playerIds];
+        const states = [...s.playerStates];
+        players[idx] = null;
+        ids[idx] = null;
+        states[idx] = PlayerState.EMPTY;
+        return { players, playerIds: ids, playerStates: states };
+      });
     },
 
     startHand: async () => {},
