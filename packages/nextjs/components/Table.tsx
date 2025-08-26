@@ -1,6 +1,6 @@
 // src/components/Table.tsx
 
-import { Fragment, useEffect } from "react";
+import { Fragment } from "react";
 import type { CSSProperties } from "react";
 import { useTableViewModel } from "../hooks/useTableViewModel";
 import Card from "./Card";
@@ -40,8 +40,6 @@ export default function Table({ timer }: { timer?: number | null }) {
     actionDisabled,
     handleActionClick,
     dealerIndex,
-    gameStartCountdown,
-    actionCountdown,
   } = useTableViewModel(timer);
 
   const { isConnected, address } = useWalletGameSync();
@@ -69,8 +67,16 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
-    const nickname = players[idx];
+    let nickname = players[idx] ?? "";
     const addr = playerIds[idx];
+    if (
+      nickname &&
+      (/^0x[a-fA-F0-9]{40}$/.test(nickname) ||
+        /^0x[a-fA-F0-9]{4}\.\.\.[a-fA-F0-9]{4}$/.test(nickname) ||
+        nickname.toLowerCase() === "white")
+    ) {
+      nickname = "";
+    }
     const handCodes = playerHands[idx];
     const pos = layout[idx];
     if (!pos) return null;
@@ -229,6 +235,14 @@ export default function Table({ timer }: { timer?: number | null }) {
           <div className="text-2xl font-mono">{actionCountdown}</div>
         </div>
       )}
+      
+      {displayTimer !== null &&
+        (currentTurn === null || currentTurn === localIdx) && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
+            {displayTimer.toString().padStart(2, "0")}
+          </div>
+        )}
+
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
