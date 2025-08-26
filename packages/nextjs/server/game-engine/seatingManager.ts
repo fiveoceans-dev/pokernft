@@ -40,10 +40,17 @@ export class SeatingManager {
     return true;
   }
 
-  /** Mark a player as sitting out. */
-  sitOut(seatIndex: number) {
+  /**
+   * Mark a player as sitting out. When {@link remove} is true the seat is
+   * vacated immediately.
+   */
+  sitOut(seatIndex: number, remove = false) {
     const player = this.table.seats[seatIndex];
     if (!player) return;
+    if (remove) {
+      this.table.seats[seatIndex] = null;
+      return;
+    }
     if (this.table.state === TableState.WAITING) {
       player.state = PlayerState.SITTING_OUT;
     } else {
