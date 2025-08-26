@@ -24,10 +24,6 @@ export default function ActionButtons() {
     playerAction(action.type, amount);
   };
 
-  if (actions.length === 0) {
-    return null;
-  }
-
   return (
     <div className="flex flex-col items-center gap-3 mt-4">
       {/* Action Buttons */}
@@ -35,11 +31,11 @@ export default function ActionButtons() {
         {actions.map((action) => (
           <button
             key={action.type}
-            onClick={() => handleAction(action)}
+            onClick={action.enabled ? () => handleAction(action) : undefined}
             disabled={!action.enabled}
             className={`
               px-4 py-2 rounded font-medium transition-all duration-200
-              ${action.enabled 
+              ${action.enabled
                 ? "bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105" 
                 : "bg-gray-500 text-gray-300 cursor-not-allowed opacity-50"
               }

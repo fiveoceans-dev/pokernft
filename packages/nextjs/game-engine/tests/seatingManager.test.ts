@@ -54,6 +54,7 @@ describe("SeatingManager", () => {
     const mgr2 = new SeatingManager(table2);
     expect(mgr1.seatPlayer(0, "p1", 50)).not.toBeNull();
     expect(mgr2.seatPlayer(0, "p1", 50)).not.toBeNull();
+
   });
 
   test("top up and handle broke players", () => {

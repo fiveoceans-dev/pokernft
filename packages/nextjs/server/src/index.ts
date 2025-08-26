@@ -36,6 +36,7 @@ const seating = new Map<string, SeatingManager>();
 const seatMaps = new Map<string, Map<string, number>>();
 const gameStartTimers = new Map<string, NodeJS.Timeout>();
 const actionTimers = new Map<string, NodeJS.Timeout>();
+const timeoutCounts = new Map<string, number>();
 
 // Initialize tables immediately without waiting for persistence layer
 console.log('🌌 Creating persistent tables...');
@@ -226,11 +227,11 @@ function startGameCountdown(roomId: string) {
   }
 
   let countdown = 10;
-  broadcast(roomId, { type: "GAME_START_COUNTDOWN", countdown });
+  broadcast(roomId, { type: "TIMER", countdown });
 
   const timer = setInterval(() => {
     countdown--;
-    broadcast(roomId, { type: "GAME_START_COUNTDOWN", countdown });
+    broadcast(roomId, { type: "TIMER", countdown });
 
     if (countdown <= 0) {
       clearInterval(timer);
@@ -257,11 +258,11 @@ function startActionTimer(roomId: string, playerId: string) {
   }
 
   let countdown = 10;
-  broadcast(roomId, { type: "ACTION_TIMEOUT", countdown });
+  broadcast(roomId, { type: "TIMER", countdown });
 
   const timer = setInterval(() => {
     countdown--;
-    broadcast(roomId, { type: "ACTION_TIMEOUT", countdown });
+    broadcast(roomId, { type: "TIMER", countdown });
 
     if (countdown <= 0) {
       clearInterval(timer);
@@ -270,15 +271,15 @@ function startActionTimer(roomId: string, playerId: string) {
       // Auto-action (fold or check based on rules)
       const engine = getEngine(roomId);
       const room = engine.getState();
-      const player = room.players.find(p => p.id === playerId);
-      
+      const player = room.players.find((p) => p.id === playerId);
+
       if (player && player.isTurn) {
         const maxBet = Math.max(0, ...room.players.map((p) => p.currentBet));
         const betToCall = maxBet - player.currentBet;
-        
+
         // If no bet to call, check; otherwise fold
         const autoAction = betToCall === 0 ? "check" : "fold";
-        
+
         try {
           engine.handleAction(playerId, { type: autoAction });
           broadcast(roomId, {
@@ -286,6 +287,32 @@ function startActionTimer(roomId: string, playerId: string) {
             playerId,
             action: autoAction.toUpperCase() as any,
           });
+
+          // Track consecutive timeouts
+          const count = (timeoutCounts.get(playerId) ?? 0) + 1;
+          timeoutCounts.set(playerId, count);
+
+          if (count >= 2) {
+            const seatIndex = seatMaps.get(roomId)?.get(playerId);
+            const seatingMgr = seating.get(roomId);
+            if (seatingMgr && seatIndex !== undefined) {
+              seatingMgr.sitOut(seatIndex, true);
+              seatMaps.get(roomId)?.delete(playerId);
+              engine.removePlayer(playerId);
+              const updatedRoom = engine.getState();
+              void saveRoom(updatedRoom);
+              broadcast(roomId, {
+                type: "PLAYER_LEFT",
+                seat: seatIndex,
+                playerId,
+              });
+              broadcast(roomId, {
+                type: "TABLE_SNAPSHOT",
+                table: updatedRoom,
+              });
+            }
+            timeoutCounts.delete(playerId);
+          }
         } catch (error) {
           console.error("Auto-action failed:", error);
         }
@@ -641,7 +668,19 @@ wss.on("connection", (ws) => {
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
-          
+          const currentPlayer = room.players[room.currentTurnIndex];
+          if (!currentPlayer || currentPlayer.id !== playerId) {
+            ws.send(
+              JSON.stringify({
+                tableId: room.id,
+                type: "ERROR",
+                code: "NOT_YOUR_TURN",
+                msg: "It's not your turn",
+              } satisfies ServerEvent),
+            );
+            break;
+          }
+
           try {
             // Clear action timer when player takes action
             const timer = actionTimers.get(room.id);
@@ -660,6 +699,7 @@ wss.on("connection", (ws) => {
               action,
               amount: msg.amount,
             });
+            timeoutCounts.delete(playerId);
           } catch (error) {
             ws.send(
               JSON.stringify({

@@ -21,6 +21,7 @@ class SeatingManager {
       )
     )
       return null;
+
     if (stack < this.table.minBuyIn || stack > this.table.maxBuyIn) return null;
     const player = {
       id,
@@ -85,6 +86,18 @@ class SeatingManager {
           p.state = types_1.PlayerState.SITTING_OUT;
         } else {
           p.state = types_1.PlayerState.LEAVING;
+
+    /** Mark a player as sitting out. */
+    sitOut(seatIndex, remove = false) {
+        const player = this.table.seats[seatIndex];
+        if (!player)
+            return;
+        if (remove) {
+            this.table.seats[seatIndex] = null;
+            return;
+        }
+        if (this.table.state === types_1.TableState.WAITING) {
+            player.state = types_1.PlayerState.SITTING_OUT;
         }
       }
     });

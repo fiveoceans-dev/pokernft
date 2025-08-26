@@ -12,7 +12,7 @@ export declare class SeatingManager {
     /** Increase a player's stack up to the table's max buy-in. */
     topUp(seatIndex: number, amount: number): boolean;
     /** Mark a player as sitting out. */
-    sitOut(seatIndex: number): void;
+    sitOut(seatIndex: number, remove?: boolean): void;
     /** Return a sitting out player to active play if they have chips. */
     sitIn(seatIndex: number): void;
     /** Remove a player entirely from the table. */
