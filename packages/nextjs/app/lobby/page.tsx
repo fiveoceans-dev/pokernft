@@ -9,7 +9,8 @@ export default function LobbyPage() {
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.WebSocket) return;
-    const ws = new WebSocket("ws://localhost:8080");
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
+    const ws = new WebSocket(wsUrl);
     ws.onopen = () => {
       ws.send(
         JSON.stringify({ cmdId: Date.now().toString(), type: "LIST_TABLES" }),

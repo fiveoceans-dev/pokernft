@@ -11,23 +11,39 @@ Real-time multiplayer Texas Hold'em poker with Starknet wallet integration.
 
 ## 🚀 Quick Start
 
-This repository uses **Node 20** and **Yarn 3** workspaces.
+This repository uses **Node 18+** and **Yarn** workspaces.
 
 ```bash
-corepack enable
 yarn install
 ```
 
-### Development - Run Both Services
+### Hybrid Development (Recommended)
 
+**Backend Services (Docker):**
 ```bash
-# Terminal 1: Frontend (Next.js)
+# From project root - starts WebSocket server + Redis
+docker-compose up -d        # Backend services on Docker
+```
+
+**Frontend (Native Next.js):**
+```bash
+# In new terminal
 cd packages/nextjs
 yarn dev                    # http://localhost:3005
+```
 
-# Terminal 2: WebSocket Server  
+This approach mirrors production deployment (Vercel frontend + Heroku backend).
+
+### Alternative: Manual Development
+
+```bash
+# Terminal 1: WebSocket Server
 cd packages/nextjs/server
-npm run dev                 # ws://localhost:8080
+yarn dev                    # ws://localhost:8080
+
+# Terminal 2: Frontend
+cd packages/nextjs
+yarn dev                    # http://localhost:3005
 ```
 
 ### Single Command Development
@@ -56,10 +72,16 @@ yarn test          # snfoundry tests
 
 ## 🚀 Deployment
 
+### Backend → Heroku (Docker)
+```bash
+cd packages/nextjs/server
+./heroku-deploy.sh          # Automated Docker deployment
+```
+
 ### Frontend → Vercel
 ```bash
 cd packages/nextjs
-yarn vercel                 # Deploy frontend to Vercel
+vercel --prod               # Deploy to Vercel
 ```
 
 Set environment variable in Vercel dashboard:
@@ -67,13 +89,12 @@ Set environment variable in Vercel dashboard:
 NEXT_PUBLIC_WS_URL=wss://your-poker-server.herokuapp.com
 ```
 
-### WebSocket Server → Heroku
-```bash
-cd packages/nextjs/server
-./heroku-deploy.sh          # Deploy server to Heroku
-```
-
-**Complete deployment guide**: [packages/nextjs/server/README.md](packages/nextjs/server/README.md)
+### Complete Guides
+- **[Local Development](docs/LOCAL_DEVELOPMENT.md)** - Hybrid Docker + Next.js setup
+- **[Heroku Deployment](docs/HEROKU_DEPLOYMENT.md)** - Docker container deployment
+- **[Vercel Deployment](docs/VERCEL_DEPLOYMENT.md)** - Frontend deployment
+- **[Integration Guide](docs/INTEGRATION_GUIDE.md)** - Connecting all services  
+- **[Testing Guide](docs/TESTING_GUIDE.md)** - End-to-end testing procedures
 
 ### Environment Configuration
 - `NEXT_PUBLIC_PROVIDER_URL`: Starknet RPC endpoints
@@ -110,27 +131,40 @@ modify the poker backend.
 ## 🎲 Project Structure
 
 ```
-packages/
-├── nextjs/                    # Main application
-│   ├── app/                   # Next.js 14 app router (Vercel)
-│   ├── components/            # React components  
-│   ├── hooks/                 # React hooks for game logic
-│   ├── game-engine/           # 🎯 Poker game logic (TypeScript)
-│   │   ├── gameEngine.ts      # Core game engine
-│   │   ├── handEvaluator.ts   # Hand evaluation
-│   │   ├── room.ts            # Game room management
-│   │   └── types.ts           # Game types
-│   ├── server/                # 🚀 WebSocket server (Heroku)
-│   │   ├── src/
-│   │   │   ├── index.ts       # Server entry point
-│   │   │   ├── lobby.ts       # Table management
-│   │   │   └── sessionManager.ts # Session handling
-│   │   ├── Procfile           # Heroku configuration
-│   │   └── README.md          # Deployment guide
-│   └── blockchain/            # 🔮 Future: Blockchain integration layer
-└── snfoundry/                 # 🔗 Smart contracts (Cairo)
-    ├── contracts/             # Starknet contracts
-    └── scripts/               # Deployment scripts
+pokernft/
+├── docker-compose.yml         # 🐳 Backend services for local development
+├── docs/                      # 📚 Complete documentation
+│   ├── LOCAL_DEVELOPMENT.md   # Setup and development guide
+│   ├── HEROKU_DEPLOYMENT.md   # Docker deployment to Heroku
+│   ├── VERCEL_DEPLOYMENT.md   # Frontend deployment to Vercel
+│   ├── INTEGRATION_GUIDE.md   # Connecting services
+│   ├── TESTING_GUIDE.md       # End-to-end testing
+│   └── API_REFERENCE.md       # WebSocket API documentation
+├── packages/
+│   ├── nextjs/                # 🎮 Main application
+│   │   ├── app/               # Next.js 14 app router (Vercel)
+│   │   ├── components/        # React components  
+│   │   ├── hooks/             # React hooks for game logic
+│   │   ├── game-engine/       # 🎯 Poker game logic (TypeScript)
+│   │   │   ├── gameEngine.ts  # Core game engine
+│   │   │   ├── handEvaluator.ts # Hand evaluation
+│   │   │   ├── room.ts        # Game room management
+│   │   │   ├── tests/         # Comprehensive test suite
+│   │   │   └── types.ts       # Game types
+│   │   ├── server/            # 🚀 WebSocket server (Heroku)
+│   │   │   ├── src/
+│   │   │   │   ├── index.ts   # Server entry point
+│   │   │   │   ├── lobby.ts   # Table management
+│   │   │   │   └── sessionManager.ts # Session handling
+│   │   │   ├── Dockerfile     # Docker container config
+│   │   │   ├── heroku.yml     # Heroku container deployment
+│   │   │   ├── docker-compose.yml # Isolated server development
+│   │   │   └── heroku-deploy.sh # Automated deployment script
+│   │   ├── Dockerfile.dev     # Optional frontend Docker development
+│   │   └── .env               # Environment configuration
+│   └── snfoundry/             # 🔗 Smart contracts (Cairo)
+│       ├── contracts/         # Starknet contracts
+│       └── scripts/           # Deployment scripts
 ```
 
 ## 🔮 Future Blockchain Integration

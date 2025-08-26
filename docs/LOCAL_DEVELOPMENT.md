@@ -1,6 +1,6 @@
 # 🛠️ Local Development Guide
 
-Complete guide to setting up and running the PokerNFT project locally with full-stack development environment.
+Complete guide to setting up and running the PokerNFT project locally. Uses hybrid approach: Docker for backend services, native Next.js for frontend (aligns with Vercel + Heroku deployment).
 
 ## 📋 Prerequisites
 
@@ -37,9 +37,9 @@ Before you begin, ensure you have the following installed:
 
 ## 🚀 Quick Start
 
-### Option 1: Docker Development (Recommended)
+### Hybrid Development (Recommended)
 
-The fastest way to get everything running:
+This approach mirrors your production setup: Docker backend + native frontend.
 
 1. **Clone the repository**
    ```bash
@@ -47,18 +47,18 @@ The fastest way to get everything running:
    cd pokernft
    ```
 
-2. **Start the full development environment**
+2. **Start backend services with Docker**
    ```bash
    # From project root
-   docker-compose up
+   docker-compose up -d
    ```
    
    This will start:
    - ✅ WebSocket server on `ws://localhost:8080`
    - ✅ Redis database on `localhost:6379`
-   - ✅ Redis Commander UI on `http://localhost:8081`
+   - ✅ Redis Commander UI on `http://localhost:8081` (optional)
 
-3. **Start the frontend separately**
+3. **Start the frontend natively**
    ```bash
    # In a new terminal
    cd packages/nextjs
@@ -66,11 +66,11 @@ The fastest way to get everything running:
    yarn dev
    ```
    
-   Frontend will be available at `http://localhost:3000`
+   Frontend will be available at `http://localhost:3005`
 
-### Option 2: Manual Development Setup
+### Manual Development Setup (Alternative)
 
-If you prefer running services manually:
+If you prefer running services manually without Docker:
 
 1. **Clone and install dependencies**
    ```bash
@@ -85,12 +85,12 @@ If you prefer running services manually:
    cd packages/nextjs/server
    cp .env.example .env.local
    
-   # Frontend
+   # Frontend (already has .env with WebSocket URL)
    cd ../
-   cp .env.example .env.local
+   # Check that NEXT_PUBLIC_WS_URL=ws://localhost:8080 is set in .env
    ```
 
-3. **Start Redis (optional)**
+3. **Start Redis (optional but recommended)**
    ```bash
    # Using Docker
    docker run --name redis -p 6379:6379 -d redis:7-alpine
@@ -104,6 +104,7 @@ If you prefer running services manually:
    yarn install
    yarn dev
    ```
+   Server will start on `ws://localhost:8080`
 
 5. **Start the frontend**
    ```bash
@@ -111,6 +112,7 @@ If you prefer running services manually:
    cd packages/nextjs
    yarn dev
    ```
+   Frontend will start on `http://localhost:3005`
 
 ## 🏗️ Project Structure
 
@@ -145,7 +147,7 @@ cp .env.example .env.local
 Key variables to customize:
 - `PORT=8080` - Server port
 - `REDIS_URL=redis://localhost:6379` - Redis connection
-- `ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3005` - CORS settings
+- `ALLOWED_ORIGINS=http://localhost:3005` - CORS settings (frontend port)
 
 ### Frontend (.env.local)
 
@@ -185,7 +187,7 @@ yarn dev
 
 ### 2. Access Applications
 
-- **Frontend:** http://localhost:3000
+- **Frontend:** http://localhost:3005
 - **WebSocket Server:** ws://localhost:8080
 - **Redis Commander:** http://localhost:8081 (user: admin, pass: admin)
 
@@ -238,32 +240,22 @@ wscat -c ws://localhost:8080
 ```
 
 **Test Frontend Connection:**
-1. Open http://localhost:3000
-2. Navigate to the lobby page
+1. Open http://localhost:3005
+2. Navigate to the lobby page at http://localhost:3005/lobby
 3. Check browser console for WebSocket connection logs
 4. Try joining a table
 
 ## 🐳 Docker Development
 
-### Full-Stack Development
+### Current Setup (Hybrid - Recommended)
 
-Create a root-level `docker-compose.yml`:
+The root-level `docker-compose.yml` only runs backend services:
 
 ```yaml
+# Backend services only - Frontend runs natively
 version: '3.8'
 services:
-  frontend:
-    build:
-      context: ./packages/nextjs
-      dockerfile: Dockerfile.dev
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_WS_URL=ws://server:8080
-    depends_on:
-      - server
-
-  server:
+  pokernft-server:
     build: ./packages/nextjs/server
     ports:
       - "8080:8080"
@@ -277,6 +269,12 @@ services:
     ports:
       - "6379:6379"
 ```
+
+This aligns with production deployment (Vercel frontend + Heroku backend).
+
+### Optional: Full Docker Development
+
+For developers who prefer full containerization, you can extend the docker-compose.yml to include the frontend service using the provided `Dockerfile.dev`.
 
 ### Useful Docker Commands
 
@@ -311,7 +309,7 @@ docker-compose down -v
 ```bash
 # Find process using port
 lsof -i :8080
-lsof -i :3000
+lsof -i :3005
 
 # Kill process
 kill -9 <PID>

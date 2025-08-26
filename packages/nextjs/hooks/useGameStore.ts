@@ -123,7 +123,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
   }
 
   if (typeof window !== "undefined" && !socket) {
-    socket = new WebSocket("ws://localhost:8080");
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
+    socket = new WebSocket(wsUrl);
     socket.onopen = () => {
       // Check for Starknet wallet address from localStorage (set by CustomConnectButton)
       const starknetAddress = localStorage.getItem("sessionId");

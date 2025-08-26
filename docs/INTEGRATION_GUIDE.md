@@ -303,7 +303,6 @@ export function useWebSocketWithReconnect(url: string) {
 ```typescript
 // In packages/nextjs/server/src/index.ts
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',') || [
-  'http://localhost:3000',
   'http://localhost:3005'
 ]
 
