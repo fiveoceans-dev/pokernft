@@ -9,13 +9,12 @@ export interface PokerAction {
 }
 
 export function usePokerActions() {
-  const { 
-    currentTurn, 
-    playerBets, 
-    chips, 
-    walletId, 
-    playerIds, 
-    players 
+  const {
+    currentTurn,
+    playerBets,
+    chips,
+    walletId,
+    playerIds
   } = useGameStore();
 
   return useMemo(() => {
@@ -24,10 +23,6 @@ export function usePokerActions() {
     const isMyTurn = currentTurn === mySeatIndex;
     const myChips = chips[mySeatIndex] || 0;
     const myCurrentBet = playerBets[mySeatIndex] || 0;
-    
-    if (!isMyTurn || mySeatIndex === -1 || !players[mySeatIndex]) {
-      return [];
-    }
 
     // Calculate the current betting state
     const maxBet = Math.max(...playerBets);
@@ -35,65 +30,42 @@ export function usePokerActions() {
     const canCheck = betToCall === 0;
     const canBet = maxBet === 0; // No one has bet yet in this round
     const minRaise = Math.max(maxBet * 2, 50); // Min raise is double current bet or big blind
-    
-    const actions: PokerAction[] = [];
 
-    // Fold - always available (unless you can check for free)
-    if (!canCheck) {
-      actions.push({
+    const actions: PokerAction[] = [
+      {
         type: "fold",
         label: "Fold",
-        enabled: true,
-      });
-    }
-
-    // Check - available when no bet to call
-    if (canCheck) {
-      actions.push({
+        enabled: isMyTurn && !canCheck,
+      },
+      {
         type: "check",
         label: "Check",
-        enabled: true,
-      });
-    }
-
-    // Call - available when there's a bet to call
-    if (betToCall > 0 && myChips >= betToCall) {
-      actions.push({
+        enabled: isMyTurn && canCheck,
+      },
+      {
         type: "call",
         label: `Call $${betToCall}`,
-        enabled: true,
+        enabled: isMyTurn && betToCall > 0 && myChips >= betToCall,
         amount: betToCall,
-      });
-    }
-
-    // Bet - available when no one has bet yet
-    if (canBet && myChips >= 50) {
-      actions.push({
+      },
+      {
         type: "bet",
         label: "Bet",
-        enabled: true,
-      });
-    }
-
-    // Raise - available when there's already a bet
-    if (betToCall > 0 && myChips >= minRaise) {
-      actions.push({
+        enabled: isMyTurn && canBet && myChips >= 50,
+      },
+      {
         type: "raise",
         label: "Raise",
-        enabled: true,
-      });
-    }
-
-    // All-in - always available when you have chips
-    if (myChips > 0) {
-      actions.push({
+        enabled: isMyTurn && betToCall > 0 && myChips >= minRaise,
+      },
+      {
         type: "all-in",
         label: `All-in $${myChips}`,
-        enabled: true,
+        enabled: isMyTurn && myChips > 0,
         amount: myChips,
-      });
-    }
+      }
+    ];
 
     return actions;
-  }, [currentTurn, playerBets, chips, walletId, playerIds, players]);
+  }, [currentTurn, playerBets, chips, walletId, playerIds]);
 }

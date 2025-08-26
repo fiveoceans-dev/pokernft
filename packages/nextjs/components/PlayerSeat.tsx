@@ -31,6 +31,15 @@ export default function PlayerSeat({
     null,
   ];
 
+  const isPlaceholderAddress = (addr: string) =>
+    addr.toLowerCase() === "white" || /^0x0{40}$/.test(addr);
+
+  const displayName = player.name?.trim()
+    ? player.name
+    : player.address && !isPlaceholderAddress(player.address)
+      ? shortAddress(player.address)
+      : "";
+
   return (
     <div className={clsx("relative w-24 h-8", player.folded && "opacity-60")}>
       {/* Hole cards are rendered only after the dealer deals them */}
@@ -69,13 +78,8 @@ export default function PlayerSeat({
           )}
         >
           <span className="text-[var(--color-highlight)] truncate w-full">
-            {player.name}
+            {displayName}
           </span>
-          {player.address && (
-            <span className="text-xs w-full truncate">
-              {shortAddress(player.address)}
-            </span>
-          )}
         </div>
         {state === PlayerState.ALL_IN && (
           <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-yellow-300 font-bold">

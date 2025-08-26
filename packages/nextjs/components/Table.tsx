@@ -39,8 +39,6 @@ export default function Table({ timer }: { timer?: number | null }) {
     actionDisabled,
     handleActionClick,
     dealerIndex,
-    gameStartCountdown,
-    actionCountdown,
   } = useTableViewModel(timer);
 
   const { isConnected, address } = useWalletGameSync();
@@ -54,6 +52,12 @@ export default function Table({ timer }: { timer?: number | null }) {
       if (modal) modal.checked = true;
       return;
     }
+    // Prevent seating if this wallet is already seated at the table
+    if (playerIds.some((id) => id === address)) {
+      alert("You are already seated at this table");
+
+      return;
+    }
     // Join seat using the connected wallet address as player ID
     joinSeat(idx);
   };
@@ -64,8 +68,16 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
-    const nickname = players[idx];
+    let nickname = players[idx] ?? "";
     const addr = playerIds[idx];
+    if (
+      nickname &&
+      (/^0x[a-fA-F0-9]{40}$/.test(nickname) ||
+        /^0x[a-fA-F0-9]{4}\.\.\.[a-fA-F0-9]{4}$/.test(nickname) ||
+        nickname.toLowerCase() === "white")
+    ) {
+      nickname = "";
+    }
     const handCodes = playerHands[idx];
     const pos = layout[idx];
     if (!pos) return null;
@@ -204,7 +216,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
         {displayTimer.toString().padStart(2, "0")}
       </div>
-      
+
       {/* Game start countdown */}
       {gameStartCountdown !== null && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 text-center">
@@ -216,7 +228,7 @@ export default function Table({ timer }: { timer?: number | null }) {
           </div>
         </div>
       )}
-      
+
       {/* Action countdown */}
       {actionCountdown !== null && (
         <div className="absolute top-16 right-4 bg-red-600/80 text-white px-3 py-2 rounded-lg">
@@ -224,6 +236,14 @@ export default function Table({ timer }: { timer?: number | null }) {
           <div className="text-2xl font-mono">{actionCountdown}</div>
         </div>
       )}
+      
+      {displayTimer !== null &&
+        (currentTurn === null || currentTurn === localIdx) && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
+            {displayTimer.toString().padStart(2, "0")}
+          </div>
+        )}
+
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
@@ -239,7 +259,7 @@ export default function Table({ timer }: { timer?: number | null }) {
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
-      
+
       {/* Smart Action Buttons */}
       <ActionButtons />
     </div>

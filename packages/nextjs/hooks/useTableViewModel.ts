@@ -46,7 +46,7 @@ const buildLayout = (isMobile: boolean): SeatPos[] => {
   });
 };
 
-export function useTableViewModel(timer?: number | null) {
+export function useTableViewModel(_timer?: number | null) {
   const {
     players,
     playerIds,
@@ -60,16 +60,13 @@ export function useTableViewModel(timer?: number | null) {
     playerAction,
     playerStates,
     dealerIndex,
-    gameStartCountdown,
-    actionCountdown,
+    timer: serverTimer,
   } = useGameStore();
 
   const isMobile = useIsMobile();
   const [tableScale, setTableScale] = useState(1);
   const [bet, setBet] = useState(bigBlind);
   // TODO: use minRaise from engine instead of bigBlind (Action Plan 1.2)
-  const [actionTimer, setActionTimer] = useState<number | null>(null);
-  // TODO: hook into TimerService for server-synced countdowns (Action Plan 1.2)
 
   useEffect(() => {
     const stack = chips[currentTurn ?? 0] ?? bigBlind;
@@ -162,7 +159,7 @@ export function useTableViewModel(timer?: number | null) {
   const betEnabled = actions.includes("Bet") || actions.includes("Raise");
   const maxBet = myChips;
 
-  const displayTimer = actionTimer ?? timer ?? 0;
+  const displayTimer = serverTimer;
 
   const handleActionClick = (action: string) => {
     switch (action) {
@@ -180,7 +177,6 @@ export function useTableViewModel(timer?: number | null) {
         playerAction({ type: "raise", amount: bet });
         break;
     }
-    setActionTimer(null);
   };
 
   const actionDisabled = currentTurn !== localIdx;
@@ -213,7 +209,5 @@ export function useTableViewModel(timer?: number | null) {
     actionDisabled,
     handleActionClick,
     dealerIndex,
-    gameStartCountdown,
-    actionCountdown,
   };
 }

@@ -60,8 +60,7 @@ export type ServerEvent =
     }
   | { tableId: string; type: "HAND_END" }
   | { tableId: string; type: "BUTTON_MOVED"; buttonIndex: number }
-  | { tableId: string; type: "GAME_START_COUNTDOWN"; countdown: number }
-  | { tableId: string; type: "ACTION_TIMEOUT"; countdown: number }
+  | { tableId: string; type: "TIMER"; countdown: number }
   | { tableId: string; type: "ERROR"; code: string; msg: string };
 
 export type ClientCommand =

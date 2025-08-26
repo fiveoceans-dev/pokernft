@@ -47,15 +47,14 @@ interface GameStoreState {
   walletId: string | null;
   /** current table ID */
   tableId: string | null;
-  /** game start countdown */
-  gameStartCountdown: number | null;
-  /** current player turn timer */
-  actionCountdown: number | null;
+  /** unified countdown timer from server */
+  timer: number | null;
   
   connectWallet: (address: string) => void;
   joinTable: (tableId: string) => void;
   createTable: (name: string) => Promise<void>;
   joinSeat: (seatIdx: number, tableId?: string) => Promise<void>;
+  leaveSeat: () => Promise<void>;
   playerAction: (action: {
     type: "fold" | "call" | "raise" | "check";
     amount?: number;
@@ -279,16 +278,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             break;
           case "ROUND_END":
             break;
-          case "GAME_START_COUNTDOWN":
-            set({ gameStartCountdown: msg.countdown });
+          case "TIMER":
+            set({ timer: msg.countdown });
             if (msg.countdown === 0) {
-              set({ gameStartCountdown: null });
-            }
-            break;
-          case "ACTION_TIMEOUT":
-            set({ actionCountdown: msg.countdown });
-            if (msg.countdown === 0) {
-              set({ actionCountdown: null });
+              set({ timer: null });
             }
             break;
           case "ERROR":
@@ -340,8 +333,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         ? localStorage.getItem("sessionId") || localStorage.getItem("walletAddress")
         : null,
     tableId: null,
-    gameStartCountdown: null,
-    actionCountdown: null,
+    timer: null,
 
     connectWallet: (address: string) => {
       set({ walletId: address });
@@ -400,6 +392,27 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         } as ClientCommand;
         socket.send(JSON.stringify(cmd));
       }
+    },
+
+    leaveSeat: async () => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "LEAVE",
+        } as ClientCommand;
+        socket.send(JSON.stringify(cmd));
+      }
+      set((s) => {
+        const idx = s.playerIds.findIndex((id) => id === s.walletId);
+        if (idx === -1) return {};
+        const players = [...s.players];
+        const ids = [...s.playerIds];
+        const states = [...s.playerStates];
+        players[idx] = null;
+        ids[idx] = null;
+        states[idx] = PlayerState.EMPTY;
+        return { players, playerIds: ids, playerStates: states };
+      });
     },
 
     startHand: async () => {},
