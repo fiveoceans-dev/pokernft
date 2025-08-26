@@ -93,7 +93,7 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
     registerTable(id, engine);
 
     const table: Table = {
-      seats: Array(6).fill(null),
+      seats: Array(9).fill(null),
       buttonIndex: 0,
       smallBlindIndex: 0,
       bigBlindIndex: 0,
@@ -120,6 +120,7 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
     seating.set(id, mgr);
     const seatMap = new Map<string, number>();
     seatMaps.set(id, seatMap);
+    console.log(`🪑 Created table ${id} with ${table.seats.length} seats and seating manager`);
     if (snapshot) {
       snapshot.players.forEach((p) => {
         const seated = mgr.seatPlayer(p.seat, p.id, p.chips);
@@ -489,10 +490,23 @@ wss.on("connection", (ws) => {
           
           const seatingMgr = seating.get(room.id);
           const table = tables.get(room.id);
+          console.log(`🔍 [${clientId}] Table objects - seatingMgr: ${!!seatingMgr}, table: ${!!table}`);
+          
+          if (!seatingMgr || !table) {
+            console.log(`❌ [${clientId}] Missing table objects for ${room.id} - recreating...`);
+            // Force recreation of table objects
+            getEngine(room.id);
+            const newSeatingMgr = seating.get(room.id);
+            const newTable = tables.get(room.id);
+            console.log(`🔄 [${clientId}] After recreation - seatingMgr: ${!!newSeatingMgr}, table: ${!!newTable}`);
+          }
+          
+          const finalSeatingMgr = seating.get(room.id);
+          const finalTable = tables.get(room.id);
           
           // Validate seat availability and buy-in using SeatingManager
-          if (seatingMgr && table) {
-            if (seatIndex < 0 || seatIndex >= table.seats.length) {
+          if (finalSeatingMgr && finalTable) {
+            if (seatIndex < 0 || seatIndex >= finalTable.seats.length) {
               ws.send(
                 JSON.stringify({
                   tableId: room.id,
@@ -503,7 +517,7 @@ wss.on("connection", (ws) => {
               );
               break;
             }
-            if (table.seats[seatIndex]) {
+            if (finalTable.seats[seatIndex]) {
               ws.send(
                 JSON.stringify({
                   tableId: room.id,
@@ -514,20 +528,21 @@ wss.on("connection", (ws) => {
               );
               break;
             }
-            if (msg.buyIn < table.minBuyIn || msg.buyIn > table.maxBuyIn) {
+            if (msg.buyIn < finalTable.minBuyIn || msg.buyIn > finalTable.maxBuyIn) {
               ws.send(
                 JSON.stringify({
                   tableId: room.id,
                   type: "ERROR",
                   code: "INVALID_BUYIN",
-                  msg: `Buy-in must be between ${table.minBuyIn} and ${table.maxBuyIn}`,
+                  msg: `Buy-in must be between ${finalTable.minBuyIn} and ${finalTable.maxBuyIn}`,
                 } satisfies ServerEvent),
               );
               break;
             }
             
             // Use SeatingManager to seat the player in the Table
-            const tablePlayer = seatingMgr.seatPlayer(seatIndex, playerId, msg.buyIn);
+            console.log(`🪑 [${clientId}] Using seating manager to seat player ${playerId} at seat ${seatIndex}`);
+            const tablePlayer = finalSeatingMgr.seatPlayer(seatIndex, playerId, msg.buyIn);
             if (!tablePlayer) {
               ws.send(
                 JSON.stringify({
