@@ -147,6 +147,17 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       } else {
         console.log("ℹ️ No wallet address found, continuing without attachment");
       }
+
+      const pendingTable = get().tableId;
+      if (pendingTable) {
+        const joinCmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "JOIN_TABLE",
+          tableId: pendingTable,
+        } as any;
+        socket!.send(JSON.stringify(joinCmd));
+        console.log("📥 Joined table on connect:", pendingTable);
+      }
     };
     socket.onmessage = (ev) => {
       try {
@@ -334,6 +345,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     connectWallet: (address: string) => {
       set({ walletId: address });
+      if (typeof window !== "undefined") {
+        localStorage.setItem("walletAddress", address);
+      }
       // Attach to WebSocket if connected
       if (socket && socket.readyState === WebSocket.OPEN) {
         const cmd: ClientCommand = {
