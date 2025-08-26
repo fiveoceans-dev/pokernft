@@ -47,10 +47,14 @@ class SeatingManager {
         return true;
     }
     /** Mark a player as sitting out. */
-    sitOut(seatIndex) {
+    sitOut(seatIndex, remove = false) {
         const player = this.table.seats[seatIndex];
         if (!player)
             return;
+        if (remove) {
+            this.table.seats[seatIndex] = null;
+            return;
+        }
         if (this.table.state === types_1.TableState.WAITING) {
             player.state = types_1.PlayerState.SITTING_OUT;
         }
