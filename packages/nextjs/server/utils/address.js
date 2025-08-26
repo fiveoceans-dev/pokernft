@@ -21,4 +21,3 @@ function shortAddress(addr) {
         return addr;
     return `${addr.slice(0, 5)}...${addr.slice(-4)}`;
 }
-//# sourceMappingURL=address.js.map

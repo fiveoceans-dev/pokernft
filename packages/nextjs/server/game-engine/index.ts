@@ -30,8 +30,7 @@ export type { ServerEvent, ClientCommand, LobbyTable } from "./networking";
 // Explicitly export commonly used utility functions
 export { indexToCard, cardToIndex } from "./utils";
 
-// Re-export address utilities for convenience
-export { shortAddress, randomAddress } from "../utils/address";
+// Address utilities removed due to path issues - import directly from utils/address when needed
 export {
   createRoom,
   addPlayer,
