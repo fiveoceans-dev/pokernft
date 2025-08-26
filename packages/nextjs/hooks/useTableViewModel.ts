@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "./useGameStore";
 import useIsMobile from "./useIsMobile";
+import { useWalletGameSync } from "./useWalletGameSync";
 
 interface SeatPos {
   x: string;
@@ -101,6 +102,38 @@ export function useTableViewModel(_timer?: number | null) {
     return max;
   }, [layout]);
 
+  const { address } = useWalletGameSync();
+  const walletSeatIdx = useMemo(() => {
+    if (!address) return -1;
+    return playerIds.findIndex(
+      (id) => id?.toLowerCase() === address.toLowerCase(),
+    );
+  }, [playerIds, address]);
+
+  useEffect(() => {
+    if (currentTurn !== null) {
+      setActionTimer(10);
+    } else {
+      setActionTimer(null);
+    }
+  }, [currentTurn]);
+
+  useEffect(() => {
+    if (actionTimer === null || currentTurn === null) return;
+    if (actionTimer === 0) {
+      const highest = Math.max(...playerBets);
+      const myBet = playerBets[currentTurn] ?? 0;
+      if (highest > myBet) {
+        playerAction({ type: "fold" });
+      } else {
+        playerAction({ type: "check" });
+      }
+      setActionTimer(null);
+      return;
+    }
+    const id = setTimeout(() => setActionTimer((t) => (t as number) - 1), 1000);
+    return () => clearTimeout(id);
+  }, [actionTimer, playerBets, playerAction, currentTurn]);
 
   const communityCardSize = useMemo(() => {
     return tableScale < 0.75 ? "xs" : tableScale < 1 ? "sm" : "md";
@@ -162,6 +195,7 @@ export function useTableViewModel(_timer?: number | null) {
     playerStates,
     layout,
     localIdx,
+    walletSeatIdx,
     tableScale,
     bet,
     setBet,
