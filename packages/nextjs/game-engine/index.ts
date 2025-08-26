@@ -1,5 +1,9 @@
+// Export all modules
 export * from "./stateMachine";
 export * from "./constants";
+export * from "./utils";
+
+// Export specific types and enums from types
 export { PlayerState } from "./types";
 export type {
   Suit,
@@ -21,8 +25,15 @@ export type {
   HandAction,
   HandLog,
 } from "./types";
+
+// Export networking types
 export type { ServerEvent, ClientCommand, LobbyTable } from "./networking";
-export * from "./utils";
+
+// Explicitly export commonly used utility functions
+export { indexToCard, cardToIndex } from "./utils";
+
+// Re-export address utilities for convenience
+export { shortAddress, randomAddress } from "../utils/address";
 export {
   createRoom,
   addPlayer,

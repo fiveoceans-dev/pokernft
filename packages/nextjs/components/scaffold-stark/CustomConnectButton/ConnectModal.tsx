@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 import { BlockieAvatar } from "../BlockieAvatar";
 import GenericModal from "./GenericModal";
 import { LAST_CONNECTED_TIME_LOCALSTORAGE_KEY } from "~~/utils/Constants";
-import { randomAddress } from "~~/utils/address";
+import { randomAddress } from "../../../utils/address";
 
 const loader = ({ src }: { src: string }) => {
   return src;
