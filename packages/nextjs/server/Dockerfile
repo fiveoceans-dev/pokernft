@@ -6,17 +6,16 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY server/package*.json ./
+COPY package*.json ./
 
 # Install all dependencies (including devDependencies for building)
 RUN npm ci --include=dev
 
 # Copy source code and dependencies
-COPY server/src/ ./src/
-COPY server/tsconfig.json ./
-COPY game-engine/ ../game-engine/
-COPY utils/address.js ../utils/address.js
-COPY utils/address.d.ts ../utils/address.d.ts
+COPY src/ ./src/
+COPY tsconfig.json ./
+COPY game-engine/ ./game-engine/
+COPY utils/ ./utils/
 
 # Install ts-node for direct TypeScript execution
 RUN npm install -g ts-node
@@ -33,7 +32,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 # Copy package files
-COPY server/package*.json ./
+COPY package*.json ./
 
 # Install production dependencies and ts-node
 RUN npm ci --omit=dev && npm cache clean --force && npm install -g ts-node
@@ -44,8 +43,8 @@ COPY --from=builder /app/dist ./dist
 # Copy source files for ts-node execution
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig.json ./
-COPY --from=builder /game-engine ../game-engine
-COPY --from=builder /utils ../utils
+COPY --from=builder /app/game-engine ./game-engine
+COPY --from=builder /app/utils ./utils
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs

@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { GameEngine, SeatingManager, TableState, Round } from "../../game-engine";
+import { GameEngine, SeatingManager, TableState, Round } from "../game-engine";
 import type {
   GameRoom,
   ServerEvent,
@@ -7,7 +7,7 @@ import type {
   PlayerAction,
   Stage,
   Table,
-} from "../../game-engine";
+} from "../game-engine";
 import {
   listTables,
   registerTable,

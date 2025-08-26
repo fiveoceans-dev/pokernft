@@ -6,7 +6,7 @@ build:
     web: Dockerfile
     
 run:
-  web: node dist/src/index.js
+  web: npx ts-node src/index.ts
 
 # Optional: Release phase for database migrations or other setup tasks
 # release:
