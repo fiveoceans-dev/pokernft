@@ -71,12 +71,22 @@ function ensurePersistentTables() {
       // Create the engine and register it properly by calling the local getEngine function
       // This will ensure the table is set up with all necessary maps and event handlers
       engine = getEngine(id);
-      engine.getState().minBet = blinds.big;
-      // The registerTable call happens inside getEngine, but we need to update the name
       registerTable(id, engine, name);
       console.log(`✅ Table ${name} created and registered`);
     } else {
       console.log(`🔄 Table ${name} (${id}) already exists`);
+    }
+
+    // Update engine and table with correct blind and buy-in values
+    const room = engine.getState();
+    room.minBet = blinds.big;
+    const table = tables.get(id);
+    if (table) {
+      table.smallBlindAmount = blinds.small;
+      table.bigBlindAmount = blinds.big;
+      table.minBuyIn = blinds.big;
+      table.maxBuyIn = blinds.big * 100;
+      table.minRaise = blinds.big;
     }
   });
   
@@ -356,8 +366,10 @@ wss.on("connection", (ws) => {
             console.log(`❌ [${clientId}] Table ${msg.tableId} not found`);
             break;
           }
-          
+
           const room = engine.getState();
+          session.roomId = msg.tableId;
+          void saveSession(session);
           console.log(`📊 [${clientId}] Sending TABLE_SNAPSHOT for ${msg.tableId} with ${room.players.length} players`);
           ws.send(
             JSON.stringify({
@@ -481,9 +493,10 @@ wss.on("connection", (ws) => {
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const nickname = shortAddress(playerId);
-          const seatIndex = msg.seat;
+          const seatIndex = Number(msg.seat);
+          const buyIn = Number(msg.buyIn);
           console.log(`👤 [${clientId}] Player ${nickname} (${playerId}) attempting to sit at seat ${seatIndex}`);
-          if (seatIndex === undefined) {
+          if (Number.isNaN(seatIndex)) {
             console.log(`❌ [${clientId}] Invalid seat index: ${seatIndex}`);
             break;
           }
@@ -507,6 +520,7 @@ wss.on("connection", (ws) => {
           // Validate seat availability and buy-in using SeatingManager
           if (finalSeatingMgr && finalTable) {
             if (seatIndex < 0 || seatIndex >= finalTable.seats.length) {
+              console.log(`❌ [${clientId}] Seat ${seatIndex} out of range`);
               ws.send(
                 JSON.stringify({
                   tableId: room.id,
@@ -518,6 +532,7 @@ wss.on("connection", (ws) => {
               break;
             }
             if (finalTable.seats[seatIndex]) {
+              console.log(`❌ [${clientId}] Seat ${seatIndex} already taken`);
               ws.send(
                 JSON.stringify({
                   tableId: room.id,
@@ -528,7 +543,10 @@ wss.on("connection", (ws) => {
               );
               break;
             }
-            if (msg.buyIn < finalTable.minBuyIn || msg.buyIn > finalTable.maxBuyIn) {
+            if (buyIn < finalTable.minBuyIn || buyIn > finalTable.maxBuyIn) {
+              console.log(
+                `❌ [${clientId}] Buy-in ${buyIn} outside range ${finalTable.minBuyIn}-${finalTable.maxBuyIn}`,
+              );
               ws.send(
                 JSON.stringify({
                   tableId: room.id,
@@ -539,10 +557,10 @@ wss.on("connection", (ws) => {
               );
               break;
             }
-            
+
             // Use SeatingManager to seat the player in the Table
             console.log(`🪑 [${clientId}] Using seating manager to seat player ${playerId} at seat ${seatIndex}`);
-            const tablePlayer = finalSeatingMgr.seatPlayer(seatIndex, playerId, msg.buyIn);
+            const tablePlayer = finalSeatingMgr.seatPlayer(seatIndex, playerId, buyIn);
             if (!tablePlayer) {
               ws.send(
                 JSON.stringify({
@@ -555,18 +573,18 @@ wss.on("connection", (ws) => {
               break;
             }
           }
-          
+
           // Add player to GameEngine
           engine.addPlayer({
             id: playerId,
             nickname,
             seat: seatIndex,
-            chips: msg.buyIn,
+            chips: buyIn,
           });
           seatMaps.get(room.id)?.set(playerId, seatIndex);
           session.roomId = room.id;
           void saveSession(session);
-          console.log(`✅ [${clientId}] Player ${nickname} successfully seated at ${seatIndex} with ${msg.buyIn} chips`);
+          console.log(`✅ [${clientId}] Player ${nickname} successfully seated at ${seatIndex} with ${buyIn} chips`);
           
           broadcast(room.id, {
             type: "PLAYER_JOINED",
@@ -583,8 +601,8 @@ wss.on("connection", (ws) => {
             startGameCountdown(room.id);
           }
           
-          void saveRoom(room);
-          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
+          void saveRoom(updatedRoom);
+          broadcast(updatedRoom.id, { type: "TABLE_SNAPSHOT", table: updatedRoom });
           break;
         }
         case "LEAVE": {
