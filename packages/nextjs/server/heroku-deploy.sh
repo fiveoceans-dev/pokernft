@@ -34,8 +34,9 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Get or create Heroku app
-read -p "Enter your Heroku app name: " APP_NAME
+# Get or create Heroku app (default: pokernfts-server)
+read -p "Enter your Heroku app name [pokernfts-server]: " APP_NAME
+APP_NAME=${APP_NAME:-pokernfts-server}
 
 # Check if app exists, create if not
 if ! heroku apps:info "$APP_NAME" &> /dev/null; then
@@ -45,6 +46,7 @@ if ! heroku apps:info "$APP_NAME" &> /dev/null; then
 else
     echo "📱 Using existing Heroku app: $APP_NAME"
 fi
+
 
 # Set the app to use container stack
 echo "🐳 Setting Heroku stack to container..."
