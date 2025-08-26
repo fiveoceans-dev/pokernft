@@ -8,8 +8,8 @@ services:
   # WebSocket Game Server
   pokernft-server:
     build:
-      context: ./packages/nextjs/server
-      dockerfile: Dockerfile
+      context: ./packages/nextjs
+      dockerfile: server/Dockerfile
       target: production
     ports:
       - "8080:8080"
