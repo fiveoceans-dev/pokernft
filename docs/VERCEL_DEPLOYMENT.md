@@ -45,8 +45,10 @@ The PokerNFT frontend is a **Next.js application** optimized for Vercel deployme
 
 2. **Configure Build Settings:**
    ```yaml
+   Framework Preset: Next.js
+   Root Directory: packages/nextjs
    Build Command: yarn build
-   Output Directory: .next
+   Output Directory: .next (leave empty for Next.js default)
    Install Command: yarn install
    Development Command: yarn dev
    ```
@@ -58,7 +60,7 @@ The PokerNFT frontend is a **Next.js application** optimized for Vercel deployme
 ### Method 2: Vercel CLI
 
 ```bash
-# Navigate to frontend directory
+# Navigate to Next.js directory
 cd packages/nextjs
 
 # Deploy to Vercel
@@ -67,8 +69,9 @@ vercel
 # Follow prompts:
 # - Set up new project? Y
 # - Link to existing project? N
-# - Project name: pokernft-frontend
+# - Project name: pokernft
 # - Directory: ./
+# - Want to modify settings? Y (to set root directory if needed)
 ```
 
 ## 📋 Manual Deployment (Step by Step)
@@ -115,8 +118,12 @@ Development Command: yarn dev
 
 **Required Variables:**
 ```bash
+# WebSocket Server URL (your Heroku deployment)
 NEXT_PUBLIC_WS_URL=wss://your-poker-server.herokuapp.com
-NEXT_PUBLIC_PROVIDER_URL=https://starknet-sepolia.blastapi.io/...
+
+# Starknet Provider URL
+NEXT_PUBLIC_PROVIDER_URL=https://starknet-sepolia.blastapi.io/your-key/rpc/v0_8
+NEXT_PUBLIC_SEPOLIA_PROVIDER_URL=https://starknet-sepolia.blastapi.io/your-key/rpc/v0_8
 ```
 
 **How to Set Variables:**
@@ -240,16 +247,27 @@ packages/nextjs/
 └── vercel.json          # Vercel configuration (optional)
 ```
 
-### Vercel Configuration File (Optional)
+### Current Vercel Configuration
 
-Create `packages/nextjs/vercel.json` for advanced settings:
+The project already has a `vercel.json` configuration:
 
 ```json
 {
-  "buildCommand": "yarn build",
-  "devCommand": "yarn dev",
-  "installCommand": "yarn install",
   "framework": "nextjs",
+  "installCommand": "yarn install",
+  "buildCommand": "yarn build"
+}
+```
+
+### Advanced Configuration (Optional)
+
+You can extend the `vercel.json` for additional settings:
+
+```json
+{
+  "framework": "nextjs",
+  "installCommand": "yarn install",
+  "buildCommand": "yarn build",
   "regions": ["iad1", "sfo1"],
   "functions": {
     "app/api/**": {
@@ -350,7 +368,10 @@ const inter = Inter({ subsets: ['latin'] })
 ### Bundle Analysis
 
 ```bash
-# Add to package.json
+# Navigate to Next.js directory
+cd packages/nextjs
+
+# Add to package.json scripts (if not present)
 "analyze": "ANALYZE=true yarn build"
 
 # Run analysis

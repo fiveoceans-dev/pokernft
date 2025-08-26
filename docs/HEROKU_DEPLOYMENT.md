@@ -37,8 +37,11 @@ The PokerNFT server uses **Docker containers** instead of traditional buildpacks
 The easiest way to deploy:
 
 ```bash
-# Navigate to server directory
+# From the repository root
 cd packages/nextjs/server
+
+# Make deployment script executable (if needed)
+chmod +x heroku-deploy.sh
 
 # Run deployment script
 ./heroku-deploy.sh
@@ -108,15 +111,18 @@ heroku addons:info heroku-redis -a your-poker-server
 ### 5. Deploy the Application
 
 ```bash
-# From repository root
-cd /path/to/pokernft
+# From repository root (ensure you're in the pokernft directory)
+cd /Users/platon1/DEV/GITHUB/pokernft
 
-# Commit any changes
+# Commit any changes to the server
 git add packages/nextjs/server/
 git commit -m "Configure server for Heroku Docker deployment"
 
-# Deploy using git subtree
+# Push server subdirectory to Heroku using git subtree
 git subtree push --prefix=packages/nextjs/server heroku main
+
+# Alternative: Force push if needed
+# git push heroku `git subtree split --prefix=packages/nextjs/server main`:main --force
 ```
 
 ### 6. Verify Deployment
@@ -250,35 +256,95 @@ curl https://your-poker-server.herokuapp.com/health
 
 The deployment uses these Docker files:
 
-### Dockerfile
-```dockerfile
-# Multi-stage build optimized for Heroku
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --include=dev
-COPY src/ ./src/
-COPY tsconfig.json ./
-RUN npm run build
+### Current Dockerfile
 
-FROM node:18-alpine AS production
-ENV NODE_ENV=production
+The project uses a multi-stage Dockerfile that handles the game engine dependencies:
+
+```dockerfile
+# Multi-stage Dockerfile for PokerNFT WebSocket Server
+# Stage 1: Build stage
+FROM node:18-alpine AS builder
+
+# Set working directory
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+
+# Copy package files
+COPY server/package*.json ./
+
+# Install all dependencies (including devDependencies for building)
+RUN npm ci --include=dev
+
+# Copy source code and dependencies
+COPY server/src/ ./src/
+COPY server/tsconfig.json ./
+COPY game-engine/ ../game-engine/
+COPY utils/address.js ../utils/address.js
+COPY utils/address.d.ts ../utils/address.d.ts
+
+# Install ts-node for direct TypeScript execution
+RUN npm install -g ts-node
+# Create dist structure manually
+RUN mkdir -p dist/src
+
+# Stage 2: Production stage
+FROM node:18-alpine AS production
+
+# Set NODE_ENV to production
+ENV NODE_ENV=production
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY server/package*.json ./
+
+# Install production dependencies and ts-node
+RUN npm ci --omit=dev && npm cache clean --force && npm install -g ts-node
+
+# Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
+
+# Copy source files for ts-node execution
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /game-engine ../game-engine
+COPY --from=builder /utils ../utils
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S pokernft -u 1001
+
+# Change ownership of the app directory
+RUN chown -R pokernft:nodejs /app
+USER pokernft
+
+# Expose the port (Heroku will set PORT environment variable)
 EXPOSE $PORT
-USER 1001
-CMD ["node", "dist/src/index.js"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "const http = require('http'); http.get('http://localhost:' + (process.env.PORT || 8080) + '/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
+
+# Start the application with ts-node
+CMD ["npx", "ts-node", "src/index.ts"]
 ```
 
-### heroku.yml
+### Current heroku.yml
 ```yaml
+# Heroku container deployment configuration
+# This tells Heroku to build and deploy the app using Docker instead of buildpacks
+
 build:
   docker:
     web: Dockerfile
+    
 run:
   web: node dist/src/index.js
+
+# Optional: Release phase for database migrations or other setup tasks
+# release:
+#   command:
+#     - echo "Release phase - add any pre-deployment tasks here"
 ```
 
 ## 💰 Pricing & Scaling
