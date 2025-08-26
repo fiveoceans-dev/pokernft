@@ -12,6 +12,8 @@ export class SeatingManager {
   seatPlayer(seatIndex: number, id: string, stack: number): Player | null {
     if (seatIndex < 0 || seatIndex >= this.table.seats.length) return null;
     if (this.table.seats[seatIndex]) return null;
+    // prevent same player id from taking multiple seats at the table
+    if (this.table.seats.some((p) => p?.id === id)) return null;
     if (stack < this.table.minBuyIn || stack > this.table.maxBuyIn) return null;
     const player: Player = {
       id,
