@@ -11,14 +11,16 @@ import ActionBar from "../../components/ActionBar";
 import { usePlayViewModel } from "../../hooks/usePlayViewModel";
 import { useGameStore } from "../../hooks/useGameStore";
 import { useWalletGameSync } from "../../hooks/useWalletGameSync";
+import { useTableViewModel } from "../../hooks/useTableViewModel";
 
 // TODO: display connected address and handle signature (Action Plan 1.3)
 
 export default function PlayPage() {
   const searchParams = useSearchParams();
   const tableId = searchParams.get("table");
-  const { joinTable } = useGameStore();
+  const { joinTable, leaveSeat, playerAction } = useGameStore();
   const { isConnected, address } = useWalletGameSync();
+  const { walletSeatIdx } = useTableViewModel();
   
   const {
     street,
@@ -39,6 +41,19 @@ export default function PlayPage() {
     }
   }, [tableId, joinTable]);
 
+  const handleLeaveTable = async () => {
+    if (walletSeatIdx >= 0) {
+      // Auto-fold if it's the player's turn
+      try {
+        await playerAction({ type: "fold" });
+      } catch (error) {
+        // Ignore fold errors - player might not be in turn
+      }
+      // Leave the table
+      await leaveSeat();
+    }
+  };
+
   return (
     <main
       className="relative h-screen flex flex-col text-white bg-main overflow-hidden"
@@ -52,6 +67,18 @@ export default function PlayPage() {
       <header className="relative w-full flex items-center justify-center mt-6 mb-4 px-4">
         <AnimatedTitle text="Poker Night on Starknet" />
       </header>
+      {/* Leave Table Button - positioned in top right */}
+      {walletSeatIdx >= 0 && (
+        <div className="fixed top-20 right-4 z-20">
+          <button
+            onClick={handleLeaveTable}
+            className="btn bg-transparent btn-sm px-2 py-[0.35rem] gap-0 !h-auto border border-[#5c4fe5] hover:bg-[#5c4fe5] hover:text-white transition-all"
+          >
+            Leave Table
+          </button>
+        </div>
+      )}
+      
       <div className="flex-1 flex items-center justify-center">
         <Table timer={timer} />
       </div>

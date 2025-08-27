@@ -9,7 +9,6 @@ import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../game-engine";
 import { useWalletGameSync } from "../hooks/useWalletGameSync";
 import ActionButtons from "./ActionButtons";
-import { useGameStore } from "../hooks/useGameStore";
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -46,13 +45,6 @@ export default function Table({ timer }: { timer?: number | null }) {
   } = useTableViewModel(timer);
 
   const { isConnected, address } = useWalletGameSync();
-  const { leaveSeat } = useGameStore();
-
-  const handleLeaveTable = () => {
-    if (walletSeatIdx >= 0) {
-      leaveSeat();
-    }
-  };
 
   const handleSeatRequest = (idx: number) => {
     if (!isConnected || !address) {
@@ -268,18 +260,6 @@ export default function Table({ timer }: { timer?: number | null }) {
 
       {/* Smart Action Buttons */}
       <ActionButtons />
-      
-      {/* Leave Table Button - shown when player is seated */}
-      {walletSeatIdx >= 0 && (
-        <div className="mt-4">
-          <button
-            onClick={handleLeaveTable}
-            className="px-4 py-2 rounded font-medium transition-all duration-200 bg-gray-600 hover:bg-gray-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
-          >
-            Leave Table
-          </button>
-        </div>
-      )}
     </div>
   );
 }

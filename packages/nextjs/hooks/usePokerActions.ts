@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useGameStore } from "./useGameStore";
 
 export interface PokerAction {
-  type: "fold" | "check" | "call" | "bet" | "raise" | "all-in";
+  type: "fold" | "check" | "call" | "bet" | "raise";
   label: string;
   enabled: boolean;
   amount?: number;
@@ -59,12 +59,6 @@ export function usePokerActions() {
         type: "raise",
         label: "Raise",
         enabled: isMyTurn && betToCall > 0 && myChips >= minRaise,
-      },
-      {
-        type: "all-in",
-        label: `All-in $${myChips}`,
-        enabled: isMyTurn && myChips > 0,
-        amount: myChips,
       }
     ];
 

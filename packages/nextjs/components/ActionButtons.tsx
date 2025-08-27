@@ -45,7 +45,6 @@ export default function ActionButtons() {
               ${action.type === "fold" ? "bg-gray-600 hover:bg-gray-700" : ""}
               ${action.type === "check" ? "bg-blue-600 hover:bg-blue-700" : ""}
               ${action.type === "call" ? "bg-green-600 hover:bg-green-700" : ""}
-              ${action.type === "all-in" ? "bg-purple-600 hover:bg-purple-700" : ""}
             `}
           >
             {action.label}
