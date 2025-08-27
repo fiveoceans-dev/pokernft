@@ -78,28 +78,7 @@ export default function LobbyPage() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Poker Lobby</h1>
-          <p className="text-gray-400">Choose your table and start playing</p>
           
-          {/* Connection Status Indicator */}
-          <div className="mt-4 flex items-center justify-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${
-              connectionStatus === 'connected' ? 'bg-green-500' :
-              connectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
-              connectionStatus === 'error' ? 'bg-red-500' :
-              'bg-gray-500'
-            }`}></div>
-            <span className={`text-sm ${
-              connectionStatus === 'connected' ? 'text-green-400' :
-              connectionStatus === 'connecting' ? 'text-yellow-400' :
-              connectionStatus === 'error' ? 'text-red-400' :
-              'text-gray-400'
-            }`}>
-              {connectionStatus === 'connected' ? `Connected to ${wsUrl}` :
-               connectionStatus === 'connecting' ? `Connecting to ${wsUrl}...` :
-               connectionStatus === 'error' ? `Error: ${connectionError}` :
-               `Disconnected from ${wsUrl}`}
-            </span>
-          </div>
         </div>
         
         <div className="grid gap-6 md:grid-cols-2">
