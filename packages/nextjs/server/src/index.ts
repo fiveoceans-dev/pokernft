@@ -124,6 +124,7 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
       actedSinceLastRaise: new Set(),
       actionTimer: 0,
       interRoundDelayMs: 0,
+      handStartDelayMs: 0,
       dealAnimationDelayMs: 0,
     };
     tables.set(id, table);
@@ -209,7 +210,7 @@ function getRoom(id: string): GameRoom {
   return getEngine(id).getState();
 }
 
-function broadcast(roomId: string, event: Omit<ServerEvent, "tableId">) {
+function broadcast(roomId: string, event: any) {
   const msg = JSON.stringify({ tableId: roomId, ...event });
   wss.clients.forEach((client) => {
     const session = sessions.get(client as WebSocket);
@@ -411,11 +412,20 @@ wss.on("connection", (ws) => {
           const id = randomUUID();
           const engine = getEngine(id);
           registerTable(id, engine, msg.name);
+          const room = engine.getState();
           ws.send(
             JSON.stringify({
               tableId: id,
               type: "TABLE_CREATED",
-              table: { id, name: msg.name },
+              table: {
+                id,
+                name: msg.name,
+                gameType: "No Limit Hold'em",
+                playerCount: room.players.length,
+                maxPlayers: 9,
+                smallBlind: Math.floor(room.minBet / 2),
+                bigBlind: room.minBet
+              },
             } satisfies ServerEvent),
           );
           break;

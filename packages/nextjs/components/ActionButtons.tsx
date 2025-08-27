@@ -21,7 +21,8 @@ export default function ActionButtons() {
     }
 
     // Send action to server via WebSocket
-    playerAction(action.type, amount);
+    const actionType = action.type === "bet" ? "raise" : action.type;
+    playerAction({ type: actionType as "fold" | "call" | "raise" | "check", amount });
   };
 
   return (

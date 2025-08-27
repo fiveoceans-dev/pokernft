@@ -36,6 +36,9 @@ export default function Table({ timer }: { timer?: number | null }) {
     betEnabled,
     maxBet,
     displayTimer,
+    gameStartCountdown,
+    actionCountdown,
+    localIdx,
     actionDisabled,
     handleActionClick,
     dealerIndex,
@@ -154,7 +157,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       top: `${betY}%`,
       transform: "translate(-50%, -50%)",
     } as CSSProperties;
-    const betAmount = player.currentBet;
+    const betAmount = player.currentBet ?? 0;
     let betBg = "bg-yellow-500";
     if (betAmount > 1000) betBg = "bg-black";
     else if (betAmount > 500) betBg = "bg-blue-500";
@@ -214,7 +217,7 @@ export default function Table({ timer }: { timer?: number | null }) {
   return (
     <div className="relative flex flex-col items-center justify-center w-full h-full">
       <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
-        {displayTimer.toString().padStart(2, "0")}
+        {displayTimer?.toString().padStart(2, "0")}
       </div>
 
       {/* Game start countdown */}
@@ -240,7 +243,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       {displayTimer !== null &&
         (currentTurn === null || currentTurn === localIdx) && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
-            {displayTimer.toString().padStart(2, "0")}
+            {displayTimer?.toString().padStart(2, "0")}
           </div>
         )}
 

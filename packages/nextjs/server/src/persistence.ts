@@ -29,7 +29,7 @@ async function getClient(): Promise<RedisClientType | null> {
       
       await c.connect();
       console.log("📡 Redis connected successfully");
-      client = c;
+      client = c as any;
     } catch (err) {
       console.warn("📡 Redis unavailable, using in-memory storage");
       client = null;

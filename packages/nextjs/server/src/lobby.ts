@@ -29,6 +29,16 @@ export function getEngine(id: string): GameEngine | undefined {
 export function registerTable(id: string, engine: GameEngine, name?: string) {
   const tableName = name ?? id;
   console.log(`📝 Registering table in lobby: ${tableName} (ID: ${id})`);
-  registry.set(id, { id, name: tableName, engine });
+  const room = engine.getState();
+  registry.set(id, { 
+    id, 
+    name: tableName, 
+    engine,
+    gameType: "No Limit Hold'em",
+    playerCount: room.players.length,
+    maxPlayers: 9,
+    smallBlind: Math.floor(room.minBet / 2),
+    bigBlind: room.minBet
+  });
   console.log(`🎯 Lobby now has ${registry.size} tables registered`);
 }

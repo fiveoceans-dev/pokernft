@@ -1,4 +1,4 @@
-import type { Card, Table, PlayerAction, Round } from "./types";
+import type { Card, Table, PlayerAction, Round, GameRoom } from "./types";
 
 export interface LobbyTable {
   id: string;
@@ -14,7 +14,7 @@ export type BlindType = "SMALL" | "BIG";
 
 export type ServerEvent =
   | { tableId: string; type: "SESSION"; sessionId: string; userId?: string }
-  | { tableId: string; type: "TABLE_SNAPSHOT"; table: Table }
+  | { tableId: string; type: "TABLE_SNAPSHOT"; table: GameRoom }
   | { tableId: ""; type: "TABLE_LIST"; tables: LobbyTable[] }
   | { tableId: string; type: "TABLE_CREATED"; table: LobbyTable }
   | { tableId: string; type: "HAND_START" }
@@ -64,6 +64,10 @@ export type ServerEvent =
   | { tableId: string; type: "ERROR"; code: string; msg: string };
 
 export type ClientCommand =
+  | { cmdId: string; type: "LIST_TABLES" }
+  | { cmdId: string; type: "JOIN_TABLE"; tableId: string }
+  | { cmdId: string; type: "CREATE_TABLE"; name: string }
+  | { cmdId: string; type: "REATTACH"; sessionId: string }
   | { cmdId: string; type: "ATTACH"; userId: string }
   | {
       cmdId: string;

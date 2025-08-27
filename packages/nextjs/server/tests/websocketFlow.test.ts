@@ -18,7 +18,7 @@ describe("websocket session flow", () => {
     const seatMap = new Map<string, number>();
     const clients: MockSocket[] = [];
 
-    function broadcast(tableId: string, event: Omit<ServerEvent, "tableId">) {
+    function broadcast(tableId: string, event: any) {
       const msg = JSON.stringify({ tableId, ...event });
       for (const ws of clients) {
         const session = sessions.get(ws as any);
@@ -88,7 +88,7 @@ describe("websocket session flow", () => {
           table: engine.getState(),
         });
         sessions.expire(s);
-      }, sessions.disconnectGraceMs);
+      }, sessions.getDisconnectGraceMs);
     });
     expect(wsB.sent.some((e) => e.type === "PLAYER_DISCONNECTED")).toBe(true);
 
@@ -111,7 +111,7 @@ describe("websocket session flow", () => {
       }),
     );
 
-    await new Promise((r) => setTimeout(r, sessions.disconnectGraceMs + 20));
+    await new Promise((r) => setTimeout(r, sessions.getDisconnectGraceMs + 20));
     expect(engine.getState().players.some((p) => p.id === "userA")).toBe(true);
     expect(wsB.sent.some((e) => e.type === "PLAYER_REJOINED")).toBe(true);
 
@@ -139,10 +139,10 @@ describe("websocket session flow", () => {
           table: engine.getState(),
         });
         sessions.expire(s);
-      }, sessions.disconnectGraceMs);
+      }, sessions.getDisconnectGraceMs);
     });
 
-    await new Promise((r) => setTimeout(r, sessions.disconnectGraceMs + 20));
+    await new Promise((r) => setTimeout(r, sessions.getDisconnectGraceMs + 20));
     expect(engine.getState().players.some((p) => p.id === "userA")).toBe(false);
     expect(wsB.sent.some((e) => e.type === "PLAYER_LEFT")).toBe(true);
   });

@@ -66,6 +66,7 @@ export function useTableViewModel(_timer?: number | null) {
   const isMobile = useIsMobile();
   const [tableScale, setTableScale] = useState(1);
   const [bet, setBet] = useState(bigBlind);
+  const [actionTimer, setActionTimer] = useState<number | null>(null);
   // TODO: use minRaise from engine instead of bigBlind (Action Plan 1.2)
 
   useEffect(() => {
@@ -135,7 +136,7 @@ export function useTableViewModel(_timer?: number | null) {
     return () => clearTimeout(id);
   }, [actionTimer, playerBets, playerAction, currentTurn]);
 
-  const communityCardSize = useMemo(() => {
+  const communityCardSize = useMemo((): "xs" | "sm" | "md" | "lg" => {
     return tableScale < 0.75 ? "xs" : tableScale < 1 ? "sm" : "md";
   }, [tableScale]);
 
@@ -160,6 +161,8 @@ export function useTableViewModel(_timer?: number | null) {
   const maxBet = myChips;
 
   const displayTimer = serverTimer;
+  const gameStartCountdown = null; // TODO: Implement game start countdown
+  const actionCountdown = actionTimer;
 
   const handleActionClick = (action: string) => {
     switch (action) {
@@ -206,6 +209,8 @@ export function useTableViewModel(_timer?: number | null) {
     betEnabled,
     maxBet,
     displayTimer,
+    gameStartCountdown,
+    actionCountdown,
     actionDisabled,
     handleActionClick,
     dealerIndex,

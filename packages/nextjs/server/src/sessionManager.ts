@@ -22,6 +22,10 @@ export class SessionManager {
   private bySessionId = new Map<string, Session>();
   private byUserId = new Map<string, Session>();
   constructor(private disconnectGraceMs = 5000) {}
+  
+  get getDisconnectGraceMs() {
+    return this.disconnectGraceMs;
+  }
   create(ws: WebSocket): Session {
     const sessionId = createAddress();
     const session: Session = { sessionId, socket: ws };
