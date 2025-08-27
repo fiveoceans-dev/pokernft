@@ -43,6 +43,10 @@ export function usePokerActions() {
     const myChips = mySeatIndex < safeChips.length ? (safeChips[mySeatIndex] || 0) : 0;
     const myCurrentBet = mySeatIndex < safePlayerBets.length ? (safePlayerBets[mySeatIndex] || 0) : 0;
 
+    // Calculate the current betting state with defensive checks
+    const maxBet = safePlayerBets.length > 0 ? Math.max(...safePlayerBets.filter(bet => typeof bet === 'number' && !isNaN(bet))) : 0;
+    const betToCall = Math.max(0, maxBet - myCurrentBet);
+
     // Debug logging for action button issues
     if (currentWalletId) {
       console.log("🎮 usePokerActions DEBUG:", {
@@ -62,10 +66,6 @@ export function usePokerActions() {
         })),
       });
     }
-
-    // Calculate the current betting state with defensive checks
-    const maxBet = safePlayerBets.length > 0 ? Math.max(...safePlayerBets.filter(bet => typeof bet === 'number' && !isNaN(bet))) : 0;
-    const betToCall = Math.max(0, maxBet - myCurrentBet);
     const canCheck = betToCall === 0;
     const canBet = maxBet === 0; // No one has bet yet in this round
     const minRaise = Math.max(maxBet + 50, 50); // Min raise is previous bet + big blind, minimum 50

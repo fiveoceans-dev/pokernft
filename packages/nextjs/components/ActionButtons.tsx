@@ -7,11 +7,6 @@ function ActionButtons() {
   const actions = usePokerActions();
   const { playerAction, bigBlind, chips, playerIds, currentWalletId } = useGameStore();
   
-  // Early return if critical data is not available
-  if (!actions || !Array.isArray(actions)) {
-    return null;
-  }
-  
   // Defensive checks for all store values
   const safePlayerIds = Array.isArray(playerIds) ? playerIds : [];
   const safeChips = Array.isArray(chips) ? chips : [];
@@ -31,6 +26,11 @@ function ActionButtons() {
   React.useEffect(() => {
     setBetAmount(safeBigBlind);
   }, [safeBigBlind]);
+  
+  // Early return if critical data is not available (after all hooks)
+  if (!actions || !Array.isArray(actions)) {
+    return null;
+  }
 
   const handleAction = (action: PokerAction) => {
     // Defensive check for playerAction function
@@ -69,7 +69,7 @@ function ActionButtons() {
         {actions.map((action) => (
           <button
             key={action.type}
-            onClick={action.enabled ? () => handleAction(action) : undefined}
+            onClick={action.enabled ? () => handleAction(action as PokerAction) : undefined}
             disabled={!action.enabled}
             className={`
               px-4 py-2 rounded font-medium transition-all duration-200

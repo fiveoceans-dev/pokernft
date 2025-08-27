@@ -155,6 +155,161 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     try {
       socket = new WebSocket(wsUrl);
       
+      // Set up message handler immediately after creating socket
+      socket.onmessage = (ev) => {
+        try {
+          const msg: ServerEvent = JSON.parse(ev.data as string);
+          switch (msg.type) {
+            case "SESSION":
+              console.log("📨 Received SESSION message:", msg);
+              if (msg.userId) {
+                // Store in walletAddress as primary key
+                localStorage.setItem("walletAddress", msg.userId);
+                set({ currentWalletId: msg.userId });
+                console.log("💾 Stored wallet address:", msg.userId);
+              }
+              break;
+            case "TABLE_CREATED":
+              // Automatically join the table that was just created
+              set({ tableId: msg.table.id });
+              get().addLog(`Created table: ${msg.table.name}`);
+              break;
+            case "TABLE_SNAPSHOT":
+              console.log("📨 Received TABLE_SNAPSHOT message");
+              applySnapshot(msg.table as any);
+              // Don't auto-seat - let the user choose their seat manually
+              break;
+            case "PLAYER_JOINED":
+              set((s) => {
+                const arr = [...s.players];
+                const ids = [...s.playerIds];
+                // Use full wallet address as player name for consistency
+                arr[msg.seat] = msg.playerId;
+                ids[msg.seat] = msg.playerId;
+                
+                // If this is our wallet joining, update table seats tracking
+                if (msg.playerId === s.currentWalletId) {
+                  const newTableSeats = new Map(s.tableSeats);
+                  newTableSeats.set(msg.tableId || s.tableId || "", msg.seat);
+                  return { players: arr, playerIds: ids, tableSeats: newTableSeats };
+                }
+                
+                return { players: arr, playerIds: ids };
+              });
+              get().addLog(`${shortAddress(msg.playerId)} joined`);
+              break;
+            case "PLAYER_LEFT":
+              set((s) => {
+                const arr = [...s.players];
+                const ids = [...s.playerIds];
+                arr[msg.seat] = null;
+                ids[msg.seat] = null;
+                const states = [...s.playerStates];
+                states[msg.seat] = PlayerState.EMPTY;
+                
+                // If this is our wallet leaving, update table seats tracking
+                if (msg.playerId === s.currentWalletId) {
+                  const newTableSeats = new Map(s.tableSeats);
+                  newTableSeats.delete(msg.tableId || s.tableId || "");
+                  return { players: arr, playerIds: ids, playerStates: states, tableSeats: newTableSeats };
+                }
+                
+                return { players: arr, playerIds: ids, playerStates: states };
+              });
+              get().addLog(`${shortAddress(msg.playerId)} left`);
+              break;
+            case "PLAYER_DISCONNECTED":
+              set((s) => {
+                const arr = [...s.playerStates];
+                arr[msg.seat] = PlayerState.DISCONNECTED;
+                return { playerStates: arr };
+              });
+              get().addLog(`${shortAddress(msg.playerId)} disconnected`);
+              break;
+            case "PLAYER_REJOINED":
+              set((s) => {
+                const states = [...s.playerStates];
+                states[msg.seat] = PlayerState.ACTIVE;
+                const names = [...s.players];
+                const ids = [...s.playerIds];
+                if (!names[msg.seat])
+                  names[msg.seat] = msg.playerId;
+                ids[msg.seat] = msg.playerId;
+                return { playerStates: states, players: names, playerIds: ids };
+              });
+              get().addLog(`${shortAddress(msg.playerId)} rejoined`);
+              break;
+            case "ACTION_PROMPT":
+              set({ currentTurn: msg.actingIndex });
+              break;
+            case "PLAYER_ACTION_APPLIED": {
+              const name = shortAddress(msg.playerId);
+              let text = ``;
+              switch (msg.action) {
+                case "FOLD":
+                  text = `${name} folds`;
+                  break;
+                case "CHECK":
+                  text = `${name} checks`;
+                  break;
+                case "CALL":
+                  text = `${name} calls ${msg.amount ?? ""}`.trim();
+                  break;
+                case "BET":
+                case "RAISE":
+                case "ALL_IN":
+                  text = `${name} ${msg.action.toLowerCase()} ${
+                    msg.amount ?? ""
+                  }`.trim();
+                  break;
+              }
+              if (text) get().addLog(text);
+              break;
+            }
+            case "DEAL_FLOP":
+              set((s) => {
+                const comm = [...s.community];
+                msg.cards.forEach((c, i) => (comm[i] = cardToIndex(c)));
+                return { community: comm };
+              });
+              break;
+            case "DEAL_TURN":
+              set((s) => {
+                const comm = [...s.community];
+                comm[3] = cardToIndex(msg.card);
+                return { community: comm };
+              });
+              break;
+            case "DEAL_RIVER":
+              set((s) => {
+                const comm = [...s.community];
+                comm[4] = cardToIndex(msg.card);
+                return { community: comm };
+              });
+              break;
+            case "HAND_START":
+              get().addLog("Dealer: Hand started");
+              break;
+            case "HAND_END":
+              get().addLog("Dealer: Hand complete");
+              break;
+            case "ROUND_END":
+              break;
+            case "TIMER":
+              set({ timer: msg.countdown });
+              if (msg.countdown === 0) {
+                set({ timer: null });
+              }
+              break;
+            case "ERROR":
+              set({ error: msg.msg });
+              break;
+          }
+        } catch {
+          /* ignore malformed */
+        }
+      };
+      
       const connectionTimeout = setTimeout(() => {
         if (socket && socket.readyState !== WebSocket.OPEN) {
           console.error("🚫 WebSocket connection timeout");
@@ -233,6 +388,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set({ connectionState: 'disconnected', connectionError: 'Failed to create connection' });
       scheduleReconnect();
     }
+    
+    // Update socket reference in store
+    set({ socket });
   };
 
   const scheduleReconnect = () => {
@@ -257,168 +415,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     }, delay);
   };
 
+
   if (typeof window !== "undefined" && !socket) {
     connectWebSocket();
-  }
-  // Move message handler setup outside of connectWebSocket to avoid duplication
-  const setupMessageHandler = () => {
-    if (!socket) return;
-    
-    socket.onmessage = (ev) => {
-      try {
-        const msg: ServerEvent = JSON.parse(ev.data as string);
-        switch (msg.type) {
-          case "SESSION":
-            console.log("📨 Received SESSION message:", msg);
-            if (msg.userId) {
-              // Store in walletAddress as primary key
-              localStorage.setItem("walletAddress", msg.userId);
-              set({ currentWalletId: msg.userId });
-              console.log("💾 Stored wallet address:", msg.userId);
-            }
-            break;
-          case "TABLE_CREATED":
-            // Automatically join the table that was just created
-            set({ tableId: msg.table.id });
-            get().addLog(`Created table: ${msg.table.name}`);
-            break;
-          case "TABLE_SNAPSHOT":
-            console.log("📨 Received TABLE_SNAPSHOT message");
-            applySnapshot(msg.table as any);
-            // Don't auto-seat - let the user choose their seat manually
-            break;
-          case "PLAYER_JOINED":
-            set((s) => {
-              const arr = [...s.players];
-              const ids = [...s.playerIds];
-              // Use full wallet address as player name for consistency
-              arr[msg.seat] = msg.playerId;
-              ids[msg.seat] = msg.playerId;
-              
-              // If this is our wallet joining, update table seats tracking
-              if (msg.playerId === s.currentWalletId) {
-                const newTableSeats = new Map(s.tableSeats);
-                newTableSeats.set(msg.tableId || s.tableId || "", msg.seat);
-                return { players: arr, playerIds: ids, tableSeats: newTableSeats };
-              }
-              
-              return { players: arr, playerIds: ids };
-            });
-            get().addLog(`${shortAddress(msg.playerId)} joined`);
-            break;
-          case "PLAYER_LEFT":
-            set((s) => {
-              const arr = [...s.players];
-              const ids = [...s.playerIds];
-              arr[msg.seat] = null;
-              ids[msg.seat] = null;
-              const states = [...s.playerStates];
-              states[msg.seat] = PlayerState.EMPTY;
-              
-              // If this is our wallet leaving, update table seats tracking
-              if (msg.playerId === s.currentWalletId) {
-                const newTableSeats = new Map(s.tableSeats);
-                newTableSeats.delete(msg.tableId || s.tableId || "");
-                return { players: arr, playerIds: ids, playerStates: states, tableSeats: newTableSeats };
-              }
-              
-              return { players: arr, playerIds: ids, playerStates: states };
-            });
-            get().addLog(`${shortAddress(msg.playerId)} left`);
-            break;
-          case "PLAYER_DISCONNECTED":
-            set((s) => {
-              const arr = [...s.playerStates];
-              arr[msg.seat] = PlayerState.DISCONNECTED;
-              return { playerStates: arr };
-            });
-            get().addLog(`${shortAddress(msg.playerId)} disconnected`);
-            break;
-          case "PLAYER_REJOINED":
-            set((s) => {
-              const states = [...s.playerStates];
-              states[msg.seat] = PlayerState.ACTIVE;
-              const names = [...s.players];
-              const ids = [...s.playerIds];
-              if (!names[msg.seat])
-                names[msg.seat] = msg.playerId;
-              ids[msg.seat] = msg.playerId;
-              return { playerStates: states, players: names, playerIds: ids };
-            });
-            get().addLog(`${shortAddress(msg.playerId)} rejoined`);
-            break;
-          case "ACTION_PROMPT":
-            set({ currentTurn: msg.actingIndex });
-            break;
-          case "PLAYER_ACTION_APPLIED": {
-            const name = shortAddress(msg.playerId);
-            let text = ``;
-            switch (msg.action) {
-              case "FOLD":
-                text = `${name} folds`;
-                break;
-              case "CHECK":
-                text = `${name} checks`;
-                break;
-              case "CALL":
-                text = `${name} calls ${msg.amount ?? ""}`.trim();
-                break;
-              case "BET":
-              case "RAISE":
-              case "ALL_IN":
-                text = `${name} ${msg.action.toLowerCase()} ${
-                  msg.amount ?? ""
-                }`.trim();
-                break;
-            }
-            if (text) get().addLog(text);
-            break;
-          }
-          case "DEAL_FLOP":
-            set((s) => {
-              const comm = [...s.community];
-              msg.cards.forEach((c, i) => (comm[i] = cardToIndex(c)));
-              return { community: comm };
-            });
-            break;
-          case "DEAL_TURN":
-            set((s) => {
-              const comm = [...s.community];
-              comm[3] = cardToIndex(msg.card);
-              return { community: comm };
-            });
-            break;
-          case "DEAL_RIVER":
-            set((s) => {
-              const comm = [...s.community];
-              comm[4] = cardToIndex(msg.card);
-              return { community: comm };
-            });
-            break;
-          case "HAND_START":
-            get().addLog("Dealer: Hand started");
-            break;
-          case "HAND_END":
-            get().addLog("Dealer: Hand complete");
-            break;
-          case "ROUND_END":
-            break;
-          case "TIMER":
-            set({ timer: msg.countdown });
-            if (msg.countdown === 0) {
-              set({ timer: null });
-            }
-            break;
-          case "ERROR":
-            set({ error: msg.msg });
-            break;
-        }
-      } catch {
-        /* ignore malformed */
-      }
-    };
-    setupMessageHandler();
-    set({ socket });
   }
 
   return {
