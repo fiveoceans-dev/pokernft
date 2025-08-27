@@ -79,6 +79,8 @@ export type ClientCommand =
       /** desired seat index */
       seat: number;
       buyIn: number;
+      /** client wallet address - takes precedence over session */
+      playerId?: string;
     }
   | { cmdId: string; type: "LEAVE" }
   | { cmdId: string; type: "SIT_OUT" }

@@ -180,29 +180,8 @@ export function handleAction(
         throw new Error("cannot check when behind on bets");
       break;
   }
-  const active = room.players.filter((p) => !p.hasFolded);
-  if (active.length === 1) {
-    console.log(`🏆 [${room.id}] Single winner detected: ${active[0].id} wins pot of $${room.pot}`);
-    payout(room, [active[0]]);
-    
-    // Complete hand cleanup - reset all hand-specific state
-    room.stage = "waiting";
-    room.players.forEach((p) => {
-      p.isTurn = false;
-      p.hasFolded = false;
-      p.hand = [];
-      p.currentBet = 0;
-      p.isDealer = false;
-    });
-    room.communityCards = [];
-    room.pot = 0;
-    room.currentTurnIndex = 0;
-    room.firstToActIndex = 0;
-    room.lastAggressorIndex = 0;
-    
-    console.log(`🔄 [${room.id}] Hand completed, game state reset to waiting`);
-    return;
-  }
+  // Winner detection is now handled by GameEngine.handleWinnerScenario()
+  // This simplifies room logic to just handle basic action processing
 
   nextTurn(room);
 }

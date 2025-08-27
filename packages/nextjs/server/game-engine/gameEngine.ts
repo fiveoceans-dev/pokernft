@@ -167,30 +167,26 @@ export class GameEngine extends EventEmitter {
     action: { type: "fold" | "call" | "raise" | "check"; amount?: number },
   ) {
     console.log(`🎮 [GameEngine] Player ${playerId} action: ${action.type}${action.amount ? ` $${action.amount}` : ''}`);
+    
+    // BULLETPROOF ACTION BLOCKING - Prevent any actions when game has ended
+    if (this.room.stage === "waiting") {
+      console.warn(`🚫 [GameEngine] Action ${action.type} blocked - game has ended (stage: waiting)`);
+      throw new Error("Cannot perform actions - game has ended");
+    }
+    
+    // Pre-validate that at least 2 players are still active
+    const activePlayersBeforeAction = this.room.players.filter(p => !p.hasFolded);
+    if (activePlayersBeforeAction.length <= 1) {
+      console.warn(`🚫 [GameEngine] Action ${action.type} blocked - only ${activePlayersBeforeAction.length} active players remaining`);
+      throw new Error("Cannot perform actions - insufficient active players");
+    }
+    
     handleActionImpl(this.room, playerId, action);
     this.emit("stateChanged", this.room);
     
-    // Check for single winner scenario after ANY action (room-level handleActionImpl may have set stage to "waiting")
-    const activePlayersAfterAction = this.room.players.filter(p => !p.hasFolded);
-    if (activePlayersAfterAction.length === 1) {
-      console.log(`🏆 [GameEngine] Single winner scenario detected after ${action.type}, stage: ${this.room.stage}`);
-      
-      // If stage is already "waiting", room-level logic already handled payout
-      if (this.room.stage === "waiting") {
-        console.log(`🏆 [GameEngine] Payout already handled by room-level logic, emitting events`);
-        this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
-        this.emit("phaseChanged", this.machine.state);
-        this.emit("handEnded", activePlayersAfterAction);
-        this.emit("stateChanged", this.room);
-        
-        // If we still have 2+ players with chips, signal that a new hand can start
-        const playersWithChips = this.room.players.filter((p) => p.chips > 0);
-        if (playersWithChips.length >= 2) {
-          console.log(`🔄 [GameEngine] Ready for new hand with ${playersWithChips.length} players`);
-          this.emit("readyForNewHand");
-        }
-      }
-      return;
+    // Use unified winner scenario handler - single source of truth
+    if (this.handleWinnerScenario()) {
+      return; // Game ended with winner, no further processing needed
     }
     
     // Check if round is complete before emitting turn events
@@ -201,7 +197,8 @@ export class GameEngine extends EventEmitter {
     
     // Emit turn changed event for the next player to act
     const currentPlayer = this.room.players[this.room.currentTurnIndex];
-    if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting" && this.room.stage !== "showdown") {
+    const roomStage = this.room.stage as Stage;
+    if (currentPlayer && currentPlayer.isTurn && roomStage !== "waiting" && roomStage !== "showdown") {
       const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
       const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
       console.log(`🎮 [GameEngine] Turn advanced to ${currentPlayer.id} at seat ${currentPlayer.seat} (array index ${this.room.currentTurnIndex})`);
@@ -399,6 +396,66 @@ export class GameEngine extends EventEmitter {
     if (playersWithChips.length >= 2) {
       this.emit("readyForNewHand");
     }
+  }
+
+  /**
+   * Unified winner scenario handler - detects single winner, awards pot, blocks actions, triggers new hand
+   * This is the single source of truth for all winner scenarios (fold-induced or showdown)
+   */
+  private handleWinnerScenario(): boolean {
+    const activePlayersAfterAction = this.room.players.filter(p => !p.hasFolded);
+    
+    if (activePlayersAfterAction.length === 1) {
+      const winner = activePlayersAfterAction[0];
+      const potAmount = this.room.pot;
+      
+      console.log(`🏆 [GameEngine] UNIFIED WINNER SCENARIO: ${winner.id} wins $${potAmount} (${activePlayersAfterAction.length} active players remaining)`);
+      
+      // Immediate game termination - block ALL future actions
+      this.room.stage = "waiting";
+      this.room.players.forEach((p) => {
+        p.isTurn = false; // Clear all turn states immediately
+      });
+      
+      // Award the pot to winner
+      winner.chips += potAmount;
+      this.room.pot = 0;
+      
+      // Complete cleanup of hand state
+      this.room.players.forEach((p) => {
+        p.hasFolded = false;
+        p.hand = [];
+        p.currentBet = 0;
+        p.isDealer = false;
+      });
+      this.room.communityCards = [];
+      this.room.currentTurnIndex = 0;
+      this.room.firstToActIndex = 0;
+      this.room.lastAggressorIndex = 0;
+      
+      // Update state machine and emit events
+      this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
+      
+      const winnerMessage = `${winner.id.slice(0, 6)}...${winner.id.slice(-4)} wins $${potAmount} (others folded)`;
+      console.log(`💰 [GameEngine] ${winnerMessage}`);
+      
+      // Emit all necessary events
+      this.emit("phaseChanged", this.machine.state);
+      this.emit("handEnded", [winner]);
+      this.emit("dealerMessage", winnerMessage);
+      this.emit("stateChanged", this.room);
+      
+      // Signal ready for new hand if we have enough players
+      const playersWithChips = this.room.players.filter((p) => p.chips > 0);
+      if (playersWithChips.length >= 2) {
+        console.log(`🔄 [GameEngine] Ready for new hand with ${playersWithChips.length} players`);
+        this.emit("readyForNewHand");
+      }
+      
+      return true; // Game ended with winner
+    }
+    
+    return false; // Game continues
   }
 }
 

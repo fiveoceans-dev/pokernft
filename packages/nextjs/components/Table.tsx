@@ -10,6 +10,9 @@ import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../game-engine";
 import { useWalletGameSync } from "../hooks/useWalletGameSync";
 import ActionButtons from "./ActionButtons";
+import { PotDisplayBubbles } from "./PotDisplayBubbles";
+import { DealerMessages } from "./DealerMessages";
+import useIsMobile from "../hooks/useIsMobile";
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -41,13 +44,18 @@ export default function Table({ timer }: { timer?: number | null }) {
     actionDisabled,
     handleActionClick,
     dealerIndex,
+    currentRoundBetting,
   } = useTableViewModel(timer);
 
   const gameStore = useGameStore();
   const street = gameStore.street || 0; // Get street from game store, default to 0
+  const totalPot = gameStore.pot;
   const cardsRevealed = gameStore.cardsRevealed;
   const revealCards = gameStore.revealCards;
+  const recentWinners = gameStore.recentWinners;
+  const logs = gameStore.logs;
   const { isConnected, address } = useWalletGameSync();
+  const isMobile = useIsMobile();
 
   // Debug logging for player data
   console.log("🎲 Table component debug:", {
@@ -179,6 +187,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     };
     const isDealer = idx === dealerIndex;
     const isActive = idx === currentTurn;
+    const isWinner = recentWinners.has(idx);
     // Reveal cards for own player always, or if manually revealed, or all non-folded players during showdown (street 4)
     const reveal = idx === walletSeatIdx || cardsRevealed[idx] || (street === 4 && state !== PlayerState.FOLDED && state !== PlayerState.EMPTY);
 
@@ -221,6 +230,7 @@ export default function Table({ timer }: { timer?: number | null }) {
                 cardSize={holeCardSize}
                 dealerOffset={dealerOffset}
                 state={state}
+                isWinner={isWinner}
               />
             </div>
           </div>
@@ -237,15 +247,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     );
   };
 
-  const bankEl = (
-    <div key="bank" className="absolute left-1/2 -translate-x-1/2 top-[5px]">
-      <div className="relative flex justify-center">
-        <div className="w-24 h-12 flex items-center justify-center rounded bg-[var(--color-accent)] border-4 border-yellow-700 text-black">
-          BANK
-        </div>
-      </div>
-    </div>
-  );
+  // BANK element removed - replaced with pot display bubbles
 
   /* community cards – only reveal dealt streets */
   const visibleCommunity = community.filter((c): c is number => c !== null);
@@ -284,7 +286,14 @@ export default function Table({ timer }: { timer?: number | null }) {
         }}
       >
         {communityRow}
-        {bankEl}
+        
+        {/* Pot Display Bubbles */}
+        <PotDisplayBubbles 
+          currentRoundBetting={currentRoundBetting}
+          totalPot={totalPot}
+          isMobile={isMobile}
+        />
+        
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
@@ -306,6 +315,9 @@ export default function Table({ timer }: { timer?: number | null }) {
           </button>
         </div>
       )}
+      
+      {/* Dealer Messages */}
+      <DealerMessages logs={logs} isMobile={isMobile} />
     </div>
   );
 }

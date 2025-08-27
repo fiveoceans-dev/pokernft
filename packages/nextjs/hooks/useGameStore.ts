@@ -56,6 +56,8 @@ interface GameStoreState {
   timer: number | null;
   /** track which players have revealed their cards at showdown */
   cardsRevealed: boolean[];
+  /** track recent winners for sparkle effects */
+  recentWinners: Set<number>;
   /** WebSocket connection state */
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
   /** Connection error message */
@@ -81,6 +83,8 @@ interface GameStoreState {
   rebuy: (amount: number) => Promise<void>;
   revealCards: (seatIndex: number) => void;
   resetCardReveals: () => void;
+  markWinner: (seatIndex: number) => void;
+  clearWinners: () => void;
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => {
@@ -348,6 +352,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             case "HAND_START":
               get().addLog("Dealer: Hand started");
               get().resetCardReveals(); // Reset card reveals for new hand
+              get().clearWinners(); // Clear previous winners for new hand
               break;
             case "HAND_END":
               get().addLog("Dealer: Hand complete");
@@ -530,8 +535,42 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     loading: false,
     error: null,
     logs: [],
-    addLog: (msg) => set((s) => ({ logs: [...s.logs, msg] })),
+    addLog: (msg) => set((s) => {
+      // Check if this is a winner message and extract seat indexes
+      if (msg.includes(' wins ') || msg.includes(' split ')) {
+        // Extract winner information from the message
+        // For single winner: "abc123...def4 wins $100"
+        // For multiple winners: "abc123...def4, xyz789...uvw0 split the pot ($50 each)"
+        const winnerAddresses = msg.match(/[a-fA-F0-9]{6}\.\.\.[a-fA-F0-9]{4}/g) || [];
+        const playerIds = get().playerIds;
+        
+        winnerAddresses.forEach(shortAddr => {
+          // Find the seat index for this winner
+          const seatIndex = playerIds.findIndex(id => {
+            if (!id) return false;
+            const shortId = `${id.slice(0, 6)}...${id.slice(-4)}`;
+            return shortId === shortAddr;
+          });
+          
+          if (seatIndex >= 0) {
+            get().markWinner(seatIndex);
+            
+            // Clear winner effect after 5 seconds
+            setTimeout(() => {
+              set(s => {
+                const newWinners = new Set(s.recentWinners);
+                newWinners.delete(seatIndex);
+                return { recentWinners: newWinners };
+              });
+            }, 5000);
+          }
+        });
+      }
+      
+      return { logs: [...s.logs, msg] };
+    }),
     cardsRevealed: Array(9).fill(false),
+    recentWinners: new Set<number>(),
     smallBlind: 25,
     bigBlind: 50,
     startBlindTimer: () => {
@@ -764,8 +803,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           tableId: currentTableId,
           seat: seatIdx,
           buyIn: 10000, // Always $10k per seat
+          playerId: currentWalletId, // Send client wallet as authoritative
         } as ClientCommand;
-        console.log("📤 Sending SIT command:", { tableId: currentTableId, seat: seatIdx, buyIn: 10000 });
+        console.log("📤 Sending SIT command:", { tableId: currentTableId, seat: seatIdx, buyIn: 10000, playerId: currentWalletId?.slice(0, 10) + "..." });
         socket.send(JSON.stringify(cmd));
         
         // Optimistically update local state
@@ -916,6 +956,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
     resetCardReveals: () => {
       set({ cardsRevealed: Array(9).fill(false) });
+    },
+    markWinner: (seatIndex: number) => {
+      set((s) => {
+        const newWinners = new Set(s.recentWinners);
+        newWinners.add(seatIndex);
+        return { recentWinners: newWinners };
+      });
+    },
+    clearWinners: () => {
+      set({ recentWinners: new Set<number>() });
     },
   };
 });

@@ -306,6 +306,14 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
 
     engine!.on("handEnded", () => {
       broadcast(id, { type: "HAND_END" });
+      
+      // Clear action timer immediately when hand ends (including winner scenarios)
+      const actionTimer = actionTimers.get(id);
+      if (actionTimer) {
+        clearInterval(actionTimer);
+        actionTimers.delete(id);
+        console.log(`⏰ [${id}] Cleared action timer on hand end`);
+      }
     });
 
     engine!.on("dealerMessage", (message: string) => {
@@ -781,14 +789,25 @@ wss.on("connection", (ws) => {
           break;
         }
         case "SIT": {
-          console.log(`🪑 [${clientId}] SIT request - tableId: ${msg.tableId}, seat: ${msg.seat}, buyIn: ${msg.buyIn}`);
+          console.log(`🪑 [${clientId}] SIT request - tableId: ${msg.tableId}, seat: ${msg.seat}, buyIn: ${msg.buyIn}, clientPlayerId: ${msg.playerId?.slice(0, 10) + "..." || "none"}`);
           const engine = getEngine(msg.tableId);
           const room = engine.getState();
-          const playerId = session.userId ?? session.sessionId;
+          
+          // Client wallet is authoritative - use client provided playerId or fallback to session
+          const clientProvidedId = msg.playerId;
+          const playerId = clientProvidedId || session.userId || session.sessionId;
+          
+          // If client provided a different wallet, update session to match client
+          if (clientProvidedId && clientProvidedId !== session.userId) {
+            console.log(`🔄 [${clientId}] Updating server session from ${session.userId?.slice(0, 10) + "..." || "none"} to client wallet ${clientProvidedId.slice(0, 10) + "..."}`);
+            session.userId = clientProvidedId;
+            void saveSession(session);
+          }
+          
           const nickname = shortAddress(playerId);
           const seatIndex = Number(msg.seat);
           const buyIn = Number(msg.buyIn);
-          console.log(`👤 [${clientId}] Player ${nickname} (${playerId}) attempting to sit at seat ${seatIndex}`);
+          console.log(`👤 [${clientId}] Player ${nickname} (${playerId}) attempting to sit at seat ${seatIndex} (client authoritative)`);
           
           if (Number.isNaN(seatIndex)) {
             console.log(`❌ [${clientId}] Invalid seat index: ${seatIndex}`);

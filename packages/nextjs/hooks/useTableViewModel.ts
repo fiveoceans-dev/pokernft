@@ -150,6 +150,7 @@ export function useTableViewModel(_timer?: number | null) {
   }
   const betEnabled = actions.includes("Bet") || actions.includes("Raise");
   const maxBet = myChips;
+  const currentRoundBetting = playerBets.reduce((sum, bet) => sum + bet, 0);
 
   const displayTimer = serverTimer;
 
@@ -201,5 +202,6 @@ export function useTableViewModel(_timer?: number | null) {
     actionDisabled,
     handleActionClick,
     dealerIndex,
+    currentRoundBetting,
   };
 }
