@@ -55,6 +55,27 @@ export class GameEngine extends EventEmitter {
     >,
   ): PlayerSession {
     console.log(`🪑 [GameEngine] Adding player ${player.id} (${player.nickname}) to seat ${player.seat} with ${player.chips} chips`);
+    
+    // Validate seat availability - GameEngine is now single source of truth
+    if (player.seat < 0 || player.seat >= 9) {
+      console.log(`❌ [GameEngine] Invalid seat ${player.seat} - must be 0-8`);
+      throw new Error(`Invalid seat ${player.seat} - must be 0-8`);
+    }
+    
+    // Check if player already exists at this table
+    const existingPlayer = this.room.players.find(p => p.id === player.id);
+    if (existingPlayer) {
+      console.log(`❌ [GameEngine] Player ${player.id} already seated at table ${this.room.id}`);
+      throw new Error(`Player ${player.id} already seated at this table`);
+    }
+    
+    // Check if seat is already taken
+    const seatTaken = this.room.players.find(p => p.seat === player.seat);
+    if (seatTaken) {
+      console.log(`❌ [GameEngine] Seat ${player.seat} already taken by player ${seatTaken.id}`);
+      throw new Error(`Seat ${player.seat} already taken`);
+    }
+    
     const result = addPlayerImpl(this.room, player);
     console.log(`✅ [GameEngine] Player added successfully. Table now has ${this.room.players.length} players`);
     this.emit("stateChanged", this.room);

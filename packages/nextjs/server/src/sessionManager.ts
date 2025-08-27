@@ -8,6 +8,14 @@ export interface Session {
   /** Persistent user identifier (wallet address) if attached */
   userId?: string;
   roomId?: string;
+  /** Seat number (0-8) if player is seated at a table */
+  seat?: number;
+  /** Player's chip count */
+  chips?: number;
+  /** Player's nickname for display */
+  nickname?: string;
+  /** Whether player is currently in an active hand */
+  inActiveHand?: boolean;
   timeout?: NodeJS.Timeout;
 }
 
@@ -92,13 +100,17 @@ export class SessionManager {
 
   /** Restore a session from persisted data */
   restore(
-    data: { sessionId: string; userId?: string; roomId?: string },
+    data: { sessionId: string; userId?: string; roomId?: string; seat?: number; chips?: number; nickname?: string; inActiveHand?: boolean },
     ws: WebSocket,
   ): Session {
     const session: Session = {
       sessionId: data.sessionId,
       userId: data.userId,
       roomId: data.roomId,
+      seat: data.seat,
+      chips: data.chips,
+      nickname: data.nickname,
+      inActiveHand: data.inActiveHand,
       socket: ws,
     };
     this.sessions.set(ws, session);

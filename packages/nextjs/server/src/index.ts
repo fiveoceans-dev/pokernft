@@ -1,6 +1,6 @@
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { GameEngine, SeatingManager, TableState, Round } from "../game-engine";
+import { GameEngine, TableState, Round } from "../game-engine";
 import type {
   GameRoom,
   ServerEvent,
@@ -62,8 +62,6 @@ const processed = new Map<WebSocket, Set<string>>();
 
 // Track connection count for logging
 let connectionCount = 0;
-const tables = new Map<string, Table>();
-const seating = new Map<string, SeatingManager>();
 const seatMaps = new Map<string, Map<string, number>>();
 const gameStartTimers = new Map<string, NodeJS.Timeout>();
 const actionTimers = new Map<string, NodeJS.Timeout>();
@@ -110,17 +108,10 @@ function ensurePersistentTables() {
       console.log(`🔄 Table ${name} (${id}) already exists`);
     }
 
-    // Update engine and table with correct blind and buy-in values
+    // Update engine with correct blind values
     const room = engine.getState();
     room.minBet = blinds.big;
-    const table = tables.get(id);
-    if (table) {
-      table.smallBlindAmount = blinds.small;
-      table.bigBlindAmount = blinds.big;
-      table.minBuyIn = blinds.big;
-      table.maxBuyIn = blinds.big * 100;
-      table.minRaise = blinds.big;
-    }
+    console.log(`🎯 Updated table ${id} blinds: SB=${blinds.small}, BB=${blinds.big}`);
   });
   
   console.log(`🎯 Total tables available: ${listTables().length}`);
@@ -135,51 +126,37 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
     }
     registerTable(id, engine);
 
-    const table: Table = {
-      seats: Array(9).fill(null),
-      buttonIndex: 0,
-      smallBlindIndex: 0,
-      bigBlindIndex: 0,
-      smallBlindAmount: engine.getState().minBet / 2,
-      bigBlindAmount: engine.getState().minBet,
-      minBuyIn: engine.getState().minBet,
-      maxBuyIn: engine.getState().minBet * 100,
-      state: "WAITING" as any, // TableState.WAITING
-      deck: [],
-      board: [],
-      pots: [],
-      currentRound: "PREFLOP" as any, // Round.PREFLOP
-      actingIndex: null,
-      betToCall: 0,
-      minRaise: engine.getState().minBet,
-      lastFullRaise: null,
-      actedSinceLastRaise: new Set(),
-      actionTimer: 0,
-      interRoundDelayMs: 0,
-      handStartDelayMs: 0,
-      dealAnimationDelayMs: 0,
-    };
-    tables.set(id, table);
-    const mgr = new SeatingManager(table);
-    seating.set(id, mgr);
+    // GameEngine is now the single source of truth - no need for separate Table object
     const seatMap = new Map<string, number>();
     seatMaps.set(id, seatMap);
-    console.log(`🪑 Created table ${id} with ${table.seats.length} seats and seating manager`);
+    console.log(`🎯 [GameEngine] Created engine for table ${id} - GameEngine is single source of truth`);
+    
+    // Restore players from snapshot if available
     if (snapshot) {
       snapshot.players.forEach((p) => {
-        const seated = mgr.seatPlayer(p.seat, p.id, p.chips);
-        if (seated) seatMap.set(p.id, p.seat);
+        try {
+          engine!.addPlayer({
+            id: p.id,
+            nickname: p.nickname || `Player${p.seat}`,
+            seat: p.seat,
+            chips: p.chips,
+          });
+          seatMap.set(p.id, p.seat);
+          console.log(`🔄 [GameEngine] Restored player ${p.id} to seat ${p.seat}`);
+        } catch (error) {
+          console.log(`❌ [GameEngine] Failed to restore player ${p.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
       });
     }
 
-    let prevStage: Stage = engine.getState().stage;
+    let prevStage: Stage = engine!.getState().stage;
 
-    engine.on("stateChanged", (room: GameRoom) => {
+    engine!.on("stateChanged", (room: GameRoom) => {
       void saveRoom(room);
       broadcast(id, { type: "TABLE_SNAPSHOT", table: room });
     });
 
-    engine.on("stageChanged", (stage: Stage) => {
+    engine!.on("stageChanged", (stage: Stage) => {
       const room = engine!.getState();
       const stageToRound: Record<Stage, Round | null> = {
         waiting: null,
@@ -218,14 +195,14 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
       prevStage = stage;
     });
 
-    engine.on("handEnded", () => {
+    engine!.on("handEnded", () => {
       broadcast(id, { type: "HAND_END" });
     });
 
-    engine.on("readyForNewHand", () => {
+    engine!.on("readyForNewHand", () => {
       // Add any waiting players to the game before starting next hand countdown
       const waitingPlayers = Array.from(seatMaps.get(id)?.entries() || []).filter(([playerId, seatIndex]) => {
-        const room = engine.getState();
+        const room = engine!.getState();
         return !room.players.find(p => p.id === playerId);
       });
       
@@ -234,7 +211,7 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
         waitingPlayers.forEach(([playerId, seatIndex]) => {
           const SEAT_BUYIN = 10000;
           const nickname = shortAddress(playerId);
-          engine.addPlayer({
+          engine!.addPlayer({
             id: playerId,
             nickname,
             seat: seatIndex,
@@ -250,7 +227,7 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
       startGameCountdown(id);
     });
 
-    engine.on("turnChanged", (turnInfo: any) => {
+    engine!.on("turnChanged", (turnInfo: any) => {
       broadcast(id, {
         type: "ACTION_PROMPT",
         actingIndex: turnInfo.actingIndex,
@@ -394,22 +371,16 @@ function startActionTimer(roomId: string, playerId: string) {
 
           if (count >= 2) {
             const seatIndex = seatMaps.get(roomId)?.get(playerId);
-            const seatingMgr = seating.get(roomId);
-            if (seatingMgr && seatIndex !== undefined) {
-              seatingMgr.sitOut(seatIndex, true);
-              seatMaps.get(roomId)?.delete(playerId);
-              engine.removePlayer(playerId);
-              const updatedRoom = engine.getState();
-              void saveRoom(updatedRoom);
+            console.log(`⏰ [${roomId}] Removing player ${playerId} due to consecutive timeouts`);
+            
+            seatMaps.get(roomId)?.delete(playerId);
+            if (engine.removePlayer(playerId)) {
               broadcast(roomId, {
                 type: "PLAYER_LEFT",
                 seat: seatIndex,
                 playerId,
               });
-              broadcast(roomId, {
-                type: "TABLE_SNAPSHOT",
-                table: updatedRoom,
-              });
+              // GameEngine.removePlayer automatically triggers stateChanged event and broadcasts TABLE_SNAPSHOT
             }
             timeoutCounts.delete(playerId);
           }
@@ -555,8 +526,43 @@ wss.on("connection", (ws) => {
             if (existing.roomId) {
               const engine = getEngine(existing.roomId);
               const room = engine.getState();
+              const playerId = existing.userId ?? existing.sessionId;
+              
+              // Restore player to seat if they were seated before disconnecting
+              if (existing.seat !== undefined && existing.chips !== undefined && existing.nickname) {
+                const playerInRoom = room.players.find(p => p.id === playerId);
+                if (!playerInRoom) {
+                  console.log(`🔄 [REATTACH] Restoring player ${playerId} to seat ${existing.seat} with ${existing.chips} chips`);
+                  try {
+                    engine.addPlayer({
+                      id: playerId,
+                      nickname: existing.nickname,
+                      seat: existing.seat,
+                      chips: existing.chips,
+                    });
+                    seatMaps.get(room.id)?.set(playerId, existing.seat);
+                    console.log(`✅ [REATTACH] Player ${playerId} restored to game successfully`);
+                  } catch (error) {
+                    console.log(`❌ [REATTACH] Failed to restore player ${playerId}: ${error instanceof Error ? error.message : String(error)}`);
+                    // If seat is taken, reset session seat data
+                    if (error instanceof Error && error.message.includes("already taken")) {
+                      existing.seat = undefined;
+                      existing.chips = undefined;
+                      existing.inActiveHand = false;
+                      void saveSession(existing);
+                    }
+                  }
+                } else {
+                  console.log(`✅ [REATTACH] Player ${playerId} already in room at seat ${playerInRoom.seat}`);
+                  // Update session with current game state
+                  existing.seat = playerInRoom.seat;
+                  existing.chips = playerInRoom.chips;
+                  existing.inActiveHand = room.stage !== "waiting";
+                  void saveSession(existing);
+                }
+              }
+              
               if (hadTimeout) {
-                const playerId = existing.userId ?? existing.sessionId;
                 const map = seatMaps.get(room.id);
                 const seatIndex = map?.get(playerId);
                 if (seatIndex !== undefined) {
@@ -567,11 +573,14 @@ wss.on("connection", (ws) => {
                   });
                 }
               }
+              
+              // Always send fresh table snapshot after potential restoration
+              const updatedRoom = engine.getState();
               ws.send(
                 JSON.stringify({
-                  tableId: room.id,
+                  tableId: updatedRoom.id,
                   type: "TABLE_SNAPSHOT",
-                  table: room,
+                  table: updatedRoom,
                 } satisfies ServerEvent),
               );
             }
@@ -633,84 +642,18 @@ wss.on("connection", (ws) => {
           const seatIndex = Number(msg.seat);
           const buyIn = Number(msg.buyIn);
           console.log(`👤 [${clientId}] Player ${nickname} (${playerId}) attempting to sit at seat ${seatIndex}`);
+          
           if (Number.isNaN(seatIndex)) {
             console.log(`❌ [${clientId}] Invalid seat index: ${seatIndex}`);
-            break;
-          }
-          
-          // Check if player is already seated at THIS table (prevent multiple seats per table)
-          const existingPlayerOnTable = room.players.find(p => p.id === playerId);
-          if (existingPlayerOnTable) {
-            console.log(`❌ [${clientId}] Player ${playerId} already seated at table ${room.id}`);
             ws.send(
               JSON.stringify({
                 tableId: room.id,
                 type: "ERROR",
-                code: "ALREADY_SEATED",
-                msg: "You are already seated at this table",
+                code: "INVALID_SEAT",
+                msg: "Invalid seat index",
               } satisfies ServerEvent),
             );
             break;
-          }
-
-          const seatingMgr = seating.get(room.id);
-          const table = tables.get(room.id);
-          console.log(`🔍 [${clientId}] Table objects - seatingMgr: ${!!seatingMgr}, table: ${!!table}`);
-          
-          if (!seatingMgr || !table) {
-            console.log(`❌ [${clientId}] Missing table objects for ${room.id} - recreating...`);
-            // Force recreation of table objects
-            getEngine(room.id);
-            const newSeatingMgr = seating.get(room.id);
-            const newTable = tables.get(room.id);
-            console.log(`🔄 [${clientId}] After recreation - seatingMgr: ${!!newSeatingMgr}, table: ${!!newTable}`);
-          }
-          
-          const finalSeatingMgr = seating.get(room.id);
-          const finalTable = tables.get(room.id);
-          
-          // Validate seat availability using SeatingManager  
-          if (finalSeatingMgr && finalTable) {
-            if (seatIndex < 0 || seatIndex >= finalTable.seats.length) {
-              console.log(`❌ [${clientId}] Seat ${seatIndex} out of range`);
-              ws.send(
-                JSON.stringify({
-                  tableId: room.id,
-                  type: "ERROR",
-                  code: "INVALID_SEAT",
-                  msg: "Invalid seat index",
-                } satisfies ServerEvent),
-              );
-              break;
-            }
-            if (finalTable.seats[seatIndex]) {
-              console.log(`❌ [${clientId}] Seat ${seatIndex} already taken`);
-              ws.send(
-                JSON.stringify({
-                  tableId: room.id,
-                  type: "ERROR",
-                  code: "SEAT_TAKEN",
-                  msg: "Seat already taken",
-                } satisfies ServerEvent),
-              );
-              break;
-            }
-
-            // Use SeatingManager to seat the player - always use $10k
-            const SEAT_BUYIN = 10000;
-            console.log(`🪑 [${clientId}] Using seating manager to seat player ${playerId} at seat ${seatIndex} with $${SEAT_BUYIN}`);
-            const tablePlayer = finalSeatingMgr.seatPlayer(seatIndex, playerId, SEAT_BUYIN);
-            if (!tablePlayer) {
-              ws.send(
-                JSON.stringify({
-                  tableId: room.id,
-                  type: "ERROR",
-                  code: "SEATING_FAILED",
-                  msg: "Failed to take seat",
-                } satisfies ServerEvent),
-              );
-              break;
-            }
           }
 
           // Check if a hand is currently active
@@ -743,23 +686,50 @@ wss.on("connection", (ws) => {
 
           // Add player to GameEngine - always give $10k per seat
           const SEAT_BUYIN = 10000;
-          engine.addPlayer({
-            id: playerId,
-            nickname,
-            seat: seatIndex,
-            chips: SEAT_BUYIN,
-          });
-          seatMaps.get(room.id)?.set(playerId, seatIndex);
-          session.roomId = room.id;
-          void saveSession(session);
-          console.log(`✅ [${clientId}] Player ${nickname} successfully seated at ${seatIndex} with ${SEAT_BUYIN} chips (always $10k per seat)`);
+          try {
+            engine.addPlayer({
+              id: playerId,
+              nickname,
+              seat: seatIndex,
+              chips: SEAT_BUYIN,
+            });
+            seatMaps.get(room.id)?.set(playerId, seatIndex);
+            
+            // Update session with game state
+            session.roomId = room.id;
+            session.seat = seatIndex;
+            session.chips = SEAT_BUYIN;
+            session.nickname = nickname;
+            session.inActiveHand = false;
+            void saveSession(session);
+            console.log(`✅ [${clientId}] Player ${nickname} successfully seated at ${seatIndex} with ${SEAT_BUYIN} chips (always $10k per seat)`);
+          } catch (error) {
+            console.log(`❌ [${clientId}] Failed to seat player: ${error instanceof Error ? error.message : String(error)}`);
+            let errorCode = "SEATING_FAILED";
+            if (error instanceof Error) {
+              if (error.message.includes("already seated")) {
+                errorCode = "ALREADY_SEATED";
+              } else if (error.message.includes("already taken")) {
+                errorCode = "SEAT_TAKEN";
+              } else if (error.message.includes("Invalid seat")) {
+                errorCode = "INVALID_SEAT";
+              }
+            }
+            ws.send(
+              JSON.stringify({
+                tableId: room.id,
+                type: "ERROR",
+                code: errorCode,
+                msg: error instanceof Error ? error.message : "Failed to take seat",
+              } satisfies ServerEvent),
+            );
+            break;
+          }
           
           const updatedRoom = engine.getState();
           console.log(`📊 [${clientId}] Table now has ${updatedRoom.players.length} players, stage: ${updatedRoom.stage}`);
           
-          // Send TABLE_SNAPSHOT instead of PLAYER_JOINED for immediate consistency
-          // This ensures the frontend gets the complete, accurate state including the new player
-          broadcast(updatedRoom.id, { type: "TABLE_SNAPSHOT", table: updatedRoom });
+          // GameEngine automatically broadcasts TABLE_SNAPSHOT via stateChanged event - no manual broadcast needed
           
           // Start countdown when we have 2+ players
           if (updatedRoom.players.length >= 2 && updatedRoom.stage === "waiting") {
@@ -782,28 +752,22 @@ wss.on("connection", (ws) => {
           
           console.log(`🚪 [${session.sessionId}] Player ${playerId} leaving table ${room.id} from seat ${seatIndex}`);
           
-          // Remove from SeatingManager
-          const seatingMgr = seating.get(room.id);
-          if (seatingMgr && seatIndex !== undefined) {
-            seatingMgr.leave(seatIndex);
-          }
-          
-          // Remove from GameEngine
+          // Remove from GameEngine (single source of truth)
           if (engine.removePlayer(playerId)) {
             seatMaps.get(room.id)?.delete(playerId);
           }
           
-          // Only clear session roomId if leaving current room
+          // Clear session game state
           if (tableIdToLeave === session.roomId) {
             session.roomId = undefined;
+            session.seat = undefined;
+            session.chips = undefined;
+            session.inActiveHand = false;
           }
           
           void saveSession(session);
-          void saveRoom(room);
           
-          // Send TABLE_SNAPSHOT for consistent state after player leaves
-          const updatedRoom = engine.getState();
-          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: updatedRoom });
+          // GameEngine automatically broadcasts TABLE_SNAPSHOT via stateChanged event - no manual broadcast needed
           break;
         }
         case "ACTION": {
@@ -846,9 +810,7 @@ wss.on("connection", (ws) => {
               amount: msg.amount,
             });
             
-            // Then broadcast updated table state to ensure all clients are synchronized
-            const updatedRoom = engine.getState();
-            broadcast(room.id, { type: "TABLE_SNAPSHOT", table: updatedRoom });
+            // GameEngine automatically broadcasts TABLE_SNAPSHOT via stateChanged event - no manual broadcast needed
             
             timeoutCounts.delete(playerId);
           } catch (error) {
@@ -868,30 +830,40 @@ wss.on("connection", (ws) => {
           const engine = getEngine(session.roomId);
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
-          const seatIndex = seatMaps.get(room.id)?.get(playerId);
-          const seatingMgr = seating.get(room.id);
           
-          // Update SeatingManager
-          if (seatingMgr && seatIndex !== undefined) {
-            if (!seatingMgr.topUp(seatIndex, msg.amount)) {
+          // Update player chips in GameEngine (single source of truth)
+          const player = room.players.find((p) => p.id === playerId);
+          if (player) {
+            if (msg.amount <= 0 || msg.amount > 10000) {
               ws.send(
                 JSON.stringify({
                   tableId: room.id,
                   type: "ERROR",
                   code: "REBUY_FAILED",
-                  msg: "Invalid rebuy amount or exceeds table maximum",
+                  msg: "Invalid rebuy amount",
                 } satisfies ServerEvent),
               );
               break;
             }
+            player.chips += msg.amount;
+            
+            // Update session state
+            session.chips = player.chips;
+            void saveSession(session);
+            
+            console.log(`💰 [REBUY] Player ${playerId} added ${msg.amount} chips, now has ${player.chips}`);
+            // GameEngine will automatically broadcast via stateChanged event when room state changes
+            engine.emit("stateChanged", room);
+          } else {
+            ws.send(
+              JSON.stringify({
+                tableId: room.id,
+                type: "ERROR",
+                code: "REBUY_FAILED",
+                msg: "Player not found at table",
+              } satisfies ServerEvent),
+            );
           }
-          
-          // Update GameEngine
-          const player = room.players.find((p) => p.id === playerId);
-          if (player) player.chips += msg.amount;
-          
-          void saveRoom(room);
-          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
           break;
         }
         case "SIT_OUT":
@@ -900,28 +872,24 @@ wss.on("connection", (ws) => {
           const engine = getEngine(session.roomId);
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
-          const seatIndex = seatMaps.get(room.id)?.get(playerId);
-          const seatingMgr = seating.get(room.id);
           
-          if (seatingMgr && seatIndex !== undefined) {
-            if (msg.type === "SIT_OUT") {
-              seatingMgr.sitOut(seatIndex);
-            } else {
-              seatingMgr.sitIn(seatIndex);
-            }
-          }
+          // For now, SIT_OUT/SIT_IN functionality is simplified
+          // TODO: Implement proper sit-out state in GameEngine if needed
+          console.log(`📝 [${session.sessionId}] ${msg.type} request from player ${playerId} - feature not fully implemented`);
           
-          void saveRoom(room);
-          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
+          // GameEngine automatically handles state and broadcasts - no manual broadcast needed
           break;
         }
         case "POST_BLIND": {
           if (!session.roomId) break;
           const engine = getEngine(session.roomId);
           const room = engine.getState();
+          
+          // Blinds are automatically posted by GameEngine during hand start
+          console.log(`📝 [${session.sessionId}] POST_BLIND request - blinds handled automatically by GameEngine`);
           broadcast(room.id, { type: "BLINDS_POSTED" });
-          void saveRoom(room);
-          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
+          
+          // GameEngine automatically handles state and broadcasts - no manual TABLE_SNAPSHOT needed
           break;
         }
         default: {

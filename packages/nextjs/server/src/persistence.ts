@@ -43,6 +43,10 @@ export async function saveSession(session: Session) {
     sessionId: session.sessionId,
     userId: session.userId,
     roomId: session.roomId,
+    seat: session.seat,
+    chips: session.chips,
+    nickname: session.nickname,
+    inActiveHand: session.inActiveHand,
   });
   const c = await getClient();
   if (c) await c.set(`session:${session.sessionId}`, data);
