@@ -222,6 +222,45 @@ fi
 echo "📝 Recent deployment logs:"
 heroku logs --tail --num 30 -a "$APP_NAME" 2>/dev/null || echo "⚠️  Could not fetch logs"
 
+# Start log monitoring with proper signal handling
+if [ "$DEPLOYMENT_VERIFIED" = "true" ]; then
+    echo ""
+    echo "🔍 Starting live log monitoring..."
+    echo "   Press Ctrl+C to stop log monitoring (deployment will continue running)"
+    echo "   Logs will be shown for 60 seconds, then auto-stop"
+    echo ""
+    
+    # Function to handle cleanup on script exit
+    cleanup_logs() {
+        if [ ! -z "$LOGS_PID" ]; then
+            echo ""
+            echo "⏹️  Stopping log monitoring..."
+            kill $LOGS_PID 2>/dev/null || true
+            wait $LOGS_PID 2>/dev/null || true
+        fi
+    }
+    
+    # Set up signal handlers
+    trap cleanup_logs INT TERM EXIT
+    
+    # Start log monitoring in background
+    heroku logs --tail -a "$APP_NAME" 2>/dev/null &
+    LOGS_PID=$!
+    
+    # Wait for either user interrupt or timeout
+    ( sleep 60; kill $LOGS_PID 2>/dev/null ) &
+    TIMEOUT_PID=$!
+    
+    # Wait for logs process to finish (either from Ctrl+C or timeout)
+    wait $LOGS_PID 2>/dev/null || true
+    
+    # Clean up timeout process
+    kill $TIMEOUT_PID 2>/dev/null || true
+    
+    echo ""
+    echo "📝 Log monitoring stopped."
+fi
+
 echo ""
 if [ "$DEPLOYMENT_VERIFIED" = "true" ]; then
     echo "✅ Deployment completed successfully!"

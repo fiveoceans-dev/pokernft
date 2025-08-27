@@ -7,8 +7,10 @@
     "build": "tsc --noEmitOnError false",
     "start": "node dist/src/index.js",
     "dev": "ts-node src/index.ts",
+    "server-local": "./server-local.sh",
     "test": "jest",
     "deploy": "git subtree push --prefix=packages/nextjs/server heroku main",
+    "deploy-heroku": "./heroku-deploy.sh",
     "heroku-postbuild": "npm run build"
   },
   "dependencies": {
