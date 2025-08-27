@@ -76,6 +76,30 @@ function ActionButtons() {
     }
   };
 
+  const handleSliderClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const sliderWidth = rect.width;
+    
+    // Calculate the percentage position of the click
+    const clickPercentage = clickX / sliderWidth;
+    
+    // Calculate what value this click position represents
+    const clickValue = safeBigBlind + (maxBet - safeBigBlind) * clickPercentage;
+    
+    // Determine if click was left or right of current handle position
+    if (clickValue < betAmount - (safeBigBlind / 2)) {
+      // Clicked left of handle - decrease by big blind amount
+      const newAmount = Math.max(betAmount - safeBigBlind, safeBigBlind);
+      setBetAmount(newAmount);
+    } else if (clickValue > betAmount + (safeBigBlind / 2)) {
+      // Clicked right of handle - increase by big blind amount
+      const newAmount = Math.min(betAmount + safeBigBlind, maxBet);
+      setBetAmount(newAmount);
+    }
+    // If click is very close to current position (within half a big blind), do nothing
+  };
+
   return (
     <div className="flex flex-col items-center gap-3 mt-4">
       {/* Action Buttons */}
@@ -116,6 +140,7 @@ function ActionButtons() {
                 setBetAmount(value);
               }
             }}
+            onClick={handleSliderClick}
             className="w-40 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
           />
           <span className="text-white text-sm min-w-[60px]">${maxBet}</span>
@@ -140,25 +165,21 @@ function ActionButtons() {
         <div className="flex gap-2">
           <button
             onClick={() => {
-              const newAmount = Math.min(betAmount * 2, maxBet);
-              if (newAmount >= safeBigBlind) {
-                setBetAmount(newAmount);
-              }
+              const newAmount = Math.min(safeBigBlind * 2, maxBet);
+              setBetAmount(newAmount);
             }}
             className="px-3 py-1 bg-black/60 text-white rounded hover:bg-black/80 transition-colors"
-            disabled={betAmount * 2 < safeBigBlind}
+            disabled={safeBigBlind * 2 > maxBet}
           >
             2x
           </button>
           <button
             onClick={() => {
-              const newAmount = Math.min(betAmount * 3, maxBet);
-              if (newAmount >= safeBigBlind) {
-                setBetAmount(newAmount);
-              }
+              const newAmount = Math.min(safeBigBlind * 3, maxBet);
+              setBetAmount(newAmount);
             }}
             className="px-3 py-1 bg-black/60 text-white rounded hover:bg-black/80 transition-colors"
-            disabled={betAmount * 3 < safeBigBlind}
+            disabled={safeBigBlind * 3 > maxBet}
           >
             3x
           </button>

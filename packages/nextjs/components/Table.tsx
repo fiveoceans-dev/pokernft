@@ -233,6 +233,13 @@ export default function Table({ timer }: { timer?: number | null }) {
         </div>
       )}
 
+      {/* Showdown indicator */}
+      {street === 4 && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 text-2xl font-bold text-yellow-300 bg-black/70 px-4 py-2 rounded-lg border-2 border-yellow-500 shadow-lg animate-pulse">
+          🃏 SHOWDOWN
+        </div>
+      )}
+
       {/* poker-table oval */}
       <div
         className="relative rounded-full border-8 border-[var(--brand-accent)] bg-main shadow-[0_0_40px_rgba(0,0,0,0.6)]"
@@ -260,9 +267,9 @@ export default function Table({ timer }: { timer?: number | null }) {
         <div className="mt-2">
           <button
             onClick={() => revealCards(walletSeatIdx)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
+            className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-lg font-bold transition-colors shadow-lg border-2 border-yellow-400 animate-bounce"
           >
-            Show Cards
+            🃏 Show Your Cards
           </button>
         </div>
       )}

@@ -315,6 +315,15 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
       });
     });
 
+    engine!.on("showdownStarted", (data: { winners: string[], potAmount: number }) => {
+      broadcast(id, {
+        type: "SHOWDOWN",
+        revealOrder: data.winners,
+        tableId: id
+      });
+      console.log(`🃏 [${id}] Broadcasting showdown with ${data.winners.length} winner(s), pot: $${data.potAmount}`);
+    });
+
     engine!.on("readyForNewHand", () => {
       // Add any waiting players to the game before starting next hand countdown
       const waitingPlayers = Array.from(seatMaps.get(id)?.entries() || []).filter(([playerId, seatIndex]) => {

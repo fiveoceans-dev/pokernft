@@ -380,6 +380,20 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 cardsRevealed: Array(9).fill(false),
               });
               break;
+            case "SHOWDOWN":
+              console.log("🃏 Showdown started, revealing cards for winners:", msg.revealOrder);
+              get().addLog(`🃏 Showdown! Cards revealed.`);
+              // Auto-reveal cards for all non-folded players at showdown
+              set((s) => {
+                const newRevealed = [...s.cardsRevealed];
+                s.playerStates.forEach((state, idx) => {
+                  if (state !== PlayerState.FOLDED && state !== PlayerState.EMPTY && s.players[idx]) {
+                    newRevealed[idx] = true;
+                  }
+                });
+                return { cardsRevealed: newRevealed };
+              });
+              break;
             case "DEALER_MESSAGE":
               console.log("📢 Dealer message:", msg.message);
               get().addLog(`🎯 Dealer: ${msg.message}`);

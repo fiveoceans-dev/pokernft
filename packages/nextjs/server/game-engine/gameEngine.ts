@@ -20,6 +20,7 @@ import { PokerStateMachine, GameState } from "./stateMachine";
 export class GameEngine extends EventEmitter {
   private room: GameRoom;
   private machine: PokerStateMachine;
+  private showdownTimer: NodeJS.Timeout | null = null;
 
   constructor(id: string, minBet = 10) {
     super();
@@ -124,6 +125,14 @@ export class GameEngine extends EventEmitter {
   /** Start a fresh hand */
   startHand() {
     console.log(`🎯 [GameEngine] Starting new hand for table ${this.room.id} with ${this.room.players.length} players`);
+    
+    // Clear any existing showdown timer when starting a new hand
+    if (this.showdownTimer) {
+      clearTimeout(this.showdownTimer);
+      this.showdownTimer = null;
+      console.log(`🔄 [GameEngine] Cleared existing showdown timer`);
+    }
+    
     this.machine.dispatch({ type: "PLAYERS_READY" });
     this.machine.dispatch({ type: "SHUFFLE_COMPLETE" });
     startHandImpl(this.room);
@@ -301,35 +310,25 @@ export class GameEngine extends EventEmitter {
       const winners = determineWinnersImpl(this.room);
       const potAmount = this.room.pot;
       
-      // Create winner announcement message for showdown
-      let winnerMessage = "";
-      if (winners.length === 1) {
-        const share = Math.floor(potAmount / winners.length);
-        winnerMessage = `${winners[0].id.slice(0, 6)}...${winners[0].id.slice(-4)} wins $${share} at showdown`;
-      } else {
-        const share = Math.floor(potAmount / winners.length);
-        const winnerNames = winners.map(w => `${w.id.slice(0, 6)}...${w.id.slice(-4)}`).join(', ');
-        winnerMessage = `${winnerNames} split the pot at showdown ($${share} each)`;
-      }
+      console.log(`🃏 [GameEngine] Showdown - ${winners.length} winner(s), pot: $${potAmount}`);
       
-      this.machine.dispatch({ type: "SHOWDOWN_COMPLETE" });
-      payoutImpl(this.room, winners);
-      this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
-      this.room.players.forEach((p) => (p.isTurn = false));
-      this.room.stage = "waiting";
+      // Emit stage change to showdown so clients can reveal cards
       this.emit("phaseChanged", this.machine.state);
       this.emit("stageChanged", this.room.stage);
-      this.emit("handEnded", winners);
-      
-      // Emit dealer message after payout
-      this.emit("dealerMessage", winnerMessage);
       this.emit("stateChanged", this.room);
       
-      // If we still have 2+ players with chips, signal that a new hand can start
-      const playersWithChips = this.room.players.filter((p) => p.chips > 0);
-      if (playersWithChips.length >= 2) {
-        this.emit("readyForNewHand");
+      // Emit showdown event with winner info for client display
+      this.emit("showdownStarted", { winners: winners.map(w => w.id), potAmount });
+      
+      // Set timer to complete showdown after 4 seconds (enough time to see cards)
+      if (this.showdownTimer) {
+        clearTimeout(this.showdownTimer);
       }
+      
+      this.showdownTimer = setTimeout(() => {
+        this.completeShowdown(winners, potAmount);
+      }, 4000);
+      
       return;
     }
 
@@ -353,6 +352,45 @@ export class GameEngine extends EventEmitter {
         minRaise: Math.max(this.room.minBet, maxBet + this.room.minBet),
         timeLeftMs: 10000 // 10 second timer
       });
+    }
+  }
+
+  /** Complete the showdown after timer expires */
+  private completeShowdown(winners: PlayerSession[], potAmount: number) {
+    console.log(`✅ [GameEngine] Completing showdown for ${winners.length} winner(s)`);
+    
+    // Create winner announcement message
+    let winnerMessage = "";
+    if (winners.length === 1) {
+      const share = Math.floor(potAmount / winners.length);
+      winnerMessage = `${winners[0].id.slice(0, 6)}...${winners[0].id.slice(-4)} wins $${share} at showdown`;
+    } else {
+      const share = Math.floor(potAmount / winners.length);
+      const winnerNames = winners.map(w => `${w.id.slice(0, 6)}...${w.id.slice(-4)}`).join(', ');
+      winnerMessage = `${winnerNames} split the pot at showdown ($${share} each)`;
+    }
+    
+    // Complete the showdown process
+    this.machine.dispatch({ type: "SHOWDOWN_COMPLETE" });
+    payoutImpl(this.room, winners);
+    this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
+    this.room.players.forEach((p) => (p.isTurn = false));
+    this.room.stage = "waiting";
+    
+    // Clear the timer
+    this.showdownTimer = null;
+    
+    // Emit events
+    this.emit("phaseChanged", this.machine.state);
+    this.emit("stageChanged", this.room.stage);
+    this.emit("handEnded", winners);
+    this.emit("dealerMessage", winnerMessage);
+    this.emit("stateChanged", this.room);
+    
+    // Signal ready for new hand if we have enough players
+    const playersWithChips = this.room.players.filter((p) => p.chips > 0);
+    if (playersWithChips.length >= 2) {
+      this.emit("readyForNewHand");
     }
   }
 }
