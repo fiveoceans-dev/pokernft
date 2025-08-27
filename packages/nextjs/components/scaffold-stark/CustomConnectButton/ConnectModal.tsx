@@ -45,6 +45,24 @@ const ConnectModal = () => {
       setIsBurnerWallet(true);
       return;
     }
+    
+    // Clear ALL localStorage before connecting real wallet to ensure clean state
+    if (typeof window !== "undefined") {
+      // Clear all wallet-related storage keys
+      localStorage.removeItem("walletAddress");
+      localStorage.removeItem("sessionId");
+      // Clear any other keys that might affect wallet state
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('wallet') || key.includes('session') || key.includes('connect')) {
+          // Skip the connector storage we're about to set
+          if (key !== 'lastUsedConnector' && key !== LAST_CONNECTED_TIME_LOCALSTORAGE_KEY) {
+            localStorage.removeItem(key);
+          }
+        }
+      });
+    }
+    
+    console.log("💼 Connecting real wallet with clean state...");
     connect({ connector });
     setLastConnector({ id: connector.id });
     setLastConnectionTime(Date.now());
@@ -55,6 +73,23 @@ const ConnectModal = () => {
     e: React.MouseEvent<HTMLButtonElement>,
     ix: number,
   ) {
+    // Clear ALL localStorage before connecting burner wallet to ensure clean state
+    if (typeof window !== "undefined") {
+      // Clear all wallet-related storage keys
+      localStorage.removeItem("walletAddress");
+      localStorage.removeItem("sessionId");
+      // Clear any other keys that might affect wallet state
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('wallet') || key.includes('session') || key.includes('connect')) {
+          // Skip the connector storage we're about to set
+          if (key !== 'lastUsedConnector' && key !== LAST_CONNECTED_TIME_LOCALSTORAGE_KEY) {
+            localStorage.removeItem(key);
+          }
+        }
+      });
+    }
+    
+    console.log("🔥 Connecting burner wallet with clean state...");
     const connector = connectors.find((it) => it.id == "burner-wallet");
     if (connector && connector instanceof BurnerConnector) {
       connector.burnerAccount = burnerAccounts[ix];
@@ -66,8 +101,24 @@ const ConnectModal = () => {
   }
 
   function handleDemoPlayer() {
+    // Clear ALL localStorage to ensure clean state
+    if (typeof window !== "undefined") {
+      // Clear all wallet-related storage keys
+      localStorage.removeItem("walletAddress");
+      localStorage.removeItem("sessionId");
+      // Clear any other keys that might affect wallet state
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('wallet') || key.includes('session') || key.includes('connect')) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+    
+    // Create fresh demo address
     const addr = randomAddress();
     localStorage.setItem("walletAddress", addr);
+    
+    console.log("🎭 Demo player created with clean state:", addr.slice(0, 10) + "...");
     handleCloseModal();
     window.location.reload();
   }

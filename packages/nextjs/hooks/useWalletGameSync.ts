@@ -63,31 +63,46 @@ export function useWalletGameSync() {
   // Sync wallet connection with game store
   useEffect(() => {
     try {
-      if (status === "connected" && address && address !== currentWalletId) {
-        console.log('🔄 Wallet connected, syncing with game store');
-        safeConnectWallet(address);
+      const storedAddress = localStorage.getItem("walletAddress");
+      
+      // Priority 1: Real wallet is connected - always use it
+      if (status === "connected" && address) {
+        if (address !== currentWalletId) {
+          console.log('🔄 Real wallet connected, syncing with game store');
+          // Clear any stale localStorage if it doesn't match real wallet
+          if (storedAddress && storedAddress !== address) {
+            console.log('🧹 Clearing stale localStorage address');
+            localStorage.setItem("walletAddress", address);
+          }
+          safeConnectWallet(address);
+        }
         setIsInitialized(true);
         
+      // Priority 2: Real wallet disconnected but we have currentWalletId  
       } else if (status === "disconnected" && currentWalletId) {
-        // Only handle disconnect if we have a stored wallet - this means user logged out
-        const storedAddress = localStorage.getItem("walletAddress");
         
-        if (!storedAddress) {
-          // User actually logged out, handle disconnect
-          console.log('🚪 User logged out, handling disconnect');
+        // Check if stored address matches current wallet ID
+        if (storedAddress === currentWalletId) {
+          // Stored address matches - this is likely a demo player or valid state
+          console.log('🎭 Demo player state maintained');
+          
+        } else if (!storedAddress) {
+          // No stored address - user logged out completely
+          console.log('🚪 User logged out completely, handling disconnect');
           safeHandleDisconnect();
           
-        } else if (storedAddress && storedAddress !== currentWalletId) {
-          // Different stored address, connect to it
-          console.log('🔄 Different stored address, reconnecting');
+        } else if (storedAddress !== currentWalletId) {
+          // Stored address is different - sync to stored address
+          console.log('🔄 Syncing to different stored address');
           safeConnectWallet(storedAddress);
         }
         
+      // Priority 3: No real wallet, no current wallet - check for demo player
       } else if (status === "disconnected" && !currentWalletId && !isInitialized) {
-        // Check for stored wallet address on initial load
-        const storedAddress = localStorage.getItem("walletAddress");
+        
         if (storedAddress) {
-          console.log('🔄 Found stored wallet on initial load, connecting');
+          // We have a stored address (likely demo player)
+          console.log('🔄 Found stored demo address on initial load, connecting');
           safeConnectWallet(storedAddress);
         }
         setIsInitialized(true);
@@ -97,7 +112,7 @@ export function useWalletGameSync() {
       if (connectionTimeoutRef.current && (status === "connected" || !currentWalletId)) {
         clearTimeout(connectionTimeoutRef.current);
         connectionTimeoutRef.current = null;
-        setError(null); // Clear any lingering errors
+        setError(null);
       }
       
     } catch (err) {
@@ -118,7 +133,8 @@ export function useWalletGameSync() {
 
   return {
     isConnected: status === "connected" || !!currentWalletId,
-    address: currentWalletId || address || getStoredWalletAddress(),
+    // Priority: Real wallet address > Game store current wallet > Stored address
+    address: status === "connected" && address ? address : (currentWalletId || getStoredWalletAddress()),
     status,
     error,
     isInitialized,

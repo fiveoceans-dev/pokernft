@@ -568,17 +568,34 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         return;
       }
       
+      console.log(`💼 Connecting wallet: ${address.slice(0, 10)}... (Previous: ${previousWallet?.slice(0, 10) + "..." || "none"})`);
+      
       // If switching wallets, disconnect from previous wallet's sessions
       if (previousWallet && previousWallet !== address) {
-        console.log("🔄 Switching from", previousWallet.slice(0, 10) + "..." , "to", address.slice(0, 10) + "...");
+        console.log("🔄 Switching wallets - cleaning up previous state");
         get().handleDisconnect().then(() => {
-          // After cleanup, connect with new wallet
-          set({ currentWalletId: address, tableSeats: new Map(), connectionError: null });
+          // After cleanup, connect with new wallet and ensure clean state
+          set({ 
+            currentWalletId: address, 
+            tableSeats: new Map(), 
+            connectionError: null,
+            // Clear any game state that might be tied to previous wallet
+            players: Array(9).fill(null),
+            playerIds: Array(9).fill(null),
+            chips: Array(9).fill(0),
+            playerBets: Array(9).fill(0),
+            playerStates: Array(9).fill(PlayerState.EMPTY),
+          });
+          
           if (typeof window !== "undefined") {
-            // Always store wallet address in walletAddress for consistency
-            localStorage.setItem("walletAddress", address);
-            // Keep sessionId for session management but don't use it for wallet identity
+            // Validate localStorage consistency - ensure only this address is stored
+            const storedAddress = localStorage.getItem("walletAddress");
+            if (storedAddress !== address) {
+              console.log(`🧹 Cleaning inconsistent localStorage: ${storedAddress} → ${address}`);
+              localStorage.setItem("walletAddress", address);
+            }
           }
+          
           // Ensure WebSocket is connected before attaching
           if (socket && socket.readyState === WebSocket.OPEN) {
             try {
@@ -593,7 +610,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               console.error("🚫 Failed to attach new wallet:", error);
               set({ connectionError: 'Failed to attach wallet' });
             }
-          } else if (!socket || socket.readyState !== WebSocket.OPEN) {
+          } else {
             console.log("🔗 WebSocket not connected, attempting connection...");
             connectWebSocket();
           }
@@ -602,13 +619,17 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           set({ connectionError: 'Failed to switch wallets' });
         });
       } else {
-        // First time connecting or same wallet
-        set({ currentWalletId: address, connectionError: null });
+        // First time connecting or same wallet - validate consistency
         if (typeof window !== "undefined") {
-          // Always store wallet address in walletAddress for consistency
-          localStorage.setItem("walletAddress", address);
-          // Keep sessionId for session management but don't use it for wallet identity
+          const storedAddress = localStorage.getItem("walletAddress");
+          if (storedAddress !== address) {
+            console.log(`🧹 Syncing localStorage: ${storedAddress} → ${address}`);
+            localStorage.setItem("walletAddress", address);
+          }
         }
+        
+        set({ currentWalletId: address, connectionError: null });
+        
         // Ensure WebSocket is connected before attaching
         if (socket && socket.readyState === WebSocket.OPEN) {
           try {
@@ -623,7 +644,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             console.error("🚫 Failed to attach wallet:", error);
             set({ connectionError: 'Failed to attach wallet' });
           }
-        } else if (!socket || socket.readyState !== WebSocket.OPEN) {
+        } else {
           console.log("🔗 WebSocket not connected, attempting connection...");
           connectWebSocket();
         }

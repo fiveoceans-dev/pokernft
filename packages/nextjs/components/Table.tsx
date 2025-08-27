@@ -69,12 +69,45 @@ export default function Table({ timer }: { timer?: number | null }) {
       if (modal) modal.checked = true;
       return;
     }
+    
+    // Enhanced address validation - ensure navbar address matches game store
+    const gameStoreAddress = gameStore.currentWalletId;
+    const storedAddress = typeof window !== "undefined" ? localStorage.getItem("walletAddress") : null;
+    
+    console.log("🔍 Address validation for seating:", {
+      navbarAddress: address.slice(0, 10) + "...",
+      gameStoreAddress: gameStoreAddress?.slice(0, 10) + "..." || "null",
+      storedAddress: storedAddress?.slice(0, 10) + "..." || "null"
+    });
+    
+    // Priority validation: navbar address should match game store and localStorage
+    if (gameStoreAddress !== address) {
+      console.warn("🚫 Address mismatch: navbar vs game store", { navbar: address, gameStore: gameStoreAddress });
+      alert("Wallet address mismatch detected. Please reconnect your wallet.");
+      return;
+    }
+    
+    if (storedAddress !== address) {
+      console.warn("🚫 Address mismatch: navbar vs localStorage", { navbar: address, stored: storedAddress });
+      alert("Wallet address mismatch detected. Please reconnect your wallet.");
+      return;
+    }
+    
     // Prevent seating if this wallet is already seated at the table
     if (playerIds.some((id) => id?.toLowerCase() === address.toLowerCase())) {
       alert("You are already seated at this table");
       return;
     }
-    // Join seat using the connected wallet address as player ID
+    
+    // Additional validation: check if any other address variants are seated
+    if (gameStoreAddress && playerIds.some((id) => id && id.toLowerCase() === gameStoreAddress.toLowerCase() && id.toLowerCase() !== address.toLowerCase())) {
+      console.warn("🚫 Different address variant already seated", { seated: gameStoreAddress, requesting: address });
+      alert("A different variant of your wallet address is already seated. Please refresh the page.");
+      return;
+    }
+    
+    console.log("✅ Address validation passed, joining seat", idx, "with address:", address.slice(0, 10) + "...");
+    // Join seat using the validated address
     joinSeat(idx);
   };
 
