@@ -76,7 +76,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const states = Array(9).fill(PlayerState.EMPTY) as PlayerState[];
 
     room.players?.forEach((p: any) => {
-      seats[p.seat] = p.nickname ?? shortAddress(p.id);
+      // Use wallet address as player name for consistency
+      seats[p.seat] = p.id;
       ids[p.seat] = p.id;
       if (p.hand?.length === 2) {
         hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
@@ -127,12 +128,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     socket = new WebSocket(wsUrl);
     socket.onopen = () => {
       console.log("✅ WebSocket connected successfully");
-      // Check for Starknet wallet address from localStorage (set by CustomConnectButton)
-      const starknetAddress = localStorage.getItem("sessionId");
+      // Use single consistent wallet address source - prioritize walletAddress over sessionId
       const walletAddress = localStorage.getItem("walletAddress");
-      const address = starknetAddress || walletAddress;
+      const sessionAddress = localStorage.getItem("sessionId");
+      const address = walletAddress || sessionAddress;
       
-      console.log("🔍 Checking for stored addresses:", { starknetAddress, walletAddress, finalAddress: address });
+      console.log("🔍 Checking for stored addresses:", { walletAddress, sessionAddress, finalAddress: address });
       
       if (address) {
         const cmd: ClientCommand = {
@@ -165,6 +166,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           case "SESSION":
             console.log("📨 Received SESSION message:", msg);
             if (msg.userId) {
+              // Store in walletAddress as primary key
               localStorage.setItem("walletAddress", msg.userId);
               set({ walletId: msg.userId });
               console.log("💾 Stored wallet address:", msg.userId);
@@ -183,7 +185,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             set((s) => {
               const arr = [...s.players];
               const ids = [...s.playerIds];
-              arr[msg.seat] = shortAddress(msg.playerId);
+              // Use full wallet address as player name for consistency
+              arr[msg.seat] = msg.playerId;
               ids[msg.seat] = msg.playerId;
               return { players: arr, playerIds: ids };
             });
@@ -216,7 +219,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               const names = [...s.players];
               const ids = [...s.playerIds];
               if (!names[msg.seat])
-                names[msg.seat] = shortAddress(msg.playerId);
+                names[msg.seat] = msg.playerId;
               ids[msg.seat] = msg.playerId;
               return { playerStates: states, players: names, playerIds: ids };
             });
@@ -330,7 +333,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     socket,
     walletId:
       typeof window !== "undefined"
-        ? localStorage.getItem("sessionId") || localStorage.getItem("walletAddress")
+        ? localStorage.getItem("walletAddress") || localStorage.getItem("sessionId")
         : null,
     tableId: null,
     timer: null,
@@ -339,6 +342,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set({ walletId: address });
       if (typeof window !== "undefined") {
         localStorage.setItem("walletAddress", address);
+        // Clear sessionId to avoid conflicts
+        localStorage.removeItem("sessionId");
       }
       // Attach to WebSocket if connected
       if (socket && socket.readyState === WebSocket.OPEN) {
@@ -348,6 +353,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           userId: address,
         } as any;
         socket.send(JSON.stringify(cmd));
+        console.log("📤 Sent ATTACH command with wallet address:", address);
       }
     },
 

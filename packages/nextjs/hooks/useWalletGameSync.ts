@@ -14,17 +14,17 @@ export function useWalletGameSync() {
     if (status === "connected" && address && address !== walletId) {
       connectWallet(address);
     } else if (status === "disconnected") {
-      // Check for demo address from localStorage
-      const demoAddress = localStorage.getItem("sessionId");
-      if (demoAddress && demoAddress !== walletId) {
-        connectWallet(demoAddress);
+      // Check for stored wallet address (prioritize walletAddress over sessionId)
+      const storedAddress = localStorage.getItem("walletAddress") || localStorage.getItem("sessionId");
+      if (storedAddress && storedAddress !== walletId) {
+        connectWallet(storedAddress);
       }
     }
   }, [address, status, walletId, connectWallet]);
 
   return {
-    isConnected: status === "connected" || !!localStorage.getItem("sessionId"),
-    address: address || localStorage.getItem("sessionId"),
+    isConnected: status === "connected" || !!(localStorage.getItem("walletAddress") || localStorage.getItem("sessionId")),
+    address: address || localStorage.getItem("walletAddress") || localStorage.getItem("sessionId"),
     status
   };
 }

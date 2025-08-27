@@ -9,6 +9,7 @@ import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../game-engine";
 import { useWalletGameSync } from "../hooks/useWalletGameSync";
 import ActionButtons from "./ActionButtons";
+import { useGameStore } from "../hooks/useGameStore";
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -45,6 +46,13 @@ export default function Table({ timer }: { timer?: number | null }) {
   } = useTableViewModel(timer);
 
   const { isConnected, address } = useWalletGameSync();
+  const { leaveSeat } = useGameStore();
+
+  const handleLeaveTable = () => {
+    if (walletSeatIdx >= 0) {
+      leaveSeat();
+    }
+  };
 
   const handleSeatRequest = (idx: number) => {
     if (!isConnected || !address) {
@@ -56,9 +64,8 @@ export default function Table({ timer }: { timer?: number | null }) {
       return;
     }
     // Prevent seating if this wallet is already seated at the table
-    if (playerIds.some((id) => id === address)) {
+    if (playerIds.some((id) => id?.toLowerCase() === address.toLowerCase())) {
       alert("You are already seated at this table");
-
       return;
     }
     // Join seat using the connected wallet address as player ID
@@ -73,13 +80,9 @@ export default function Table({ timer }: { timer?: number | null }) {
   const seatAt = (idx: number) => {
     let nickname = players[idx] ?? "";
     const addr = playerIds[idx];
-    if (
-      nickname &&
-      (/^0x[a-fA-F0-9]{40}$/.test(nickname) ||
-        /^0x[a-fA-F0-9]{4}\.\.\.[a-fA-F0-9]{4}$/.test(nickname) ||
-        nickname.toLowerCase() === "white")
-    ) {
-      nickname = "";
+    // If we have a wallet address, show shortened version for display
+    if (nickname && /^0x[a-fA-F0-9]{40,}$/.test(nickname)) {
+      nickname = `${nickname.slice(0, 6)}...${nickname.slice(-4)}`;
     }
     const handCodes = playerHands[idx];
     const pos = layout[idx];
@@ -265,6 +268,18 @@ export default function Table({ timer }: { timer?: number | null }) {
 
       {/* Smart Action Buttons */}
       <ActionButtons />
+      
+      {/* Leave Table Button - shown when player is seated */}
+      {walletSeatIdx >= 0 && (
+        <div className="mt-4">
+          <button
+            onClick={handleLeaveTable}
+            className="px-4 py-2 rounded font-medium transition-all duration-200 bg-gray-600 hover:bg-gray-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
+          >
+            Leave Table
+          </button>
+        </div>
+      )}
     </div>
   );
 }

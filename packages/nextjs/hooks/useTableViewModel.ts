@@ -107,7 +107,7 @@ export function useTableViewModel(_timer?: number | null) {
   const walletSeatIdx = useMemo(() => {
     if (!address) return -1;
     return playerIds.findIndex(
-      (id) => id?.toLowerCase() === address.toLowerCase(),
+      (id) => id && id.toLowerCase() === address.toLowerCase(),
     );
   }, [playerIds, address]);
 
@@ -143,11 +143,12 @@ export function useTableViewModel(_timer?: number | null) {
   const baseW = isMobile ? 420 : 820;
   const baseH = isMobile ? 680 : 520;
   const highestBet = Math.max(...playerBets);
-  const myBet = playerBets[localIdx] ?? 0;
-  const myChips = chips[localIdx] ?? 0;
+  // Use walletSeatIdx instead of localIdx for current player
+  const myBet = walletSeatIdx >= 0 ? (playerBets[walletSeatIdx] ?? 0) : 0;
+  const myChips = walletSeatIdx >= 0 ? (chips[walletSeatIdx] ?? 0) : 0;
   const toCall = Math.max(0, highestBet - myBet);
   let actions: string[] = [];
-  if (currentTurn === localIdx) {
+  if (currentTurn === walletSeatIdx) {
     actions = ["Fold"];
     if (toCall > 0) {
       actions.push("Call");
@@ -182,7 +183,7 @@ export function useTableViewModel(_timer?: number | null) {
     }
   };
 
-  const actionDisabled = currentTurn !== localIdx;
+  const actionDisabled = currentTurn !== walletSeatIdx;
 
   return {
     players,

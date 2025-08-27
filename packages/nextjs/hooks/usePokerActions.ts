@@ -18,11 +18,13 @@ export function usePokerActions() {
   } = useGameStore();
 
   return useMemo(() => {
-    // Find the current player's seat
-    const mySeatIndex = playerIds.findIndex(id => id === walletId);
-    const isMyTurn = currentTurn === mySeatIndex;
-    const myChips = chips[mySeatIndex] || 0;
-    const myCurrentBet = playerBets[mySeatIndex] || 0;
+    // Find the current player's seat using case-insensitive comparison
+    const mySeatIndex = playerIds.findIndex(id => 
+      id && walletId && id.toLowerCase() === walletId.toLowerCase()
+    );
+    const isMyTurn = mySeatIndex >= 0 && currentTurn === mySeatIndex;
+    const myChips = mySeatIndex >= 0 ? (chips[mySeatIndex] || 0) : 0;
+    const myCurrentBet = mySeatIndex >= 0 ? (playerBets[mySeatIndex] || 0) : 0;
 
     // Calculate the current betting state
     const maxBet = Math.max(...playerBets);

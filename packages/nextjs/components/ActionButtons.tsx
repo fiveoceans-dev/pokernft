@@ -6,8 +6,10 @@ export default function ActionButtons() {
   const actions = usePokerActions();
   const { playerAction, bigBlind, chips, playerIds, walletId } = useGameStore();
   
-  const mySeatIndex = playerIds.findIndex(id => id === walletId);
-  const myChips = chips[mySeatIndex] || 0;
+  const mySeatIndex = playerIds.findIndex(id => 
+    id && walletId && id.toLowerCase() === walletId.toLowerCase()
+  );
+  const myChips = mySeatIndex >= 0 ? (chips[mySeatIndex] || 0) : 0;
   const maxBet = Math.max(myChips, bigBlind);
   
   const [betAmount, setBetAmount] = useState(bigBlind);
