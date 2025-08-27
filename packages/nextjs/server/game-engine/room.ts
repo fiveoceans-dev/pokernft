@@ -48,22 +48,48 @@ export function addPlayer(
  * and posts blinds via {@link BlindManager}.
  */
 export function startRoomHand(room: GameRoom) {
+  console.log(`🔄 [${room.id}] Starting new hand with ${room.players.length} players`);
+  
   if (room.players.length < 2) {
     room.stage = "waiting";
+    console.log(`⚠️ [${room.id}] Not enough players for hand, waiting...`);
     return;
   }
+  
+  // Filter out busted players first
+  const playersBeforeFilter = room.players.length;
+  room.players = room.players.filter((p) => p.chips > 0);
+  
+  if (room.players.length !== playersBeforeFilter) {
+    console.log(`👋 [${room.id}] Removed ${playersBeforeFilter - room.players.length} busted players`);
+  }
+  
+  if (room.players.length < 2) {
+    room.stage = "waiting";
+    console.log(`⚠️ [${room.id}] Not enough players after removing busted players, waiting...`);
+    return;
+  }
+  
+  // Initialize new hand state
   room.deck = dealDeck();
   room.communityCards = [];
   room.pot = 0;
-  room.players = room.players.filter((p) => p.chips > 0);
+  
+  // Advance dealer button properly
   if (room.stage === "waiting") {
+    // First hand - random dealer
     room.dealerIndex = randomInt(room.players.length);
+    console.log(`🎲 [${room.id}] First hand, random dealer at position ${room.dealerIndex}`);
   } else {
+    // Advance dealer button to next active player
+    const oldDealerIndex = room.dealerIndex;
     room.dealerIndex = (room.dealerIndex + 1) % room.players.length;
+    console.log(`🔄 [${room.id}] Dealer button moved from ${oldDealerIndex} to ${room.dealerIndex}`);
   }
 
   room.stage = "preflop";
 
+  // Reset all player hand states
   room.players.forEach((p) => {
     p.hand = [draw(room.deck), draw(room.deck)];
     p.hasFolded = false;
@@ -72,15 +98,24 @@ export function startRoomHand(room: GameRoom) {
     p.isTurn = false;
   });
   room.players[room.dealerIndex].isDealer = true;
+  
+  console.log(`🃏 [${room.id}] Dealer is ${room.players[room.dealerIndex].id} at seat ${room.players[room.dealerIndex].seat}`);
 
-  // post blinds and set first player to act
+  // Post blinds and set first player to act
   const blindMgr = new BlindManager(room.minBet / 2, room.minBet);
-  const { bb } = blindMgr.postBlinds(room);
+  const { sb, bb } = blindMgr.postBlinds(room);
+  console.log(`💰 [${room.id}] Blinds posted - SB: seat ${room.players[sb].seat}, BB: seat ${room.players[bb].seat}`);
+  
+  // First to act preflop is UTG (left of big blind)
   const firstToAct = blindMgr.nextActiveIndex(room, bb + 1);
   room.currentTurnIndex = firstToAct;
   room.firstToActIndex = firstToAct;
-  room.lastAggressorIndex = firstToAct;
+  room.lastAggressorIndex = bb; // Big blind is initial "aggressor" with their forced bet
+  
+  // Set turn flags
   room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
+  
+  console.log(`🎯 [${room.id}] First to act: ${room.players[firstToAct].id} at seat ${room.players[firstToAct].seat} (position ${firstToAct})`);
 }
 
 function maxBet(room: GameRoom): number {
@@ -131,10 +166,25 @@ export function handleAction(
   }
   const active = room.players.filter((p) => !p.hasFolded);
   if (active.length === 1) {
+    console.log(`🏆 [${room.id}] Single winner detected: ${active[0].id} wins pot of $${room.pot}`);
     payout(room, [active[0]]);
+    
+    // Complete hand cleanup - reset all hand-specific state
     room.stage = "waiting";
-    // Reset all player turn states when hand ends
-    room.players.forEach((p) => (p.isTurn = false));
+    room.players.forEach((p) => {
+      p.isTurn = false;
+      p.hasFolded = false;
+      p.hand = [];
+      p.currentBet = 0;
+      p.isDealer = false;
+    });
+    room.communityCards = [];
+    room.pot = 0;
+    room.currentTurnIndex = 0;
+    room.firstToActIndex = 0;
+    room.lastAggressorIndex = 0;
+    
+    console.log(`🔄 [${room.id}] Hand completed, game state reset to waiting`);
     return;
   }
 
@@ -143,20 +193,31 @@ export function handleAction(
 
 /** Advance turn to the next active player */
 export function nextTurn(room: GameRoom) {
-  if (room.players.length === 0) return;
+  if (room.players.length === 0) {
+    console.log(`⚠️ [${room.id}] Cannot advance turn: no players`);
+    return;
+  }
+  
+  const currentPlayerId = room.players[room.currentTurnIndex]?.id;
   let next = room.currentTurnIndex;
   let count = 0;
+  
   do {
     next = (next + 1) % room.players.length;
     count++;
     if (count > room.players.length) {
       // no eligible player to take action (all folded or all-in)
+      console.log(`⚠️ [${room.id}] No eligible players to act - all folded or all-in`);
       room.players.forEach((p) => (p.isTurn = false));
       return;
     }
   } while (room.players[next].hasFolded || room.players[next].chips === 0);
+  
   room.currentTurnIndex = next;
   room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
+  
+  const newPlayerId = room.players[next].id;
+  console.log(`🔄 [${room.id}] Turn advanced from ${currentPlayerId} to ${newPlayerId} (position ${next})`);
 }
 
 /** Find the next active player index starting from `start` */
@@ -194,13 +255,18 @@ export function progressStage(room: GameRoom) {
     room.communityCards.push(draw(room.deck));
   }
 
+  // Reset bets for new betting round
   room.players.forEach((p) => (p.currentBet = 0));
   room.stage = next;
+  
+  // For post-flop betting, first to act is first active player left of dealer
   const first = nextActiveIndex(room, room.dealerIndex);
   room.currentTurnIndex = first;
   room.firstToActIndex = first;
   room.lastAggressorIndex = first;
   room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
+  
+  console.log(`🎯 [${room.id}] Stage progressed to ${next}, first to act: ${room.players[first].id} at seat ${room.players[first].seat}`);
 }
 
 /** Determine the winners of the current room */
@@ -222,17 +288,47 @@ export function determineWinners(room: GameRoom): PlayerSession[] {
  */
 export function isRoomRoundComplete(room: GameRoom): boolean {
   const active = room.players.filter((p) => !p.hasFolded);
-  if (active.length <= 1) return true;
-  if (active.every((p) => p.chips === 0)) return true;
+  
+  // Round is complete if only one or zero players remain
+  if (active.length <= 1) {
+    console.log(`✅ [${room.id}] Round complete: only ${active.length} active players`);
+    return true;
+  }
+  
+  // Round is complete if all active players are all-in
+  if (active.every((p) => p.chips === 0)) {
+    console.log(`✅ [${room.id}] Round complete: all active players are all-in`);
+    return true;
+  }
+  
   const maxBet = Math.max(...active.map((p) => p.currentBet));
   const allMatched = active.every(
     (p) => p.chips === 0 || p.currentBet === maxBet,
   );
-  if (!allMatched) return false;
-  if (room.lastAggressorIndex === room.firstToActIndex) {
-    return room.currentTurnIndex === room.firstToActIndex;
+  
+  // Not complete if players haven't matched the highest bet
+  if (!allMatched) {
+    console.log(`⏳ [${room.id}] Round not complete: not all bets matched (max: ${maxBet})`);
+    return false;
   }
-  return room.currentTurnIndex === room.lastAggressorIndex;
+  
+  // Check if action has returned to the appropriate player
+  let actionComplete = false;
+  if (room.lastAggressorIndex === room.firstToActIndex) {
+    // No raises occurred, check if we're back to first to act
+    actionComplete = room.currentTurnIndex === room.firstToActIndex;
+  } else {
+    // Raises occurred, check if we're back to last aggressor
+    actionComplete = room.currentTurnIndex === room.lastAggressorIndex;
+  }
+  
+  if (actionComplete) {
+    console.log(`✅ [${room.id}] Round complete: action returned to appropriate player`);
+  } else {
+    console.log(`⏳ [${room.id}] Round not complete: waiting for action to return`);
+  }
+  
+  return actionComplete;
 }
 
 /** Split the pot equally amongst winners */

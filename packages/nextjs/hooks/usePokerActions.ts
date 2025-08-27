@@ -33,7 +33,16 @@ export function usePokerActions() {
         mySeatIndex,
         currentTurn,
         isMyTurn,
-        playerIds: playerIds.map((id, i) => ({ i, id: id?.slice(0, 10) + "..." })),
+        myChips,
+        myCurrentBet,
+        maxBet,
+        betToCall,
+        playerIds: playerIds.map((id, i) => ({ 
+          i, 
+          id: id?.slice(0, 10) + "...",
+          chips: chips[i] || 0,
+          bet: playerBets[i] || 0
+        })),
       });
     }
 
@@ -48,7 +57,7 @@ export function usePokerActions() {
       {
         type: "fold",
         label: "Fold",
-        enabled: isMyTurn && !canCheck,
+        enabled: isMyTurn && betToCall > 0, // Can always fold when facing a bet
       },
       {
         type: "check",
@@ -72,6 +81,18 @@ export function usePokerActions() {
         enabled: isMyTurn && betToCall > 0 && myChips >= minRaise,
       }
     ];
+
+    // Additional logging for action states
+    if (currentWalletId && isMyTurn) {
+      console.log("🎯 Action buttons state:", {
+        canFold: betToCall > 0,
+        canCheck: canCheck,
+        canCall: betToCall > 0 && myChips >= betToCall,
+        canBet: canBet && myChips >= 50,
+        canRaise: betToCall > 0 && myChips >= minRaise,
+        actions: actions.map(a => ({ type: a.type, enabled: a.enabled }))
+      });
+    }
 
     return actions;
   }, [currentTurn, playerBets, chips, currentWalletId, playerIds]);

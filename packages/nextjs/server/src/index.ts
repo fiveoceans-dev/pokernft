@@ -316,12 +316,23 @@ function startActionTimer(roomId: string, playerId: string) {
         const autoAction = betToCall === 0 ? "check" : "fold";
 
         try {
+          console.log(`⏰ [${playerId}] Auto-action: ${autoAction} (timeout)`);
           engine.handleAction(playerId, { type: autoAction });
           broadcast(roomId, {
             type: "PLAYER_ACTION_APPLIED",
             playerId,
             action: autoAction.toUpperCase() as any,
           });
+
+          // Check if this auto-action results in only one player remaining
+          const updatedRoom = engine.getState();
+          const activePlayersAfterAction = updatedRoom.players.filter(p => !p.hasFolded);
+          
+          if (activePlayersAfterAction.length === 1 && updatedRoom.stage !== "waiting") {
+            console.log(`🏆 [${roomId}] Auto-fold resulted in single winner: ${activePlayersAfterAction[0].id}`);
+            // The GameEngine.handleAction should have already handled the payout and state change
+            // Just need to ensure proper cleanup and new hand start
+          }
 
           // Track consecutive timeouts
           const count = (timeoutCounts.get(playerId) ?? 0) + 1;

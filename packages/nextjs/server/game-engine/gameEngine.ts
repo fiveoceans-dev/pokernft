@@ -76,13 +76,14 @@ export class GameEngine extends EventEmitter {
     if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting") {
       const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
       const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
+      console.log(`🎮 [GameEngine] Emitting turnChanged for ${currentPlayer.id} at seat ${currentPlayer.seat} (array index ${this.room.currentTurnIndex})`);
       this.emit("turnChanged", {
         playerId: currentPlayer.id,
         playerArrayIndex: this.room.currentTurnIndex, // for server internal use
         actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
-        minRaise: this.room.minBet,
-        timeLeftMs: 0
+        minRaise: Math.max(this.room.minBet, maxBet + this.room.minBet),
+        timeLeftMs: 10000 // 10 second timer
       });
     }
   }
@@ -92,8 +93,27 @@ export class GameEngine extends EventEmitter {
     playerId: string,
     action: { type: "fold" | "call" | "raise" | "check"; amount?: number },
   ) {
+    console.log(`🎮 [GameEngine] Player ${playerId} action: ${action.type}${action.amount ? ` $${action.amount}` : ''}`);
     handleActionImpl(this.room, playerId, action);
     this.emit("stateChanged", this.room);
+    
+    // Check for single winner scenario first (this happens in handleActionImpl)
+    const activePlayersAfterAction = this.room.players.filter(p => !p.hasFolded);
+    if (activePlayersAfterAction.length === 1 && this.room.stage === "waiting") {
+      console.log(`🏆 [GameEngine] Single winner scenario detected after ${action.type}`);
+      this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
+      this.emit("phaseChanged", this.machine.state);
+      this.emit("handEnded", activePlayersAfterAction);
+      this.emit("stateChanged", this.room);
+      
+      // If we still have 2+ players with chips, signal that a new hand can start
+      const playersWithChips = this.room.players.filter((p) => p.chips > 0);
+      if (playersWithChips.length >= 2) {
+        console.log(`🔄 [GameEngine] Ready for new hand with ${playersWithChips.length} players`);
+        this.emit("readyForNewHand");
+      }
+      return;
+    }
     
     // Check if round is complete before emitting turn events
     if (isRoundCompleteImpl(this.room)) {
@@ -106,13 +126,14 @@ export class GameEngine extends EventEmitter {
     if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting" && this.room.stage !== "showdown") {
       const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
       const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
+      console.log(`🎮 [GameEngine] Turn advanced to ${currentPlayer.id} at seat ${currentPlayer.seat} (array index ${this.room.currentTurnIndex})`);
       this.emit("turnChanged", {
         playerId: currentPlayer.id,
         playerArrayIndex: this.room.currentTurnIndex, // for server internal use
         actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
-        minRaise: this.room.minBet,
-        timeLeftMs: 0
+        minRaise: Math.max(this.room.minBet, maxBet + this.room.minBet),
+        timeLeftMs: 10000 // 10 second timer
       });
     }
   }
@@ -130,13 +151,14 @@ export class GameEngine extends EventEmitter {
     if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting" && this.room.stage !== "showdown") {
       const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
       const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
+      console.log(`🎮 [GameEngine] Manual stage progression to ${this.room.stage}, turn to ${currentPlayer.id} at seat ${currentPlayer.seat}`);
       this.emit("turnChanged", {
         playerId: currentPlayer.id,
         playerArrayIndex: this.room.currentTurnIndex, // for server internal use
         actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
-        minRaise: this.room.minBet,
-        timeLeftMs: 0
+        minRaise: Math.max(this.room.minBet, maxBet + this.room.minBet),
+        timeLeftMs: 10000 // 10 second timer
       });
     }
   }
@@ -209,13 +231,14 @@ export class GameEngine extends EventEmitter {
     if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting" && this.room.stage !== "showdown") {
       const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
       const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
+      console.log(`🎮 [GameEngine] Round resolved, progressed to ${this.room.stage}, turn to ${currentPlayer.id} at seat ${currentPlayer.seat}`);
       this.emit("turnChanged", {
         playerId: currentPlayer.id,
         playerArrayIndex: this.room.currentTurnIndex, // for server internal use
         actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
-        minRaise: this.room.minBet,
-        timeLeftMs: 0
+        minRaise: Math.max(this.room.minBet, maxBet + this.room.minBet),
+        timeLeftMs: 10000 // 10 second timer
       });
     }
   }
