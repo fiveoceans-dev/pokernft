@@ -1,30 +1,65 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { usePokerActions, PokerAction } from "../hooks/usePokerActions";
 import { useGameStore } from "../hooks/useGameStore";
+import { withErrorBoundary } from "./ErrorBoundary";
 
-export default function ActionButtons() {
+function ActionButtons() {
   const actions = usePokerActions();
   const { playerAction, bigBlind, chips, playerIds, currentWalletId } = useGameStore();
   
-  const mySeatIndex = playerIds.findIndex(id => 
-    id && currentWalletId && id.toLowerCase() === currentWalletId.toLowerCase()
-  );
-  const myChips = mySeatIndex >= 0 ? (chips[mySeatIndex] || 0) : 0;
-  const maxBet = Math.max(myChips, bigBlind);
+  // Early return if critical data is not available
+  if (!actions || !Array.isArray(actions)) {
+    return null;
+  }
   
-  const [betAmount, setBetAmount] = useState(bigBlind);
+  // Defensive checks for all store values
+  const safePlayerIds = Array.isArray(playerIds) ? playerIds : [];
+  const safeChips = Array.isArray(chips) ? chips : [];
+  const safeBigBlind = typeof bigBlind === 'number' && bigBlind > 0 ? bigBlind : 50;
+  
+  const mySeatIndex = safePlayerIds.findIndex(id => 
+    id && currentWalletId && typeof id === 'string' && typeof currentWalletId === 'string' &&
+    id.toLowerCase() === currentWalletId.toLowerCase()
+  );
+  
+  const myChips = mySeatIndex >= 0 && mySeatIndex < safeChips.length ? (safeChips[mySeatIndex] || 0) : 0;
+  const maxBet = Math.max(myChips, safeBigBlind);
+  
+  const [betAmount, setBetAmount] = useState(safeBigBlind);
+
+  // Update bet amount if big blind changes
+  React.useEffect(() => {
+    setBetAmount(safeBigBlind);
+  }, [safeBigBlind]);
 
   const handleAction = (action: PokerAction) => {
-    let amount = action.amount;
-    
-    // For bet/raise actions, use the slider amount
-    if (action.type === "bet" || action.type === "raise") {
-      amount = betAmount;
+    // Defensive check for playerAction function
+    if (!playerAction || typeof playerAction !== 'function') {
+      console.error("🚫 playerAction function not available");
+      return;
     }
 
-    // Send action to server via WebSocket
-    const actionType = action.type === "bet" ? "raise" : action.type;
-    playerAction({ type: actionType as "fold" | "call" | "raise" | "check", amount });
+    if (!action || !action.type) {
+      console.error("🚫 Invalid action", action);
+      return;
+    }
+
+    try {
+      let amount = action.amount;
+      
+      // For bet/raise actions, use the slider amount
+      if (action.type === "bet" || action.type === "raise") {
+        amount = betAmount;
+      }
+
+      // Send action to server via WebSocket
+      const actionType = action.type === "bet" ? "raise" : action.type;
+      console.log("🎯 Sending action:", { actionType, amount });
+      
+      playerAction({ type: actionType as "fold" | "call" | "raise" | "check", amount });
+    } catch (error) {
+      console.error("🚫 Error handling action:", error);
+    }
   };
 
   return (
@@ -53,47 +88,70 @@ export default function ActionButtons() {
       </div>
 
       {/* Betting Slider - only show for bet/raise actions */}
-      {actions.some(a => a.type === "bet" || a.type === "raise") && (
+      {actions.some(a => a && (a.type === "bet" || a.type === "raise")) && maxBet > safeBigBlind && (
         <div className="flex items-center gap-3">
-          <span className="text-white text-sm min-w-[40px]">${bigBlind}</span>
+          <span className="text-white text-sm min-w-[40px]">${safeBigBlind}</span>
           <input
             type="range"
-            min={bigBlind}
+            min={safeBigBlind}
             max={maxBet}
-            value={betAmount}
-            onChange={(e) => setBetAmount(Number(e.target.value))}
+            value={Math.min(Math.max(betAmount, safeBigBlind), maxBet)}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              if (!isNaN(value) && value >= safeBigBlind && value <= maxBet) {
+                setBetAmount(value);
+              }
+            }}
             className="w-40 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
           />
           <span className="text-white text-sm min-w-[60px]">${maxBet}</span>
           <input
             type="number"
-            min={bigBlind}
+            min={safeBigBlind}
             max={maxBet}
-            value={betAmount}
-            onChange={(e) => setBetAmount(Math.min(Number(e.target.value), maxBet))}
+            value={Math.min(Math.max(betAmount, safeBigBlind), maxBet)}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              if (!isNaN(value) && value >= safeBigBlind) {
+                setBetAmount(Math.min(value, maxBet));
+              }
+            }}
             className="w-20 px-2 py-1 text-black rounded text-center"
           />
         </div>
       )}
 
       {/* Quick Bet Buttons */}
-      {actions.some(a => a.type === "bet" || a.type === "raise") && (
+      {actions.some(a => a && (a.type === "bet" || a.type === "raise")) && maxBet > safeBigBlind && (
         <div className="flex gap-2">
           <button
-            onClick={() => setBetAmount(Math.min(betAmount * 2, maxBet))}
+            onClick={() => {
+              const newAmount = Math.min(betAmount * 2, maxBet);
+              if (newAmount >= safeBigBlind) {
+                setBetAmount(newAmount);
+              }
+            }}
             className="px-3 py-1 bg-black/60 text-white rounded hover:bg-black/80 transition-colors"
+            disabled={betAmount * 2 < safeBigBlind}
           >
             2x
           </button>
           <button
-            onClick={() => setBetAmount(Math.min(betAmount * 3, maxBet))}
+            onClick={() => {
+              const newAmount = Math.min(betAmount * 3, maxBet);
+              if (newAmount >= safeBigBlind) {
+                setBetAmount(newAmount);
+              }
+            }}
             className="px-3 py-1 bg-black/60 text-white rounded hover:bg-black/80 transition-colors"
+            disabled={betAmount * 3 < safeBigBlind}
           >
             3x
           </button>
           <button
             onClick={() => setBetAmount(maxBet)}
             className="px-3 py-1 bg-black/60 text-white rounded hover:bg-black/80 transition-colors"
+            disabled={maxBet <= safeBigBlind}
           >
             All-in
           </button>
@@ -102,3 +160,11 @@ export default function ActionButtons() {
     </div>
   );
 }
+
+// Wrap with error boundary for better error handling
+export default withErrorBoundary(
+  ActionButtons,
+  <div className="flex items-center justify-center p-4 text-red-400">
+    ⚠️ Action buttons temporarily unavailable
+  </div>
+);

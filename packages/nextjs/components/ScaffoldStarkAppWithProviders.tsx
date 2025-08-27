@@ -6,6 +6,8 @@ import { Toaster } from "react-hot-toast";
 import { StarknetConfig, starkscan } from "@starknet-react/core";
 import { Header } from "~~/components/Header";
 import { Footer } from "~~/components/Footer";
+import { ErrorBoundary } from "~~/components/ErrorBoundary";
+import { WalletErrorHandler } from "~~/components/WalletErrorHandler";
 import { ProgressBar } from "~~/components/scaffold-stark/ProgressBar";
 import { appChains, connectors } from "~~/services/web3/connectors";
 import provider from "~~/services/web3/provider";
@@ -16,7 +18,7 @@ const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
   return (
-    <>
+    <WalletErrorHandler>
       <div className="flex relative flex-col min-h-screen bg-main">
         {isDarkMode ? (
           <>
@@ -29,12 +31,18 @@ const ScaffoldStarkApp = ({ children }: { children: React.ReactNode }) => {
             <div className="circle-gradient-blue w-[330px] h-[630px]"></div>
           </>
         )}
-        <Header />
-        <main className="relative flex flex-col flex-1">{children}</main>
-        <Footer />
+        <ErrorBoundary>
+          <Header />
+        </ErrorBoundary>
+        <main className="relative flex flex-col flex-1">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </main>
+        <ErrorBoundary>
+          <Footer />
+        </ErrorBoundary>
       </div>
       <Toaster />
-    </>
+    </WalletErrorHandler>
   );
 };
 

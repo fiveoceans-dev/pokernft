@@ -20,6 +20,9 @@ const stageToStreet: Record<Stage, number> = {
 };
 
 let socket: WebSocket | null = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+let reconnectTimeout: NodeJS.Timeout | null = null;
 
 interface GameStoreState {
   players: (string | null)[];
@@ -51,6 +54,10 @@ interface GameStoreState {
   tableId: string | null;
   /** unified countdown timer from server */
   timer: number | null;
+  /** WebSocket connection state */
+  connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+  /** Connection error message */
+  connectionError: string | null;
   
   connectWallet: (address: string) => void;
   handleDisconnect: () => Promise<void>;
@@ -126,43 +133,129 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
   }
 
-  if (typeof window !== "undefined" && !socket) {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
-    console.log("🔗 Connecting to WebSocket:", wsUrl);
-    socket = new WebSocket(wsUrl);
-    socket.onopen = () => {
-      console.log("✅ WebSocket connected successfully");
-      // Use single consistent wallet address source - prioritize walletAddress over sessionId
-      const walletAddress = localStorage.getItem("walletAddress");
-      const sessionAddress = localStorage.getItem("sessionId");
-      const address = walletAddress || sessionAddress;
-      
-      console.log("🔍 Checking for stored addresses:", { walletAddress, sessionAddress, finalAddress: address });
-      
-      if (address) {
-        const cmd: ClientCommand = {
-          cmdId: crypto.randomUUID(),
-          type: "ATTACH",
-          userId: address,
-        } as any;
-        socket!.send(JSON.stringify(cmd));
-        console.log("📤 Sent ATTACH command with userId:", address);
-        set({ currentWalletId: address });
-      } else {
-        console.log("ℹ️ No wallet address found, continuing without attachment");
-      }
+  const connectWebSocket = () => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      console.log("🔗 WebSocket already connected");
+      return;
+    }
 
-      const pendingTable = get().tableId;
-      if (pendingTable) {
-        const joinCmd: ClientCommand = {
-          cmdId: crypto.randomUUID(),
-          type: "JOIN_TABLE",
-          tableId: pendingTable,
-        } as any;
-        socket!.send(JSON.stringify(joinCmd));
-        console.log("📥 Joined table on connect:", pendingTable);
-      }
-    };
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
+    console.log(`🔗 Connecting to WebSocket: ${wsUrl} (attempt ${reconnectAttempts + 1})`);
+    
+    set({ connectionState: 'connecting', connectionError: null });
+    
+    try {
+      socket = new WebSocket(wsUrl);
+      
+      const connectionTimeout = setTimeout(() => {
+        if (socket && socket.readyState !== WebSocket.OPEN) {
+          console.error("🚫 WebSocket connection timeout");
+          socket.close();
+          set({ connectionState: 'disconnected', connectionError: 'Connection timeout' });
+          scheduleReconnect();
+        }
+      }, 10000);
+
+      socket.onopen = () => {
+        clearTimeout(connectionTimeout);
+        console.log("✅ WebSocket connected successfully");
+        reconnectAttempts = 0;
+        set({ connectionState: 'connected', connectionError: null });
+        
+        // Use single consistent wallet address source - prioritize walletAddress over sessionId
+        const walletAddress = localStorage.getItem("walletAddress");
+        const sessionAddress = localStorage.getItem("sessionId");
+        const address = walletAddress || sessionAddress;
+        
+        console.log("🔍 Checking for stored addresses:", { walletAddress, sessionAddress, finalAddress: address });
+        
+        if (address) {
+          try {
+            const cmd: ClientCommand = {
+              cmdId: crypto.randomUUID(),
+              type: "ATTACH",
+              userId: address,
+            } as any;
+            socket!.send(JSON.stringify(cmd));
+            console.log("📤 Sent ATTACH command with userId:", address);
+            set({ currentWalletId: address });
+          } catch (error) {
+            console.error("🚫 Failed to attach wallet:", error);
+            set({ connectionError: 'Failed to attach wallet' });
+          }
+        } else {
+          console.log("ℹ️ No wallet address found, continuing without attachment");
+        }
+
+        const pendingTable = get().tableId;
+        if (pendingTable) {
+          try {
+            const joinCmd: ClientCommand = {
+              cmdId: crypto.randomUUID(),
+              type: "JOIN_TABLE",
+              tableId: pendingTable,
+            } as any;
+            socket!.send(JSON.stringify(joinCmd));
+            console.log("📥 Joined table on connect:", pendingTable);
+          } catch (error) {
+            console.error("🚫 Failed to join table:", error);
+          }
+        }
+      };
+
+      socket.onclose = (event) => {
+        clearTimeout(connectionTimeout);
+        console.log(`🔌 WebSocket closed: Code ${event.code}, Reason: ${event.reason}`);
+        set({ connectionState: 'disconnected', connectionError: event.reason || `Connection closed (${event.code})` });
+        
+        // Don't auto-reconnect for normal closures or if explicitly disconnected
+        if (event.code !== 1000 && event.code !== 1001) {
+          scheduleReconnect();
+        }
+      };
+
+      socket.onerror = (error) => {
+        clearTimeout(connectionTimeout);
+        console.error("🚫 WebSocket error:", error);
+        set({ connectionState: 'disconnected', connectionError: 'Connection error' });
+      };
+
+    } catch (error) {
+      console.error("🚫 Failed to create WebSocket:", error);
+      set({ connectionState: 'disconnected', connectionError: 'Failed to create connection' });
+      scheduleReconnect();
+    }
+  };
+
+  const scheduleReconnect = () => {
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      console.error("🚫 Max reconnection attempts reached");
+      set({ connectionState: 'disconnected', connectionError: 'Max reconnection attempts reached' });
+      return;
+    }
+
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+    }
+
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+    console.log(`🔄 Scheduling reconnect in ${delay}ms`);
+    
+    set({ connectionState: 'reconnecting' });
+    reconnectAttempts++;
+    
+    reconnectTimeout = setTimeout(() => {
+      connectWebSocket();
+    }, delay);
+  };
+
+  if (typeof window !== "undefined" && !socket) {
+    connectWebSocket();
+  }
+  // Move message handler setup outside of connectWebSocket to avoid duplication
+  const setupMessageHandler = () => {
+    if (!socket) return;
+    
     socket.onmessage = (ev) => {
       try {
         const msg: ServerEvent = JSON.parse(ev.data as string);
@@ -315,6 +408,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         /* ignore malformed */
       }
     };
+    setupMessageHandler();
     set({ socket });
   }
 
@@ -358,47 +452,74 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     tableSeats: new Map<string, number>(),
     tableId: null,
     timer: null,
+    connectionState: 'disconnected',
+    connectionError: null,
 
     connectWallet: (address: string) => {
       const previousWallet = get().currentWalletId;
       
+      if (!address || typeof address !== 'string') {
+        console.error("🚫 Invalid wallet address provided");
+        set({ connectionError: 'Invalid wallet address' });
+        return;
+      }
+      
       // If switching wallets, disconnect from previous wallet's sessions
       if (previousWallet && previousWallet !== address) {
-        console.log("🔄 Switching from", previousWallet, "to", address);
+        console.log("🔄 Switching from", previousWallet.slice(0, 10) + "..." , "to", address.slice(0, 10) + "...");
         get().handleDisconnect().then(() => {
           // After cleanup, connect with new wallet
-          set({ currentWalletId: address, tableSeats: new Map() });
+          set({ currentWalletId: address, tableSeats: new Map(), connectionError: null });
           if (typeof window !== "undefined") {
             localStorage.setItem("walletAddress", address);
             localStorage.removeItem("sessionId");
           }
-          // Attach new wallet to WebSocket
+          // Ensure WebSocket is connected before attaching
           if (socket && socket.readyState === WebSocket.OPEN) {
+            try {
+              const cmd: ClientCommand = {
+                cmdId: crypto.randomUUID(),
+                type: "ATTACH",
+                userId: address,
+              } as any;
+              socket.send(JSON.stringify(cmd));
+              console.log("📤 Sent ATTACH command with new wallet:", address.slice(0, 10) + "...");
+            } catch (error) {
+              console.error("🚫 Failed to attach new wallet:", error);
+              set({ connectionError: 'Failed to attach wallet' });
+            }
+          } else if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.log("🔗 WebSocket not connected, attempting connection...");
+            connectWebSocket();
+          }
+        }).catch(error => {
+          console.error("🚫 Failed to disconnect previous wallet:", error);
+          set({ connectionError: 'Failed to switch wallets' });
+        });
+      } else {
+        // First time connecting or same wallet
+        set({ currentWalletId: address, connectionError: null });
+        if (typeof window !== "undefined") {
+          localStorage.setItem("walletAddress", address);
+          localStorage.removeItem("sessionId");
+        }
+        // Ensure WebSocket is connected before attaching
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          try {
             const cmd: ClientCommand = {
               cmdId: crypto.randomUUID(),
               type: "ATTACH",
               userId: address,
             } as any;
             socket.send(JSON.stringify(cmd));
-            console.log("📤 Sent ATTACH command with new wallet:", address);
+            console.log("📤 Sent ATTACH command with wallet address:", address.slice(0, 10) + "...");
+          } catch (error) {
+            console.error("🚫 Failed to attach wallet:", error);
+            set({ connectionError: 'Failed to attach wallet' });
           }
-        });
-      } else {
-        // First time connecting or same wallet
-        set({ currentWalletId: address });
-        if (typeof window !== "undefined") {
-          localStorage.setItem("walletAddress", address);
-          localStorage.removeItem("sessionId");
-        }
-        // Attach to WebSocket if connected
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          const cmd: ClientCommand = {
-            cmdId: crypto.randomUUID(),
-            type: "ATTACH",
-            userId: address,
-          } as any;
-          socket.send(JSON.stringify(cmd));
-          console.log("📤 Sent ATTACH command with wallet address:", address);
+        } else if (!socket || socket.readyState !== WebSocket.OPEN) {
+          console.log("🔗 WebSocket not connected, attempting connection...");
+          connectWebSocket();
         }
       }
     },
@@ -573,20 +694,38 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     dealRiver: async () => {},
 
     playerAction: async (action) => {
-      if (socket && socket.readyState === WebSocket.OPEN) {
+      if (!action || !action.type) {
+        console.error("🚫 Invalid action provided");
+        throw new Error('Invalid action');
+      }
+
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.error("🚫 WebSocket not connected for player action");
+        set({ connectionError: 'Not connected to game server' });
+        throw new Error('WebSocket not connected');
+      }
+
+      try {
         const map: Record<string, string> = {
           fold: "FOLD",
           call: "CALL",
           raise: "RAISE",
           check: "CHECK",
         };
+        
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
           type: "ACTION",
           action: map[action.type] as any,
           amount: action.amount,
         };
+        
         socket.send(JSON.stringify(cmd));
+        console.log("🎯 Sent player action:", { type: action.type, amount: action.amount });
+      } catch (error) {
+        console.error("🚫 Failed to send player action:", error);
+        set({ connectionError: 'Failed to send action' });
+        throw error;
       }
     },
 

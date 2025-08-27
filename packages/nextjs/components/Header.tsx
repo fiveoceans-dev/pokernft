@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import { useOutsideClick } from "~~/hooks/scaffold-stark";
 import { CustomConnectButton } from "~~/components/scaffold-stark/CustomConnectButton";
+import { ConnectionStatus } from "~~/components/ConnectionStatus";
 import { useTargetNetwork } from "~~/hooks/scaffold-stark/useTargetNetwork";
 import { devnet } from "@starknet-react/chains";
 import { useAccount, useNetwork, useProvider } from "@starknet-react/core";
@@ -145,7 +146,8 @@ export const Header = () => {
           <HeaderMenuLinks />
         </ul>
       </div>
-      <div className="navbar-end flex-1 justify-end pr-4">
+      <div className="navbar-end flex-1 justify-end pr-4 gap-3">
+        <ConnectionStatus />
         <CustomConnectButton />
       </div>
     </div>
