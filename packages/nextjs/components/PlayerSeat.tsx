@@ -74,6 +74,8 @@ export default function PlayerSeat({
             "absolute inset-0 flex flex-col items-center justify-center rounded border font-semibold text-center px-1 transition-colors",
             isActive
               ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
+              : state === PlayerState.SITTING_OUT
+              ? "bg-gray-700/80 border-gray-400 opacity-60"
               : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
           )}
         >
@@ -89,6 +91,11 @@ export default function PlayerSeat({
         {state === PlayerState.FOLDED && (
           <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-gray-300">
             Folded
+          </span>
+        )}
+        {state === PlayerState.SITTING_OUT && (
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-orange-300 font-bold">
+            Sitting Out
           </span>
         )}
       </div>

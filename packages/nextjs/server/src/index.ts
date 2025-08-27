@@ -66,6 +66,7 @@ const seatMaps = new Map<string, Map<string, number>>();
 const gameStartTimers = new Map<string, NodeJS.Timeout>();
 const actionTimers = new Map<string, NodeJS.Timeout>();
 const timeoutCounts = new Map<string, number>();
+const sitOutPlayers = new Map<string, number>(); // playerId -> sit out timestamp
 
 // Initialize tables immediately without waiting for persistence layer
 console.log('🌌 Creating persistent tables...');
@@ -365,22 +366,41 @@ function startActionTimer(roomId: string, playerId: string) {
             // Just need to ensure proper cleanup and new hand start
           }
 
-          // Track consecutive timeouts
+          // Track consecutive timeouts with progressive punishment
           const count = (timeoutCounts.get(playerId) ?? 0) + 1;
           timeoutCounts.set(playerId, count);
 
-          if (count >= 2) {
+          if (count === 1) {
+            console.log(`⚠️ [${roomId}] Warning: Player ${playerId} timed out once`);
+            // First timeout - just a warning, continue playing
+          } else if (count === 2) {
+            // Second timeout - sit out the player
+            console.log(`😴 [${roomId}] Sitting out player ${playerId} due to inactivity`);
+            sitOutPlayers.set(playerId, Date.now());
+            
             const seatIndex = seatMaps.get(roomId)?.get(playerId);
-            console.log(`⏰ [${roomId}] Removing player ${playerId} due to consecutive timeouts`);
+            if (seatIndex !== undefined) {
+              broadcast(roomId, {
+                type: "PLAYER_SAT_OUT",
+                seat: seatIndex,
+                playerId,
+                reason: "inactivity"
+              });
+            }
+          } else if (count >= 3) {
+            // Third timeout or more - remove the player permanently
+            const seatIndex = seatMaps.get(roomId)?.get(playerId);
+            console.log(`🚪 [${roomId}] Removing player ${playerId} due to extended inactivity`);
             
             seatMaps.get(roomId)?.delete(playerId);
+            sitOutPlayers.delete(playerId);
             if (engine.removePlayer(playerId)) {
               broadcast(roomId, {
                 type: "PLAYER_LEFT",
                 seat: seatIndex,
                 playerId,
+                reason: "inactivity"
               });
-              // GameEngine.removePlayer automatically triggers stateChanged event and broadcasts TABLE_SNAPSHOT
             }
             timeoutCounts.delete(playerId);
           }
@@ -755,6 +775,16 @@ wss.on("connection", (ws) => {
           // Remove from GameEngine (single source of truth)
           if (engine.removePlayer(playerId)) {
             seatMaps.get(room.id)?.delete(playerId);
+            
+            // Explicitly broadcast PLAYER_LEFT event to ensure client cleanup
+            if (seatIndex !== undefined) {
+              broadcast(room.id, {
+                type: "PLAYER_LEFT",
+                seat: seatIndex,
+                playerId,
+                reason: "left_voluntarily"
+              });
+            }
           }
           
           // Clear session game state
@@ -866,18 +896,53 @@ wss.on("connection", (ws) => {
           }
           break;
         }
-        case "SIT_OUT":
+        case "SIT_OUT": {
+          if (!session.roomId) break;
+          const engine = getEngine(session.roomId);
+          const room = engine.getState();
+          const playerId = session.userId ?? session.sessionId;
+          const seatIndex = seatMaps.get(room.id)?.get(playerId);
+          
+          if (seatIndex !== undefined) {
+            console.log(`😴 [${session.sessionId}] Player ${playerId} voluntarily sitting out from seat ${seatIndex}`);
+            
+            // Mark player as sitting out voluntarily
+            sitOutPlayers.set(playerId, Date.now());
+            
+            // Reset timeout count since they voluntarily sat out
+            timeoutCounts.delete(playerId);
+            
+            broadcast(session.roomId, {
+              type: "PLAYER_SAT_OUT",
+              seat: seatIndex,
+              playerId,
+              reason: "voluntary"
+            });
+          }
+          break;
+        }
         case "SIT_IN": {
           if (!session.roomId) break;
           const engine = getEngine(session.roomId);
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
+          const seatIndex = seatMaps.get(room.id)?.get(playerId);
           
-          // For now, SIT_OUT/SIT_IN functionality is simplified
-          // TODO: Implement proper sit-out state in GameEngine if needed
-          console.log(`📝 [${session.sessionId}] ${msg.type} request from player ${playerId} - feature not fully implemented`);
-          
-          // GameEngine automatically handles state and broadcasts - no manual broadcast needed
+          if (seatIndex !== undefined && sitOutPlayers.has(playerId)) {
+            console.log(`🪑 [${session.sessionId}] Player ${playerId} returning to active play at seat ${seatIndex}`);
+            
+            // Remove from sit-out tracking
+            sitOutPlayers.delete(playerId);
+            
+            // Reset timeout count
+            timeoutCounts.delete(playerId);
+            
+            broadcast(session.roomId, {
+              type: "PLAYER_SAT_IN",
+              seat: seatIndex,
+              playerId
+            });
+          }
           break;
         }
         case "POST_BLIND": {

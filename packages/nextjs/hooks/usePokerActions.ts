@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useGameStore } from "./useGameStore";
+import { PlayerState } from "../game-engine";
 
 export interface PokerAction {
   type: "fold" | "check" | "call" | "bet" | "raise";
@@ -14,12 +15,14 @@ export function usePokerActions() {
     playerBets,
     chips,
     currentWalletId,
-    playerIds
+    playerIds,
+    playerStates
   } = useGameStore();
 
   return useMemo(() => {
     // Early return with empty actions if critical data is not available
-    if (!currentWalletId || !playerIds || !playerBets || !chips) {
+    if (!currentWalletId) {
+      console.log("🎮 No wallet ID available for actions");
       return [];
     }
 
@@ -27,6 +30,17 @@ export function usePokerActions() {
     const safePlayerIds = Array.isArray(playerIds) ? playerIds : [];
     const safePlayerBets = Array.isArray(playerBets) ? playerBets : [];
     const safeChips = Array.isArray(chips) ? chips : [];
+
+    // Log current state for debugging
+    console.log("🎮 usePokerActions state:", {
+      currentWalletId,
+      hasPlayerIds: !!playerIds,
+      playerIdsLength: safePlayerIds.length,
+      hasPlayerBets: !!playerBets,
+      playerBetsLength: safePlayerBets.length,
+      hasChips: !!chips,
+      chipsLength: safeChips.length
+    });
 
     // Find the current player's seat using case-insensitive comparison
     const mySeatIndex = safePlayerIds.findIndex(id => 
@@ -42,6 +56,11 @@ export function usePokerActions() {
     const isMyTurn = currentTurn === mySeatIndex;
     const myChips = mySeatIndex < safeChips.length ? (safeChips[mySeatIndex] || 0) : 0;
     const myCurrentBet = mySeatIndex < safePlayerBets.length ? (safePlayerBets[mySeatIndex] || 0) : 0;
+    
+    // Check player state - don't allow actions if sitting out
+    const safePlayerStates = Array.isArray(playerStates) ? playerStates : [];
+    const myPlayerState = mySeatIndex < safePlayerStates.length ? safePlayerStates[mySeatIndex] : PlayerState.ACTIVE;
+    const canTakeActions = myPlayerState === PlayerState.ACTIVE && myPlayerState !== PlayerState.SITTING_OUT;
 
     // Calculate the current betting state with defensive checks
     const maxBet = safePlayerBets.length > 0 ? Math.max(...safePlayerBets.filter(bet => typeof bet === 'number' && !isNaN(bet))) : 0;
@@ -83,28 +102,28 @@ export function usePokerActions() {
       {
         type: "fold",
         label: "Fold",
-        enabled: isMyTurn && betToCall > 0, // Can always fold when facing a bet
+        enabled: isMyTurn && canTakeActions, // Can always fold when it's your turn
       },
       {
         type: "check",
         label: "Check",
-        enabled: isMyTurn && canCheck,
+        enabled: isMyTurn && canTakeActions && canCheck,
       },
       {
         type: "call",
         label: `Call $${betToCall}`,
-        enabled: isMyTurn && betToCall > 0 && myChips >= betToCall,
+        enabled: isMyTurn && canTakeActions && betToCall > 0 && myChips >= betToCall,
         amount: betToCall,
       },
       {
         type: "bet",
         label: "Bet",
-        enabled: isMyTurn && canBet && myChips >= 50,
+        enabled: isMyTurn && canTakeActions && canBet && myChips >= 50,
       },
       {
         type: "raise",
         label: "Raise",
-        enabled: isMyTurn && betToCall > 0 && myChips >= minRaise,
+        enabled: isMyTurn && canTakeActions && betToCall > 0 && myChips >= minRaise,
       }
     ];
 
@@ -117,6 +136,8 @@ export function usePokerActions() {
         myCurrentBet,
         maxBet,
         betToCall,
+        myPlayerState,
+        canTakeActions,
         canFold: betToCall > 0,
         canCheck: canCheck,
         canCall: betToCall > 0 && myChips >= betToCall,
@@ -127,5 +148,5 @@ export function usePokerActions() {
     }
 
     return actions;
-  }, [currentTurn, playerBets, chips, currentWalletId, playerIds]);
+  }, [currentTurn, playerBets, chips, currentWalletId, playerIds, playerStates]);
 }

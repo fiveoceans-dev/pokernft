@@ -7,6 +7,14 @@ function ActionButtons() {
   const actions = usePokerActions();
   const { playerAction, bigBlind, chips, playerIds, currentWalletId } = useGameStore();
   
+  // Debug logging
+  console.log("🎮 ActionButtons render:", {
+    actionsCount: actions?.length || 0,
+    actions: actions?.map(a => ({ type: a.type, enabled: a.enabled })) || [],
+    currentWalletId: currentWalletId?.slice(0, 10) + "...",
+    hasPlayerAction: !!playerAction
+  });
+  
   // Defensive checks for all store values
   const safePlayerIds = Array.isArray(playerIds) ? playerIds : [];
   const safeChips = Array.isArray(chips) ? chips : [];
@@ -27,9 +35,15 @@ function ActionButtons() {
     setBetAmount(safeBigBlind);
   }, [safeBigBlind]);
   
-  // Early return if critical data is not available (after all hooks)
-  if (!actions || !Array.isArray(actions)) {
-    return null;
+  // Show waiting state if no actions available (after all hooks)
+  if (!actions || !Array.isArray(actions) || actions.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 mt-4">
+        <div className="text-gray-400 text-sm">
+          Waiting for turn...
+        </div>
+      </div>
+    );
   }
 
   const handleAction = (action: PokerAction) => {
@@ -77,9 +91,9 @@ function ActionButtons() {
                 ? "bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105" 
                 : "bg-gray-500 text-gray-300 cursor-not-allowed opacity-50"
               }
-              ${action.type === "fold" ? "bg-gray-600 hover:bg-gray-700" : ""}
-              ${action.type === "check" ? "bg-blue-600 hover:bg-blue-700" : ""}
-              ${action.type === "call" ? "bg-green-600 hover:bg-green-700" : ""}
+              ${action.type === "fold" && action.enabled ? "bg-gray-600 hover:bg-gray-700" : ""}
+              ${action.type === "check" && action.enabled ? "bg-blue-600 hover:bg-blue-700" : ""}
+              ${action.type === "call" && action.enabled ? "bg-green-600 hover:bg-green-700" : ""}
             `}
           >
             {action.label}

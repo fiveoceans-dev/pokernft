@@ -90,7 +90,32 @@ export class GameEngine extends EventEmitter {
       console.log(`❌ [GameEngine] Player ${playerId} not found in table ${this.room.id}`);
       return false;
     }
+    
+    const removedPlayer = this.room.players[idx];
+    console.log(`🗑️ [GameEngine] Removing player from index ${idx} (seat ${removedPlayer.seat})`);
+    
+    // Remove the player
     this.room.players.splice(idx, 1);
+    
+    // Adjust indices if they're pointing to players after the removed one
+    if (this.room.dealerIndex > idx) {
+      this.room.dealerIndex--;
+      console.log(`🔄 [GameEngine] Adjusted dealerIndex to ${this.room.dealerIndex}`);
+    } else if (this.room.dealerIndex === idx && this.room.players.length > 0) {
+      // If the dealer was removed, move dealer to next player
+      this.room.dealerIndex = this.room.dealerIndex % this.room.players.length;
+      console.log(`🔄 [GameEngine] Dealer was removed, new dealerIndex: ${this.room.dealerIndex}`);
+    }
+    
+    if (this.room.currentTurnIndex > idx) {
+      this.room.currentTurnIndex--;
+      console.log(`🔄 [GameEngine] Adjusted currentTurnIndex to ${this.room.currentTurnIndex}`);
+    } else if (this.room.currentTurnIndex === idx && this.room.players.length > 0) {
+      // If it was the current player's turn, move to next player
+      this.room.currentTurnIndex = this.room.currentTurnIndex % this.room.players.length;
+      console.log(`🔄 [GameEngine] Current turn player was removed, new currentTurnIndex: ${this.room.currentTurnIndex}`);
+    }
+    
     console.log(`✅ [GameEngine] Player removed. Table now has ${this.room.players.length} players`);
     this.emit("stateChanged", this.room);
     return true;

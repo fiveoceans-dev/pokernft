@@ -66,6 +66,8 @@ interface GameStoreState {
   joinSeat: (seatIdx: number, tableId?: string) => Promise<void>;
   leaveSeat: (tableId?: string) => Promise<void>;
   leaveAllTables: () => Promise<void>;
+  sitOut: (tableId?: string) => Promise<void>;
+  sitIn: (tableId?: string) => Promise<void>;
   playerAction: (action: {
     type: "fold" | "call" | "raise" | "check";
     amount?: number;
@@ -85,6 +87,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       stage: room.stage
     });
 
+    // Start with completely fresh arrays to ensure proper cleanup
     const seats = Array(9).fill(null) as (string | null)[];
     const ids = Array(9).fill(null) as (string | null)[];
     const hands = Array(9).fill(null) as ([number, number] | null)[];
@@ -92,21 +95,31 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const bets = Array(9).fill(0) as number[];
     const states = Array(9).fill(PlayerState.EMPTY) as PlayerState[];
 
+    // Populate only seats that have active players
     room.players?.forEach((p: any) => {
-      // Use nickname if available, otherwise use wallet address for display
-      seats[p.seat] = p.nickname || p.id;
-      ids[p.seat] = p.id;
-      if (p.hand?.length === 2) {
-        hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
+      if (p.seat >= 0 && p.seat < 9) {
+        // Use nickname if available, otherwise use wallet address for display
+        seats[p.seat] = p.nickname || p.id;
+        ids[p.seat] = p.id;
+        
+        if (p.hand?.length === 2) {
+          hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
+        }
+        
+        chips[p.seat] = p.chips ?? p.stack ?? 0;
+        bets[p.seat] = p.currentBet ?? p.betThisRound ?? 0;
+        
+        // Determine player state
+        let state = PlayerState.ACTIVE;
+        if (p.hasFolded) {
+          state = PlayerState.FOLDED;
+        } else if ((p.chips ?? p.stack ?? 0) === 0) {
+          state = PlayerState.ALL_IN;
+        }
+        states[p.seat] = p.state ?? state;
+        
+        console.log(`👤 Player ${p.seat}: ${p.id?.slice(0, 10)}... (${chips[p.seat]} chips, state: ${state})`);
       }
-      chips[p.seat] = p.chips ?? p.stack ?? 0;
-      bets[p.seat] = p.currentBet ?? p.betThisRound ?? 0;
-      let state = PlayerState.ACTIVE;
-      if (p.hasFolded) state = PlayerState.FOLDED;
-      else if ((p.chips ?? p.stack ?? 0) === 0) state = PlayerState.ALL_IN;
-      states[p.seat] = p.state ?? state;
-      
-      console.log(`👤 Player ${p.seat}: ${p.id?.slice(0, 10)}... (${chips[p.seat]} chips, state: ${state})`);
     });
 
     const comm = Array(5).fill(null) as (number | null)[];
@@ -202,19 +215,44 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               set((s) => {
                 const arr = [...s.players];
                 const ids = [...s.playerIds];
+                const states = [...s.playerStates];
+                const chips = [...s.chips];
+                const bets = [...s.playerBets];
+                const hands = [...s.playerHands];
+                
+                // Clear all data for the leaving player's seat
                 arr[msg.seat] = null;
                 ids[msg.seat] = null;
-                const states = [...s.playerStates];
                 states[msg.seat] = PlayerState.EMPTY;
+                chips[msg.seat] = 0;
+                bets[msg.seat] = 0;
+                hands[msg.seat] = null;
+                
+                console.log(`🚪 Player left seat ${msg.seat}, cleared all seat data`);
                 
                 // If this is our wallet leaving, update table seats tracking
                 if (msg.playerId === s.currentWalletId) {
                   const newTableSeats = new Map(s.tableSeats);
                   newTableSeats.delete(msg.tableId || s.tableId || "");
-                  return { players: arr, playerIds: ids, playerStates: states, tableSeats: newTableSeats };
+                  return { 
+                    players: arr, 
+                    playerIds: ids, 
+                    playerStates: states, 
+                    chips, 
+                    playerBets: bets, 
+                    playerHands: hands,
+                    tableSeats: newTableSeats 
+                  };
                 }
                 
-                return { players: arr, playerIds: ids, playerStates: states };
+                return { 
+                  players: arr, 
+                  playerIds: ids, 
+                  playerStates: states, 
+                  chips, 
+                  playerBets: bets, 
+                  playerHands: hands 
+                };
               });
               get().addLog(`${shortAddress(msg.playerId)} left`);
               break;
@@ -225,6 +263,22 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 return { playerStates: arr };
               });
               get().addLog(`${shortAddress(msg.playerId)} disconnected`);
+              break;
+            case "PLAYER_SAT_OUT":
+              set((s) => {
+                const states = [...s.playerStates];
+                states[msg.seat] = PlayerState.SITTING_OUT;
+                return { playerStates: states };
+              });
+              get().addLog(`${shortAddress(msg.playerId)} sat out${msg.reason === 'inactivity' ? ' (inactive)' : ''}`);
+              break;
+            case "PLAYER_SAT_IN":
+              set((s) => {
+                const states = [...s.playerStates];
+                states[msg.seat] = PlayerState.ACTIVE;
+                return { playerStates: states };
+              });
+              get().addLog(`${shortAddress(msg.playerId)} returned to play`);
               break;
             case "PLAYER_REJOINED":
               set((s) => {
@@ -707,6 +761,34 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
       
       await Promise.all(promises);
+    },
+
+    sitOut: async (tableId?: string) => {
+      const currentTableId = tableId || get().tableId;
+      if (!currentTableId) return;
+      
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "SIT_OUT",
+          tableId: currentTableId,
+        } as ClientCommand;
+        socket.send(JSON.stringify(cmd));
+      }
+    },
+
+    sitIn: async (tableId?: string) => {
+      const currentTableId = tableId || get().tableId;
+      if (!currentTableId) return;
+      
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const cmd: ClientCommand = {
+          cmdId: crypto.randomUUID(),
+          type: "SIT_IN", 
+          tableId: currentTableId,
+        } as ClientCommand;
+        socket.send(JSON.stringify(cmd));
+      }
     },
 
     startHand: async () => {},
