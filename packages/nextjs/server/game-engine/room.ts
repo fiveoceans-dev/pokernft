@@ -133,6 +133,8 @@ export function handleAction(
   if (active.length === 1) {
     payout(room, [active[0]]);
     room.stage = "waiting";
+    // Reset all player turn states when hand ends
+    room.players.forEach((p) => (p.isTurn = false));
     return;
   }
 

@@ -29,6 +29,8 @@ export type ServerEvent =
       playerId: string;
     }
   | { tableId: string; type: "PLAYER_REJOINED"; seat: number; playerId: string }
+  | { tableId: string; type: "PLAYER_WAITING"; seat: number; playerId: string }
+  | { tableId: string; type: "WAITING_FOR_NEXT_HAND"; seat: number; msg: string }
   | {
       tableId: string;
       type: "ACTION_PROMPT";

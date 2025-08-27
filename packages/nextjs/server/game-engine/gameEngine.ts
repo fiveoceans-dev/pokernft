@@ -78,7 +78,8 @@ export class GameEngine extends EventEmitter {
       const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
       this.emit("turnChanged", {
         playerId: currentPlayer.id,
-        actingIndex: this.room.currentTurnIndex,
+        playerArrayIndex: this.room.currentTurnIndex, // for server internal use
+        actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
         minRaise: this.room.minBet,
         timeLeftMs: 0
@@ -94,22 +95,25 @@ export class GameEngine extends EventEmitter {
     handleActionImpl(this.room, playerId, action);
     this.emit("stateChanged", this.room);
     
-    // Emit turn changed event if there's an active player
+    // Check if round is complete before emitting turn events
+    if (isRoundCompleteImpl(this.room)) {
+      this.resolveRound();
+      return;
+    }
+    
+    // Emit turn changed event for the next player to act
     const currentPlayer = this.room.players[this.room.currentTurnIndex];
     if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting" && this.room.stage !== "showdown") {
       const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
       const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
       this.emit("turnChanged", {
         playerId: currentPlayer.id,
-        actingIndex: this.room.currentTurnIndex,
+        playerArrayIndex: this.room.currentTurnIndex, // for server internal use
+        actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
         minRaise: this.room.minBet,
         timeLeftMs: 0
       });
-    }
-    
-    if (isRoundCompleteImpl(this.room)) {
-      this.resolveRound();
     }
   }
 
@@ -120,6 +124,21 @@ export class GameEngine extends EventEmitter {
     this.emit("phaseChanged", this.machine.state);
     this.emit("stageChanged", this.room.stage);
     this.emit("stateChanged", this.room);
+    
+    // Emit turn changed event for first player to act in new betting round
+    const currentPlayer = this.room.players[this.room.currentTurnIndex];
+    if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting" && this.room.stage !== "showdown") {
+      const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
+      const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
+      this.emit("turnChanged", {
+        playerId: currentPlayer.id,
+        playerArrayIndex: this.room.currentTurnIndex, // for server internal use
+        actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
+        betToCall,
+        minRaise: this.room.minBet,
+        timeLeftMs: 0
+      });
+    }
   }
 
   /** Determine winners for the current hand */
@@ -144,9 +163,17 @@ export class GameEngine extends EventEmitter {
       payoutImpl(this.room, winners);
       this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
       this.room.stage = "waiting";
+      // Reset all player turn states
+      this.room.players.forEach((p) => (p.isTurn = false));
       this.emit("phaseChanged", this.machine.state);
       this.emit("handEnded", winners);
       this.emit("stateChanged", this.room);
+      
+      // If we still have 2+ players with chips, signal that a new hand can start
+      const playersWithChips = this.room.players.filter((p) => p.chips > 0);
+      if (playersWithChips.length >= 2) {
+        this.emit("readyForNewHand");
+      }
       return;
     }
 
@@ -157,10 +184,17 @@ export class GameEngine extends EventEmitter {
       payoutImpl(this.room, winners);
       this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
       this.room.players.forEach((p) => (p.isTurn = false));
+      this.room.stage = "waiting";
       this.emit("phaseChanged", this.machine.state);
       this.emit("stageChanged", this.room.stage);
       this.emit("handEnded", winners);
       this.emit("stateChanged", this.room);
+      
+      // If we still have 2+ players with chips, signal that a new hand can start
+      const playersWithChips = this.room.players.filter((p) => p.chips > 0);
+      if (playersWithChips.length >= 2) {
+        this.emit("readyForNewHand");
+      }
       return;
     }
 
@@ -169,6 +203,21 @@ export class GameEngine extends EventEmitter {
     this.emit("phaseChanged", this.machine.state);
     this.emit("stageChanged", this.room.stage);
     this.emit("stateChanged", this.room);
+    
+    // Emit turn changed event for first player to act in new betting round
+    const currentPlayer = this.room.players[this.room.currentTurnIndex];
+    if (currentPlayer && currentPlayer.isTurn && this.room.stage !== "waiting" && this.room.stage !== "showdown") {
+      const maxBet = Math.max(0, ...this.room.players.map((p) => p.currentBet));
+      const betToCall = Math.max(0, maxBet - currentPlayer.currentBet);
+      this.emit("turnChanged", {
+        playerId: currentPlayer.id,
+        playerArrayIndex: this.room.currentTurnIndex, // for server internal use
+        actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
+        betToCall,
+        minRaise: this.room.minBet,
+        timeLeftMs: 0
+      });
+    }
   }
 }
 

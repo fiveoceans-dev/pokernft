@@ -190,6 +190,40 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
       broadcast(id, { type: "HAND_END" });
     });
 
+    engine.on("readyForNewHand", () => {
+      // Add any waiting players to the game before starting next hand countdown
+      const waitingPlayers = Array.from(seatMaps.get(id)?.entries() || []).filter(([playerId, seatIndex]) => {
+        const room = engine.getState();
+        return !room.players.find(p => p.id === playerId);
+      });
+      
+      if (waitingPlayers.length > 0) {
+        console.log(`🎮 Adding ${waitingPlayers.length} waiting players to room ${id}`);
+        waitingPlayers.forEach(([playerId, seatIndex]) => {
+          const SEAT_BUYIN = 10000;
+          const nickname = shortAddress(playerId);
+          engine.addPlayer({
+            id: playerId,
+            nickname,
+            seat: seatIndex,
+            chips: SEAT_BUYIN,
+          });
+          
+          broadcast(id, {
+            type: "PLAYER_JOINED",
+            seat: seatIndex,
+            playerId,
+          });
+          
+          console.log(`✅ Added waiting player ${nickname} to seat ${seatIndex}`);
+        });
+      }
+      
+      // Start countdown for next hand when 2+ players remain with chips
+      console.log(`🔄 Hand ended, starting new game countdown for room ${id}`);
+      startGameCountdown(id);
+    });
+
     engine.on("turnChanged", (turnInfo: any) => {
       broadcast(id, {
         type: "ACTION_PROMPT",
@@ -611,6 +645,34 @@ wss.on("connection", (ws) => {
               );
               break;
             }
+          }
+
+          // Check if a hand is currently active
+          if (room.stage !== "waiting") {
+            console.log(`🚫 [${clientId}] Cannot join during active hand (stage: ${room.stage}). Player will be seated but must wait for next hand.`);
+            
+            // Still allow seating but don't add to active game
+            seatMaps.get(room.id)?.set(playerId, seatIndex);
+            session.roomId = room.id;
+            void saveSession(session);
+            
+            // Send a special message indicating the player must wait
+            ws.send(
+              JSON.stringify({
+                tableId: room.id,
+                type: "WAITING_FOR_NEXT_HAND",
+                seat: seatIndex,
+                msg: "Hand in progress. You will join the next hand.",
+              } satisfies ServerEvent),
+            );
+            
+            broadcast(room.id, {
+              type: "PLAYER_WAITING",
+              seat: seatIndex,
+              playerId,
+            });
+            
+            break;
           }
 
           // Add player to GameEngine - always give $10k per seat

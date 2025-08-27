@@ -26,6 +26,17 @@ export function usePokerActions() {
     const myChips = mySeatIndex >= 0 ? (chips[mySeatIndex] || 0) : 0;
     const myCurrentBet = mySeatIndex >= 0 ? (playerBets[mySeatIndex] || 0) : 0;
 
+    // Debug logging for action button issues
+    if (currentWalletId) {
+      console.log("🎮 usePokerActions DEBUG:", {
+        currentWalletId: currentWalletId.slice(0, 10) + "...",
+        mySeatIndex,
+        currentTurn,
+        isMyTurn,
+        playerIds: playerIds.map((id, i) => ({ i, id: id?.slice(0, 10) + "..." })),
+      });
+    }
+
     // Calculate the current betting state
     const maxBet = Math.max(...playerBets);
     const betToCall = maxBet - myCurrentBet;

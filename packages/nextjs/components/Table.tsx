@@ -36,8 +36,6 @@ export default function Table({ timer }: { timer?: number | null }) {
     betEnabled,
     maxBet,
     displayTimer,
-    gameStartCountdown,
-    actionCountdown,
     localIdx,
     actionDisabled,
     handleActionClick,
@@ -211,36 +209,12 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   return (
     <div className="relative flex flex-col items-center justify-center w-full h-full">
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
-        {displayTimer?.toString().padStart(2, "0")}
-      </div>
-
-      {/* Game start countdown */}
-      {gameStartCountdown !== null && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 text-center">
-          <div className="bg-black/80 text-white px-4 py-2 rounded-lg">
-            <div className="text-lg font-bold">Game Starting In</div>
-            <div className="text-3xl font-mono text-yellow-400">
-              {gameStartCountdown}
-            </div>
-          </div>
+      {/* Unified white countdown timer - used for both game start and player action timers */}
+      {displayTimer !== null && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono text-white bg-black/50 px-3 py-1 rounded">
+          {displayTimer.toString().padStart(2, "0")}
         </div>
       )}
-
-      {/* Action countdown */}
-      {actionCountdown !== null && (
-        <div className="absolute top-16 right-4 bg-red-600/80 text-white px-3 py-2 rounded-lg">
-          <div className="text-sm">Time Left</div>
-          <div className="text-2xl font-mono">{actionCountdown}</div>
-        </div>
-      )}
-      
-      {displayTimer !== null &&
-        (currentTurn === null || currentTurn === localIdx) && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono">
-            {displayTimer?.toString().padStart(2, "0")}
-          </div>
-        )}
 
       {/* poker-table oval */}
       <div

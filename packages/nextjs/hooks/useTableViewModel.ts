@@ -69,7 +69,6 @@ export function useTableViewModel(_timer?: number | null) {
   const isMobile = useIsMobile();
   const [tableScale, setTableScale] = useState(1);
   const [bet, setBet] = useState(bigBlind);
-  const [actionTimer, setActionTimer] = useState<number | null>(null);
   // TODO: use minRaise from engine instead of bigBlind (Action Plan 1.2)
 
   useEffect(() => {
@@ -126,30 +125,6 @@ export function useTableViewModel(_timer?: number | null) {
     );
   }, [playerIds, currentWalletId, tableSeats, tableId]);
 
-  useEffect(() => {
-    if (currentTurn !== null) {
-      setActionTimer(10);
-    } else {
-      setActionTimer(null);
-    }
-  }, [currentTurn]);
-
-  useEffect(() => {
-    if (actionTimer === null || currentTurn === null) return;
-    if (actionTimer === 0) {
-      const highest = Math.max(...playerBets);
-      const myBet = playerBets[currentTurn] ?? 0;
-      if (highest > myBet) {
-        playerAction({ type: "fold" });
-      } else {
-        playerAction({ type: "check" });
-      }
-      setActionTimer(null);
-      return;
-    }
-    const id = setTimeout(() => setActionTimer((t) => (t as number) - 1), 1000);
-    return () => clearTimeout(id);
-  }, [actionTimer, playerBets, playerAction, currentTurn]);
 
   const communityCardSize = useMemo((): "xs" | "sm" | "md" | "lg" => {
     return tableScale < 0.75 ? "xs" : tableScale < 1 ? "sm" : "md";
@@ -177,8 +152,6 @@ export function useTableViewModel(_timer?: number | null) {
   const maxBet = myChips;
 
   const displayTimer = serverTimer;
-  const gameStartCountdown = null; // TODO: Implement game start countdown
-  const actionCountdown = actionTimer;
 
   const handleActionClick = (action: string) => {
     switch (action) {
@@ -225,8 +198,6 @@ export function useTableViewModel(_timer?: number | null) {
     betEnabled,
     maxBet,
     displayTimer,
-    gameStartCountdown,
-    actionCountdown,
     actionDisabled,
     handleActionClick,
     dealerIndex,
