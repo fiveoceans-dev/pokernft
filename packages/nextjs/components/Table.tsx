@@ -236,7 +236,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       {/* Showdown indicator */}
       {street === 4 && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 text-2xl font-bold text-yellow-300 bg-black/70 px-4 py-2 rounded-lg border-2 border-yellow-500 shadow-lg animate-pulse">
-          🃏 SHOWDOWN
+          SHOWDOWN
         </div>
       )}
 
