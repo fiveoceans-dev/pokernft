@@ -23,7 +23,6 @@ export default function PlayPage() {
   const { isConnected, address } = useWalletGameSync();
   const { walletSeatIdx } = useTableViewModel();
   const [isLeaving, setIsLeaving] = useState(false);
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   
   // Check if current player is sitting out based on game state
   const mySeatIndex = playerIds.findIndex(id => id === currentWalletId);
@@ -70,16 +69,11 @@ export default function PlayPage() {
       // Show error to user but don't prevent leaving
     } finally {
       setIsLeaving(false);
-      setShowLeaveConfirm(false);
     }
   };
 
   const handleLeaveClick = () => {
-    if (handStarted) {
-      setShowLeaveConfirm(true);
-    } else {
-      handleLeaveTable();
-    }
+    handleLeaveTable();
   };
 
   const handleSitOutToggle = async () => {
@@ -145,35 +139,6 @@ export default function PlayPage() {
         </div>
       )}
 
-      {/* Leave Confirmation Modal */}
-      {showLeaveConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-mx-4">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Leave During Hand?
-            </h3>
-            <p className="text-gray-300 mb-6">
-              You&apos;re currently in an active hand. Leaving now will automatically fold your cards. Are you sure you want to continue?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowLeaveConfirm(false)}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
-                disabled={isLeaving}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLeaveTable}
-                disabled={isLeaving}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:opacity-50"
-              >
-                {isLeaving ? "Leaving..." : "Leave & Fold"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       
       <div className="flex-1 flex items-center justify-center">
         <Table timer={timer} />

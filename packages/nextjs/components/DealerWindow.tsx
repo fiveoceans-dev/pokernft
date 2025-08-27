@@ -31,7 +31,15 @@ export default function DealerWindow() {
       onClick={() => isMobile && setExpanded((e) => !e)}
     >
       {displayLogs.map((msg, i) => (
-        <div key={i} className="whitespace-nowrap">
+        <div 
+          key={i} 
+          className="leading-tight break-words"
+          style={{ 
+            wordWrap: "break-word", 
+            overflowWrap: "break-word",
+            hyphens: "auto"
+          }}
+        >
           {msg}
         </div>
       ))}

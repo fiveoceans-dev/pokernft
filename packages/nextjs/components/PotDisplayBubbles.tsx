@@ -22,8 +22,8 @@ export function PotDisplayBubbles({
   }
 
   const bubbleClass = `
-    px-3 py-1 rounded-full text-sm font-bold text-white border-2 shadow-lg
-    flex items-center justify-center min-w-20
+    px-3 py-1 rounded-full text-sm font-bold text-white border-2 border-white/30 shadow-lg
+    flex items-center justify-center min-w-20 bg-white/20 backdrop-blur-sm
   `;
 
   return (
@@ -31,10 +31,10 @@ export function PotDisplayBubbles({
       {/* Top bubble - Previous rounds pot */}
       {showPreviousRounds && (
         <div 
-          className="absolute top-8 left-1/2 -translate-x-1/2 z-10"
+          className="absolute top-10 left-1/2 -translate-x-1/2 z-10"
           style={{ transform: "translateX(-50%) translateY(-100%)" }}
         >
-          <div className={`${bubbleClass} bg-blue-600 border-blue-400`}>
+          <div className={bubbleClass}>
             <span className="text-xs mr-1">POT</span>
             <span>${previousRoundsPot}</span>
           </div>
@@ -44,10 +44,10 @@ export function PotDisplayBubbles({
       {/* Bottom bubble - Current round betting */}
       {showCurrentRound && (
         <div 
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
+          className="absolute top-20 left-1/2 -translate-x-1/2 z-10"
           style={{ transform: "translateX(-50%) translateY(100%)" }}
         >
-          <div className={`${bubbleClass} bg-yellow-600 border-yellow-400`}>
+          <div className={bubbleClass}>
             <span className="text-xs mr-1">BET</span>
             <span>${currentRoundBetting}</span>
           </div>

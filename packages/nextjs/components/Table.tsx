@@ -11,7 +11,6 @@ import type { UiPlayer, Card as TCard } from "../game-engine";
 import { useWalletGameSync } from "../hooks/useWalletGameSync";
 import ActionButtons from "./ActionButtons";
 import { PotDisplayBubbles } from "./PotDisplayBubbles";
-import { DealerMessages } from "./DealerMessages";
 import useIsMobile from "../hooks/useIsMobile";
 
 /* ─────────────────────────────────────────────────────── */
@@ -53,7 +52,6 @@ export default function Table({ timer }: { timer?: number | null }) {
   const cardsRevealed = gameStore.cardsRevealed;
   const revealCards = gameStore.revealCards;
   const recentWinners = gameStore.recentWinners;
-  const logs = gameStore.logs;
   const { isConnected, address } = useWalletGameSync();
   const isMobile = useIsMobile();
 
@@ -268,12 +266,6 @@ export default function Table({ timer }: { timer?: number | null }) {
         </div>
       )}
 
-      {/* Showdown indicator */}
-      {street === 4 && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 text-2xl font-bold text-yellow-300 bg-black/70 px-4 py-2 rounded-lg border-2 border-yellow-500 shadow-lg animate-pulse">
-          SHOWDOWN
-        </div>
-      )}
 
       {/* poker-table oval */}
       <div
@@ -315,9 +307,6 @@ export default function Table({ timer }: { timer?: number | null }) {
           </button>
         </div>
       )}
-      
-      {/* Dealer Messages */}
-      <DealerMessages logs={logs} isMobile={isMobile} />
     </div>
   );
 }

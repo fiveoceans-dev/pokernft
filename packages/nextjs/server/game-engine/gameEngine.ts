@@ -265,6 +265,17 @@ export class GameEngine extends EventEmitter {
     payoutImpl(this.room, winners);
     console.log(`✅ [GameEngine] Payout completed`);
     
+    // Emit winner announcement with seat indexes
+    const winnerInfo = winners.map(winner => ({
+      seat: this.room.players.findIndex(p => p.id === winner.id),
+      playerId: winner.id
+    }));
+    
+    this.emit("winnerAnnouncement", {
+      winners: winnerInfo,
+      potAmount: potAmount
+    });
+    
     // Emit dealer message after payout
     this.emit("dealerMessage", winnerMessage);
     this.emit("stateChanged", this.room);
@@ -438,6 +449,13 @@ export class GameEngine extends EventEmitter {
       
       const winnerMessage = `${winner.id.slice(0, 6)}...${winner.id.slice(-4)} wins $${potAmount} (others folded)`;
       console.log(`💰 [GameEngine] ${winnerMessage}`);
+      
+      // Emit winner announcement with seat index
+      const winnerSeat = this.room.players.findIndex(p => p.id === winner.id);
+      this.emit("winnerAnnouncement", {
+        winners: [{ seat: winnerSeat, playerId: winner.id }],
+        potAmount: potAmount
+      });
       
       // Emit all necessary events
       this.emit("phaseChanged", this.machine.state);

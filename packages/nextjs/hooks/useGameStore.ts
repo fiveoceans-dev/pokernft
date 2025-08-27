@@ -403,6 +403,25 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               console.log("📢 Dealer message:", msg.message);
               get().addLog(`🎯 Dealer: ${msg.message}`);
               break;
+            case "WINNER_ANNOUNCEMENT":
+              console.log("🏆 Winner announcement:", msg.winners, "pot:", msg.potAmount);
+              // Trigger sparkle effects for all winners
+              msg.winners.forEach(winner => {
+                if (winner.seat >= 0) {
+                  console.log("✨ Triggering sparkle for seat:", winner.seat);
+                  get().markWinner(winner.seat);
+                  
+                  // Clear winner effect after 5 seconds
+                  setTimeout(() => {
+                    set(s => {
+                      const newWinners = new Set(s.recentWinners);
+                      newWinners.delete(winner.seat);
+                      return { recentWinners: newWinners };
+                    });
+                  }, 5000);
+                }
+              });
+              break;
             case "ERROR":
               set({ error: msg.msg });
               break;
@@ -535,40 +554,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     loading: false,
     error: null,
     logs: [],
-    addLog: (msg) => set((s) => {
-      // Check if this is a winner message and extract seat indexes
-      if (msg.includes(' wins ') || msg.includes(' split ')) {
-        // Extract winner information from the message
-        // For single winner: "abc123...def4 wins $100"
-        // For multiple winners: "abc123...def4, xyz789...uvw0 split the pot ($50 each)"
-        const winnerAddresses = msg.match(/[a-fA-F0-9]{6}\.\.\.[a-fA-F0-9]{4}/g) || [];
-        const playerIds = get().playerIds;
-        
-        winnerAddresses.forEach(shortAddr => {
-          // Find the seat index for this winner
-          const seatIndex = playerIds.findIndex(id => {
-            if (!id) return false;
-            const shortId = `${id.slice(0, 6)}...${id.slice(-4)}`;
-            return shortId === shortAddr;
-          });
-          
-          if (seatIndex >= 0) {
-            get().markWinner(seatIndex);
-            
-            // Clear winner effect after 5 seconds
-            setTimeout(() => {
-              set(s => {
-                const newWinners = new Set(s.recentWinners);
-                newWinners.delete(seatIndex);
-                return { recentWinners: newWinners };
-              });
-            }, 5000);
-          }
-        });
-      }
-      
-      return { logs: [...s.logs, msg] };
-    }),
+    addLog: (msg) => set((s) => ({ logs: [...s.logs, msg] })),
     cardsRevealed: Array(9).fill(false),
     recentWinners: new Set<number>(),
     smallBlind: 25,
