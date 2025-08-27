@@ -60,6 +60,10 @@ export interface GameRoom {
   pot: number;
   communityCards: Card[];
   minBet: number;
+  /** default small blind amount for this table */
+  smallBlindAmount: number;
+  /** default big blind amount for this table */
+  bigBlindAmount: number;
   /** remaining cards in the deck */
   deck: Card[];
 }

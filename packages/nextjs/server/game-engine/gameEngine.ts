@@ -237,8 +237,23 @@ export class GameEngine extends EventEmitter {
   payout(winners: PlayerSession[]) {
     const potAmount = this.room.pot;
     console.log(`💰 [GameEngine] Paying out $${potAmount} to ${winners.length} winner(s): ${winners.map(w => w.id).join(', ')}`);
+    
+    // Create winner announcement message
+    let winnerMessage = "";
+    if (winners.length === 1) {
+      const share = Math.floor(potAmount / winners.length);
+      winnerMessage = `${winners[0].id.slice(0, 6)}...${winners[0].id.slice(-4)} wins $${share}`;
+    } else {
+      const share = Math.floor(potAmount / winners.length);
+      const winnerNames = winners.map(w => `${w.id.slice(0, 6)}...${w.id.slice(-4)}`).join(', ');
+      winnerMessage = `${winnerNames} split the pot ($${share} each)`;
+    }
+    
     payoutImpl(this.room, winners);
     console.log(`✅ [GameEngine] Payout completed`);
+    
+    // Emit dealer message after payout
+    this.emit("dealerMessage", winnerMessage);
     this.emit("stateChanged", this.room);
   }
 
@@ -251,6 +266,14 @@ export class GameEngine extends EventEmitter {
 
     if (remaining <= 1) {
       const winners = this.room.players.filter((p) => !p.hasFolded);
+      const potAmount = this.room.pot;
+      
+      // Create winner announcement message
+      let winnerMessage = "";
+      if (winners.length === 1) {
+        winnerMessage = `${winners[0].id.slice(0, 6)}...${winners[0].id.slice(-4)} wins $${potAmount} (others folded)`;
+      }
+      
       payoutImpl(this.room, winners);
       this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
       this.room.stage = "waiting";
@@ -258,6 +281,11 @@ export class GameEngine extends EventEmitter {
       this.room.players.forEach((p) => (p.isTurn = false));
       this.emit("phaseChanged", this.machine.state);
       this.emit("handEnded", winners);
+      
+      // Emit dealer message after payout
+      if (winnerMessage) {
+        this.emit("dealerMessage", winnerMessage);
+      }
       this.emit("stateChanged", this.room);
       
       // If we still have 2+ players with chips, signal that a new hand can start
@@ -271,6 +299,19 @@ export class GameEngine extends EventEmitter {
     if (this.room.stage === "river") {
       progressStageImpl(this.room); // advance to showdown
       const winners = determineWinnersImpl(this.room);
+      const potAmount = this.room.pot;
+      
+      // Create winner announcement message for showdown
+      let winnerMessage = "";
+      if (winners.length === 1) {
+        const share = Math.floor(potAmount / winners.length);
+        winnerMessage = `${winners[0].id.slice(0, 6)}...${winners[0].id.slice(-4)} wins $${share} at showdown`;
+      } else {
+        const share = Math.floor(potAmount / winners.length);
+        const winnerNames = winners.map(w => `${w.id.slice(0, 6)}...${w.id.slice(-4)}`).join(', ');
+        winnerMessage = `${winnerNames} split the pot at showdown ($${share} each)`;
+      }
+      
       this.machine.dispatch({ type: "SHOWDOWN_COMPLETE" });
       payoutImpl(this.room, winners);
       this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
@@ -279,6 +320,9 @@ export class GameEngine extends EventEmitter {
       this.emit("phaseChanged", this.machine.state);
       this.emit("stageChanged", this.room.stage);
       this.emit("handEnded", winners);
+      
+      // Emit dealer message after payout
+      this.emit("dealerMessage", winnerMessage);
       this.emit("stateChanged", this.room);
       
       // If we still have 2+ players with chips, signal that a new hand can start

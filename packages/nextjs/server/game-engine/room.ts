@@ -5,7 +5,10 @@ import { evaluateHand } from "./hashEvaluator";
 import { BlindManager } from "./blindManager";
 
 /** Create an empty game room */
-export function createRoom(id: string, minBet = 10): GameRoom {
+export function createRoom(id: string, minBet = 50): GameRoom {
+  const smallBlind = minBet / 2;
+  const bigBlind = minBet;
+  
   return {
     id,
     players: [],
@@ -17,6 +20,8 @@ export function createRoom(id: string, minBet = 10): GameRoom {
     pot: 0,
     communityCards: [],
     minBet,
+    smallBlindAmount: smallBlind,
+    bigBlindAmount: bigBlind,
     deck: [],
   };
 }
@@ -70,10 +75,21 @@ export function startRoomHand(room: GameRoom) {
     return;
   }
   
-  // Initialize new hand state
+  // Complete hand state cleanup - reset all hand-specific state
   room.deck = dealDeck();
   room.communityCards = [];
   room.pot = 0;
+  
+  // Reset all player betting and turn state to clean slate
+  room.players.forEach((p) => {
+    p.currentBet = 0;
+    p.isDealer = false;
+    p.isTurn = false;
+    p.hasFolded = false;
+    p.hand = [];
+  });
+  
+  console.log(`🔄 [${room.id}] Reset all player betting state and hands`);
   
   // Advance dealer button properly
   if (room.stage === "waiting") {
@@ -101,10 +117,10 @@ export function startRoomHand(room: GameRoom) {
   
   console.log(`🃏 [${room.id}] Dealer is ${room.players[room.dealerIndex].id} at seat ${room.players[room.dealerIndex].seat}`);
 
-  // Post blinds and set first player to act
-  const blindMgr = new BlindManager(room.minBet / 2, room.minBet);
+  // Post blinds using the table's default amounts
+  const blindMgr = new BlindManager(room.smallBlindAmount, room.bigBlindAmount);
   const { sb, bb } = blindMgr.postBlinds(room);
-  console.log(`💰 [${room.id}] Blinds posted - SB: seat ${room.players[sb].seat}, BB: seat ${room.players[bb].seat}`);
+  console.log(`💰 [${room.id}] Blinds posted - SB: $${room.smallBlindAmount} at seat ${room.players[sb].seat}, BB: $${room.bigBlindAmount} at seat ${room.players[bb].seat}`);
   
   // First to act preflop is UTG (left of big blind)
   const firstToAct = blindMgr.nextActiveIndex(room, bb + 1);

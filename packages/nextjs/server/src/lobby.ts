@@ -37,8 +37,8 @@ export function registerTable(id: string, engine: GameEngine, name?: string) {
     gameType: "No Limit Hold'em",
     playerCount: room.players.length,
     maxPlayers: 9,
-    smallBlind: Math.floor(room.minBet / 2),
-    bigBlind: room.minBet
+    smallBlind: room.smallBlindAmount || Math.floor(room.minBet / 2),
+    bigBlind: room.bigBlindAmount || room.minBet
   });
   console.log(`🎯 Lobby now has ${registry.size} tables registered`);
 }

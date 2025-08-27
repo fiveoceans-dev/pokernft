@@ -54,6 +54,8 @@ interface GameStoreState {
   tableId: string | null;
   /** unified countdown timer from server */
   timer: number | null;
+  /** track which players have revealed their cards at showdown */
+  cardsRevealed: boolean[];
   /** WebSocket connection state */
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
   /** Connection error message */
@@ -77,6 +79,8 @@ interface GameStoreState {
   dealTurn: () => Promise<void>;
   dealRiver: () => Promise<void>;
   rebuy: (amount: number) => Promise<void>;
+  revealCards: (seatIndex: number) => void;
+  resetCardReveals: () => void;
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => {
@@ -343,6 +347,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               break;
             case "HAND_START":
               get().addLog("Dealer: Hand started");
+              get().resetCardReveals(); // Reset card reveals for new hand
               break;
             case "HAND_END":
               get().addLog("Dealer: Hand complete");
@@ -354,6 +359,30 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               if (msg.countdown === 0) {
                 set({ timer: null });
               }
+              break;
+            case "TABLE_RESET":
+              // Handle table reset due to idle timeout
+              console.log("🔄 Table was reset due to inactivity");
+              get().addLog("Table was reset due to 5 minutes of inactivity");
+              // Force a fresh table state
+              set({
+                players: Array(9).fill(null),
+                playerIds: Array(9).fill(null),
+                playerHands: Array(9).fill(null),
+                community: Array(5).fill(null),
+                chips: Array(9).fill(0),
+                playerBets: Array(9).fill(0),
+                playerStates: Array(9).fill(PlayerState.EMPTY),
+                dealerIndex: null,
+                pot: 0,
+                currentTurn: null,
+                street: 0,
+                cardsRevealed: Array(9).fill(false),
+              });
+              break;
+            case "DEALER_MESSAGE":
+              console.log("📢 Dealer message:", msg.message);
+              get().addLog(`🎯 Dealer: ${msg.message}`);
               break;
             case "ERROR":
               set({ error: msg.msg });
@@ -490,6 +519,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     error: null,
     logs: [],
     addLog: (msg) => set((s) => ({ logs: [...s.logs, msg] })),
+    cardsRevealed: Array(9).fill(false),
     smallBlind: 25,
     bigBlind: 50,
     startBlindTimer: () => {
@@ -841,6 +871,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         };
         socket.send(JSON.stringify(cmd));
       }
+    },
+    revealCards: (seatIndex: number) => {
+      set((s) => {
+        const newRevealed = [...s.cardsRevealed];
+        newRevealed[seatIndex] = true;
+        return { cardsRevealed: newRevealed };
+      });
+    },
+    resetCardReveals: () => {
+      set({ cardsRevealed: Array(9).fill(false) });
     },
   };
 });

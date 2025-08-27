@@ -67,6 +67,84 @@ const gameStartTimers = new Map<string, NodeJS.Timeout>();
 const actionTimers = new Map<string, NodeJS.Timeout>();
 const timeoutCounts = new Map<string, number>();
 const sitOutPlayers = new Map<string, number>(); // playerId -> sit out timestamp
+const tableIdleTimers = new Map<string, NodeJS.Timeout>(); // tableId -> timer
+const IDLE_TABLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Idle table management functions
+function startIdleTimer(tableId: string) {
+  // Clear existing timer if any
+  if (tableIdleTimers.has(tableId)) {
+    clearTimeout(tableIdleTimers.get(tableId)!);
+  }
+
+  const timer = setTimeout(() => {
+    console.log(`⏰ [${tableId}] Table idle for 5 minutes, cleaning up...`);
+    cleanupIdleTable(tableId);
+  }, IDLE_TABLE_TIMEOUT);
+
+  tableIdleTimers.set(tableId, timer);
+  console.log(`⏱️ [${tableId}] Started 5-minute idle timer`);
+}
+
+function resetIdleTimer(tableId: string) {
+  if (tableIdleTimers.has(tableId)) {
+    clearTimeout(tableIdleTimers.get(tableId)!);
+    tableIdleTimers.delete(tableId);
+  }
+}
+
+function cleanupIdleTable(tableId: string) {
+  const engine = getRegisteredEngine(tableId);
+  if (!engine) return;
+
+  const room = engine.getState();
+  console.log(`🧹 [${tableId}] Cleaning up idle table with ${room.players.length} players`);
+
+  // Remove all players from the table
+  const playerIds = room.players.map(p => p.id);
+  playerIds.forEach(playerId => {
+    engine.removePlayer(playerId);
+    // Clear from seat maps
+    seatMaps.get(tableId)?.delete(playerId);
+    // Clear from timeout tracking
+    timeoutCounts.delete(playerId);
+    sitOutPlayers.delete(playerId);
+  });
+
+  // Reset the table to default state
+  room.stage = "waiting";
+  room.players = [];
+  room.pot = 0;
+  room.communityCards = [];
+  room.dealerIndex = 0;
+  room.currentTurnIndex = 0;
+  room.firstToActIndex = 0;
+  room.lastAggressorIndex = 0;
+
+  // Clear any game timers for this table
+  if (gameStartTimers.has(tableId)) {
+    clearTimeout(gameStartTimers.get(tableId)!);
+    gameStartTimers.delete(tableId);
+  }
+  if (actionTimers.has(tableId)) {
+    clearTimeout(actionTimers.get(tableId)!);
+    actionTimers.delete(tableId);
+  }
+
+  // Clear idle timer
+  resetIdleTimer(tableId);
+
+  // Broadcast table reset
+  broadcast(tableId, {
+    type: "TABLE_RESET",
+    message: "Table was idle for 5 minutes and has been reset"
+  });
+
+  // Force a table snapshot update
+  engine.emit("stateChanged", room);
+
+  console.log(`✅ [${tableId}] Table cleanup completed`);
+}
 
 // Initialize tables immediately without waiting for persistence layer
 console.log('🌌 Creating persistent tables...');
@@ -91,9 +169,25 @@ ensurePersistentTables();
 
 function ensurePersistentTables() {
   const persistentTables = [
-    { id: "demo", name: "🎲 Demo Table", blinds: { small: 25, big: 50 } },
-    { id: "andromeda", name: "🌌 Andromeda Station", blinds: { small: 25, big: 50 } },
-    { id: "orion", name: "🚀 Orion Outpost", blinds: { small: 50, big: 100 } }
+    // $1/$2 Tables
+    { id: "micro-1", name: "Micro Stakes #1", blinds: { small: 1, big: 2 } },
+    { id: "micro-2", name: "Micro Stakes #2", blinds: { small: 1, big: 2 } },
+    
+    // $5/$10 Tables  
+    { id: "low-1", name: "Low Stakes #1", blinds: { small: 5, big: 10 } },
+    { id: "low-2", name: "Low Stakes #2", blinds: { small: 5, big: 10 } },
+    
+    // $25/$50 Tables
+    { id: "mid-1", name: "Mid Stakes #1", blinds: { small: 25, big: 50 } },
+    { id: "mid-2", name: "🚀 Mid Stakes #2", blinds: { small: 25, big: 50 } },
+    
+    // $50/$100 Tables
+    { id: "stark-1", name: "Stark #1", blinds: { small: 50, big: 100 } },
+    { id: "stark-2", name: "Stark #2", blinds: { small: 50, big: 100 } },
+    
+    // $1000/$2000 Tables (High Roller)
+    { id: "High-rollers-1", name: "👑 High rollers #1", blinds: { small: 1000, big: 2000 } },
+    { id: "High-rollers-2", name: "👑 High rollers #2", blinds: { small: 1000, big: 2000 } }
   ];
 
   persistentTables.forEach(({ id, name, blinds }) => {
@@ -112,6 +206,8 @@ function ensurePersistentTables() {
     // Update engine with correct blind values
     const room = engine.getState();
     room.minBet = blinds.big;
+    room.smallBlindAmount = blinds.small;
+    room.bigBlindAmount = blinds.big;
     console.log(`🎯 Updated table ${id} blinds: SB=${blinds.small}, BB=${blinds.big}`);
   });
   
@@ -126,6 +222,17 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
       engine.loadState(snapshot);
     }
     registerTable(id, engine);
+
+    // Set up idle timer event listeners for the new engine
+    engine.on("handStarted", () => {
+      console.log(`🎮 [${id}] Hand started, clearing idle timer`);
+      resetIdleTimer(id);
+    });
+
+    engine.on("handEnded", () => {
+      console.log(`🏁 [${id}] Hand ended, starting idle timer`);
+      startIdleTimer(id);
+    });
 
     // GameEngine is now the single source of truth - no need for separate Table object
     const seatMap = new Map<string, number>();
@@ -198,6 +305,14 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
 
     engine!.on("handEnded", () => {
       broadcast(id, { type: "HAND_END" });
+    });
+
+    engine!.on("dealerMessage", (message: string) => {
+      broadcast(id, { 
+        type: "DEALER_MESSAGE", 
+        message,
+        tableId: id
+      });
     });
 
     engine!.on("readyForNewHand", () => {
@@ -784,6 +899,13 @@ wss.on("connection", (ws) => {
                 playerId,
                 reason: "left_voluntarily"
               });
+            }
+
+            // If table is now empty and not in an active game, start idle timer
+            const updatedRoom = engine.getState();
+            if (updatedRoom.players.length === 0 && updatedRoom.stage === "waiting") {
+              console.log(`📭 [${room.id}] Table is now empty, starting idle timer`);
+              startIdleTimer(room.id);
             }
           }
           

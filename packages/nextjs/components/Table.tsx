@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import type { CSSProperties } from "react";
 import { useTableViewModel } from "../hooks/useTableViewModel";
+import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
 import { indexToCard, PlayerState } from "../game-engine";
 import PlayerSeat from "./PlayerSeat";
@@ -42,6 +43,10 @@ export default function Table({ timer }: { timer?: number | null }) {
     dealerIndex,
   } = useTableViewModel(timer);
 
+  const gameStore = useGameStore();
+  const street = gameStore.street || 0; // Get street from game store, default to 0
+  const cardsRevealed = gameStore.cardsRevealed;
+  const revealCards = gameStore.revealCards;
   const { isConnected, address } = useWalletGameSync();
 
   // Debug logging for player data
@@ -141,7 +146,8 @@ export default function Table({ timer }: { timer?: number | null }) {
     };
     const isDealer = idx === dealerIndex;
     const isActive = idx === currentTurn;
-    const reveal = idx === walletSeatIdx;
+    // Reveal cards for own player always, or if manually revealed, or all non-folded players during showdown (street 4)
+    const reveal = idx === walletSeatIdx || cardsRevealed[idx] || (street === 4 && state !== PlayerState.FOLDED && state !== PlayerState.EMPTY);
 
     const badge = (
       <span
@@ -245,6 +251,21 @@ export default function Table({ timer }: { timer?: number | null }) {
 
       {/* Smart Action Buttons */}
       <ActionButtons />
+      
+      {/* Card Reveal Button - Show during showdown if player hasn't revealed cards */}
+      {street === 4 && walletSeatIdx !== null && walletSeatIdx >= 0 && 
+       playerStates[walletSeatIdx] !== PlayerState.FOLDED && 
+       playerStates[walletSeatIdx] !== PlayerState.EMPTY && 
+       !cardsRevealed[walletSeatIdx] && (
+        <div className="mt-2">
+          <button
+            onClick={() => revealCards(walletSeatIdx)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
+          >
+            Show Cards
+          </button>
+        </div>
+      )}
     </div>
   );
 }
