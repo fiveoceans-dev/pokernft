@@ -79,6 +79,12 @@ interface GameStoreState {
 
 export const useGameStore = create<GameStoreState>((set, get) => {
   function applySnapshot(room: any) {
+    console.log("📸 Applying TABLE_SNAPSHOT:", {
+      playersCount: room.players?.length || 0,
+      players: room.players?.map((p: any) => ({ seat: p.seat, id: p.id?.slice(0, 10) + "..." })) || [],
+      stage: room.stage
+    });
+
     const seats = Array(9).fill(null) as (string | null)[];
     const ids = Array(9).fill(null) as (string | null)[];
     const hands = Array(9).fill(null) as ([number, number] | null)[];
@@ -99,6 +105,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       if (p.hasFolded) state = PlayerState.FOLDED;
       else if ((p.chips ?? p.stack ?? 0) === 0) state = PlayerState.ALL_IN;
       states[p.seat] = p.state ?? state;
+      
+      console.log(`👤 Player ${p.seat}: ${p.id?.slice(0, 10)}... (${chips[p.seat]} chips, state: ${state})`);
     });
 
     const comm = Array(5).fill(null) as (number | null)[];
@@ -275,6 +283,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             get().addLog(`Created table: ${msg.table.name}`);
             break;
           case "TABLE_SNAPSHOT":
+            console.log("📨 Received TABLE_SNAPSHOT message");
             applySnapshot(msg.table as any);
             // Don't auto-seat - let the user choose their seat manually
             break;
@@ -606,19 +615,26 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     joinSeat: async (seatIdx: number, tableId?: string) => {
       const currentTableId = tableId || get().tableId;
+      console.log(`🪑 Attempting to join seat ${seatIdx} at table ${currentTableId}`);
+      
       if (!currentTableId) {
+        console.error("🚫 No table selected");
         set({ error: "No table selected" });
         return;
       }
       
       const { currentWalletId, tableSeats } = get();
       if (!currentWalletId) {
+        console.error("🚫 No wallet connected");
         set({ error: "No wallet connected" });
         return;
       }
       
+      console.log(`👤 Wallet: ${currentWalletId.slice(0, 10)}... attempting to join seat ${seatIdx}`);
+      
       // Check if already seated at this table
       if (tableSeats.has(currentTableId)) {
+        console.error(`🚫 Already seated at table ${currentTableId}:`, tableSeats.get(currentTableId));
         set({ error: "Already seated at this table" });
         return;
       }
@@ -631,12 +647,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           seat: seatIdx,
           buyIn: 10000, // Always $10k per seat
         } as ClientCommand;
+        console.log("📤 Sending SIT command:", { tableId: currentTableId, seat: seatIdx, buyIn: 10000 });
         socket.send(JSON.stringify(cmd));
         
         // Optimistically update local state
         const newTableSeats = new Map(tableSeats);
         newTableSeats.set(currentTableId, seatIdx);
         set({ tableSeats: newTableSeats });
+        console.log(`✅ Optimistically updated tableSeats:`, newTableSeats);
+        get().addLog(`Joining seat ${seatIdx}`);
+      } else {
+        console.error("🚫 WebSocket not connected, cannot join seat");
+        set({ error: "Not connected to server" });
       }
     },
 

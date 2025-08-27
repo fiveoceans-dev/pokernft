@@ -1,3 +1,4 @@
+import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { GameEngine, SeatingManager, TableState, Round } from "../game-engine";
 import type {
@@ -25,7 +26,37 @@ import {
 } from "./persistence";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
-const wss = new WebSocketServer({ port: PORT });
+
+// Create HTTP server for Heroku compatibility
+const server = createServer((req, res) => {
+  const url = new URL(req.url || '/', `http://${req.headers.host}`);
+  
+  // Health check endpoint
+  if (url.pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      connections: wss.clients.size,
+      tables: listTables().length
+    }));
+    return;
+  }
+  
+  // API endpoint to list tables
+  if (url.pathname === '/api/tables') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ tables: listTables() }));
+    return;
+  }
+  
+  // Default response for HTTP requests
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('PokerNFT WebSocket Server - Use WebSocket connection for game play');
+});
+
+// Create WebSocket server attached to HTTP server
+const wss = new WebSocketServer({ server });
 const sessions = new SessionManager();
 const processed = new Map<WebSocket, Set<string>>();
 
@@ -207,12 +238,6 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
             nickname,
             seat: seatIndex,
             chips: SEAT_BUYIN,
-          });
-          
-          broadcast(id, {
-            type: "PLAYER_JOINED",
-            seat: seatIndex,
-            playerId,
           });
           
           console.log(`✅ Added waiting player ${nickname} to seat ${seatIndex}`);
@@ -699,14 +724,12 @@ wss.on("connection", (ws) => {
           void saveSession(session);
           console.log(`✅ [${clientId}] Player ${nickname} successfully seated at ${seatIndex} with ${SEAT_BUYIN} chips (always $10k per seat)`);
           
-          broadcast(room.id, {
-            type: "PLAYER_JOINED",
-            seat: seatIndex,
-            playerId,
-          });
-          
           const updatedRoom = engine.getState();
           console.log(`📊 [${clientId}] Table now has ${updatedRoom.players.length} players, stage: ${updatedRoom.stage}`);
+          
+          // Send TABLE_SNAPSHOT instead of PLAYER_JOINED for immediate consistency
+          // This ensures the frontend gets the complete, accurate state including the new player
+          broadcast(updatedRoom.id, { type: "TABLE_SNAPSHOT", table: updatedRoom });
           
           // Start countdown when we have 2+ players
           if (updatedRoom.players.length >= 2 && updatedRoom.stage === "waiting") {
@@ -715,7 +738,6 @@ wss.on("connection", (ws) => {
           }
           
           void saveRoom(updatedRoom);
-          broadcast(updatedRoom.id, { type: "TABLE_SNAPSHOT", table: updatedRoom });
           break;
         }
         case "LEAVE": {
@@ -739,13 +761,6 @@ wss.on("connection", (ws) => {
           // Remove from GameEngine
           if (engine.removePlayer(playerId)) {
             seatMaps.get(room.id)?.delete(playerId);
-            if (seatIndex !== undefined) {
-              broadcast(room.id, {
-                type: "PLAYER_LEFT",
-                seat: seatIndex,
-                playerId,
-              });
-            }
           }
           
           // Only clear session roomId if leaving current room
@@ -755,7 +770,10 @@ wss.on("connection", (ws) => {
           
           void saveSession(session);
           void saveRoom(room);
-          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });
+          
+          // Send TABLE_SNAPSHOT for consistent state after player leaves
+          const updatedRoom = engine.getState();
+          broadcast(room.id, { type: "TABLE_SNAPSHOT", table: updatedRoom });
           break;
         }
         case "ACTION": {
@@ -913,8 +931,14 @@ wss.on("connection", (ws) => {
   });
 });
 
-console.log(`🚀 WebSocket server running on ws://localhost:${PORT}`);
-console.log(`🌍 Environment: NODE_ENV=${process.env.NODE_ENV}`);
-console.log(`🔗 ALLOWED_ORIGINS: ${process.env.ALLOWED_ORIGINS || 'not set'}`);
-console.log(`💾 REDIS_URL: ${process.env.REDIS_URL ? 'configured' : 'not configured (using memory)'}`);
-console.log(`🎯 Ready to accept WebSocket connections...`);
+// Start HTTP server with WebSocket support
+server.listen(PORT, () => {
+  console.log(`🚀 HTTP+WebSocket server running on port ${PORT}`);
+  console.log(`🌍 Environment: NODE_ENV=${process.env.NODE_ENV}`);
+  console.log(`🔗 ALLOWED_ORIGINS: ${process.env.ALLOWED_ORIGINS || 'not set'}`);
+  console.log(`💾 REDIS_URL: ${process.env.REDIS_URL ? 'configured' : 'not configured (using memory)'}`);
+  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`📊 Tables API: http://localhost:${PORT}/api/tables`);
+  console.log(`🎯 WebSocket connections: ws://localhost:${PORT}`);
+  console.log(`🎮 Ready to accept game connections...`);
+});
