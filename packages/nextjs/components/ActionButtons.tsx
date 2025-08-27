@@ -5,7 +5,7 @@ import { withErrorBoundary } from "./ErrorBoundary";
 
 function ActionButtons() {
   const actions = usePokerActions();
-  const { playerAction, bigBlind, chips, playerIds, currentWalletId } = useGameStore();
+  const { playerAction, bigBlind, chips, playerIds, currentWalletId, playerBets } = useGameStore();
   
   // Debug logging
   console.log("🎮 ActionButtons render:", {
@@ -18,6 +18,7 @@ function ActionButtons() {
   // Defensive checks for all store values
   const safePlayerIds = Array.isArray(playerIds) ? playerIds : [];
   const safeChips = Array.isArray(chips) ? chips : [];
+  const safePlayerBets = Array.isArray(playerBets) ? playerBets : [];
   const safeBigBlind = typeof bigBlind === 'number' && bigBlind > 0 ? bigBlind : 50;
   
   const mySeatIndex = safePlayerIds.findIndex(id => 
@@ -27,6 +28,11 @@ function ActionButtons() {
   
   const myChips = mySeatIndex >= 0 && mySeatIndex < safeChips.length ? (safeChips[mySeatIndex] || 0) : 0;
   const maxBet = Math.max(myChips, safeBigBlind);
+  
+  // Determine if there are existing bets to determine Bet vs Raise
+  const maxCurrentBet = Math.max(0, ...safePlayerBets);
+  const isPreflop = maxCurrentBet === safeBigBlind; // Only big blind posted
+  const hasExistingBets = maxCurrentBet > (isPreflop ? safeBigBlind : 0);
   
   const [betAmount, setBetAmount] = useState(safeBigBlind);
 
@@ -102,33 +108,46 @@ function ActionButtons() {
 
   return (
     <div className="flex flex-col items-center gap-3 mt-4">
-      {/* Action Buttons */}
-      <div className="flex gap-2 flex-wrap justify-center">
+      {/* Action Buttons - hide disabled buttons but maintain layout spacing */}
+      <div className="flex gap-2 flex-wrap justify-center min-h-[40px]">
         {actions.map((action) => (
           <button
             key={action.type}
             onClick={action.enabled ? () => handleAction(action as PokerAction) : undefined}
-            disabled={!action.enabled}
+            style={{ visibility: action.enabled ? 'visible' : 'hidden' }}
             className={`
               px-4 py-2 rounded font-medium transition-all duration-200
-              ${action.enabled
-                ? "bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105" 
-                : "bg-gray-500 text-gray-300 cursor-not-allowed opacity-50"
-              }
-              ${action.type === "fold" && action.enabled ? "bg-gray-600 hover:bg-gray-700" : ""}
-              ${action.type === "check" && action.enabled ? "bg-blue-600 hover:bg-blue-700" : ""}
-              ${action.type === "call" && action.enabled ? "bg-green-600 hover:bg-green-700" : ""}
+              bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105
+              ${action.type === "fold" ? "bg-gray-600 hover:bg-gray-700" : ""}
+              ${action.type === "check" ? "bg-blue-600 hover:bg-blue-700" : ""}
+              ${action.type === "call" ? "bg-green-600 hover:bg-green-700" : ""}
             `}
           >
-            {action.label}
+            {/* Update button labels for proper Bet vs Raise */}
+            {action.type === "bet" 
+              ? (hasExistingBets ? "Raise" : "Bet")
+              : action.label
+            }
           </button>
         ))}
       </div>
 
-      {/* Betting Slider - only show for bet/raise actions */}
+      {/* Betting Slider - clean minimal design with plus/minus buttons */}
       {actions.some(a => a && (a.type === "bet" || a.type === "raise")) && maxBet > safeBigBlind && (
-        <div className="flex items-center gap-3">
-          <span className="text-white text-sm min-w-[40px]">${safeBigBlind}</span>
+        <div className="flex items-center gap-2">
+          {/* Minus 1BB Button */}
+          <button
+            onClick={() => {
+              const newAmount = Math.max(betAmount - safeBigBlind, safeBigBlind);
+              setBetAmount(newAmount);
+            }}
+            disabled={betAmount <= safeBigBlind}
+            className="w-8 h-8 flex items-center justify-center bg-black/60 text-white rounded hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            -
+          </button>
+          
+          {/* Betting Slider */}
           <input
             type="range"
             min={safeBigBlind}
@@ -143,7 +162,20 @@ function ActionButtons() {
             onClick={handleSliderClick}
             className="w-40 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
           />
-          <span className="text-white text-sm min-w-[60px]">${maxBet}</span>
+          
+          {/* Plus 1BB Button */}
+          <button
+            onClick={() => {
+              const newAmount = Math.min(betAmount + safeBigBlind, maxBet);
+              setBetAmount(newAmount);
+            }}
+            disabled={betAmount >= maxBet}
+            className="w-8 h-8 flex items-center justify-center bg-black/60 text-white rounded hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            +
+          </button>
+          
+          {/* Bet Amount Input Field - styled to match All-In button */}
           <input
             type="number"
             min={safeBigBlind}
@@ -155,7 +187,7 @@ function ActionButtons() {
                 setBetAmount(Math.min(value, maxBet));
               }
             }}
-            className="w-20 px-2 py-1 text-black rounded text-center"
+            className="w-20 px-2 py-1 bg-black/60 text-white rounded text-center hover:bg-black/80 transition-colors"
           />
         </div>
       )}
@@ -171,7 +203,7 @@ function ActionButtons() {
             className="px-3 py-1 bg-black/60 text-white rounded hover:bg-black/80 transition-colors"
             disabled={safeBigBlind * 2 > maxBet}
           >
-            2x
+            2BB
           </button>
           <button
             onClick={() => {
@@ -181,7 +213,7 @@ function ActionButtons() {
             className="px-3 py-1 bg-black/60 text-white rounded hover:bg-black/80 transition-colors"
             disabled={safeBigBlind * 3 > maxBet}
           >
-            3x
+            3BB
           </button>
           <button
             onClick={() => setBetAmount(maxBet)}

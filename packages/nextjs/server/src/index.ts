@@ -26,6 +26,7 @@ import {
 } from "./persistence";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
+const ACTION_TIMEOUT_SECONDS = process.env.ACTION_TIMEOUT_SECONDS ? parseInt(process.env.ACTION_TIMEOUT_SECONDS, 10) : 10;
 
 // Create HTTP server for Heroku compatibility
 const server = createServer((req, res) => {
@@ -217,7 +218,7 @@ function ensurePersistentTables() {
 function getEngine(id: string, snapshot?: GameRoom): GameEngine {
   let engine = getRegisteredEngine(id);
   if (!engine) {
-    engine = new GameEngine(id);
+    engine = new GameEngine(id, 50, ACTION_TIMEOUT_SECONDS);
     if (snapshot) {
       engine.loadState(snapshot);
     }
@@ -448,7 +449,7 @@ function startActionTimer(roomId: string, playerId: string) {
     clearInterval(existingTimer);
   }
 
-  let countdown = 10;
+  let countdown = ACTION_TIMEOUT_SECONDS;
   broadcast(roomId, { type: "TIMER", countdown });
 
   const timer = setInterval(() => {
@@ -484,10 +485,12 @@ function startActionTimer(roomId: string, playerId: string) {
           const updatedRoom = engine.getState();
           const activePlayersAfterAction = updatedRoom.players.filter(p => !p.hasFolded);
           
-          if (activePlayersAfterAction.length === 1 && updatedRoom.stage !== "waiting") {
-            console.log(`🏆 [${roomId}] Auto-fold resulted in single winner: ${activePlayersAfterAction[0].id}`);
+          if (activePlayersAfterAction.length === 1) {
+            console.log(`🏆 [${roomId}] Auto-fold resulted in single winner: ${activePlayersAfterAction[0].id}, stage: ${updatedRoom.stage}`);
             // The GameEngine.handleAction should have already handled the payout and state change
-            // Just need to ensure proper cleanup and new hand start
+            // Events will be emitted by GameEngine, server just needs to ensure timers are cleared
+            clearInterval(timer);
+            actionTimers.delete(roomId);
           }
 
           // Track consecutive timeouts with progressive punishment

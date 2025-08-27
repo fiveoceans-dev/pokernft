@@ -21,12 +21,14 @@ export class GameEngine extends EventEmitter {
   private room: GameRoom;
   private machine: PokerStateMachine;
   private showdownTimer: NodeJS.Timeout | null = null;
+  private actionTimeoutMs: number;
 
-  constructor(id: string, minBet = 10) {
+  constructor(id: string, minBet = 10, actionTimeoutSeconds = 10) {
     super();
-    console.log(`🎮 [GameEngine] Creating new game engine for table ${id} with minBet $${minBet}`);
+    console.log(`🎮 [GameEngine] Creating new game engine for table ${id} with minBet $${minBet}, actionTimeout: ${actionTimeoutSeconds}s`);
     this.room = createRoomImpl(id, minBet);
     this.machine = new PokerStateMachine();
+    this.actionTimeoutMs = actionTimeoutSeconds * 1000;
     console.log(`✅ [GameEngine] Game engine created successfully for table ${id}`);
   }
 
@@ -154,7 +156,7 @@ export class GameEngine extends EventEmitter {
         actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
         minRaise: Math.max(this.room.minBet, maxBet + this.room.minBet),
-        timeLeftMs: 10000 // 10 second timer
+        timeLeftMs: this.actionTimeoutMs
       });
     }
   }
@@ -168,20 +170,25 @@ export class GameEngine extends EventEmitter {
     handleActionImpl(this.room, playerId, action);
     this.emit("stateChanged", this.room);
     
-    // Check for single winner scenario first (this happens in handleActionImpl)
+    // Check for single winner scenario after ANY action (room-level handleActionImpl may have set stage to "waiting")
     const activePlayersAfterAction = this.room.players.filter(p => !p.hasFolded);
-    if (activePlayersAfterAction.length === 1 && this.room.stage === "waiting") {
-      console.log(`🏆 [GameEngine] Single winner scenario detected after ${action.type}`);
-      this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
-      this.emit("phaseChanged", this.machine.state);
-      this.emit("handEnded", activePlayersAfterAction);
-      this.emit("stateChanged", this.room);
+    if (activePlayersAfterAction.length === 1) {
+      console.log(`🏆 [GameEngine] Single winner scenario detected after ${action.type}, stage: ${this.room.stage}`);
       
-      // If we still have 2+ players with chips, signal that a new hand can start
-      const playersWithChips = this.room.players.filter((p) => p.chips > 0);
-      if (playersWithChips.length >= 2) {
-        console.log(`🔄 [GameEngine] Ready for new hand with ${playersWithChips.length} players`);
-        this.emit("readyForNewHand");
+      // If stage is already "waiting", room-level logic already handled payout
+      if (this.room.stage === "waiting") {
+        console.log(`🏆 [GameEngine] Payout already handled by room-level logic, emitting events`);
+        this.machine.dispatch({ type: "PAYOUT_COMPLETE" });
+        this.emit("phaseChanged", this.machine.state);
+        this.emit("handEnded", activePlayersAfterAction);
+        this.emit("stateChanged", this.room);
+        
+        // If we still have 2+ players with chips, signal that a new hand can start
+        const playersWithChips = this.room.players.filter((p) => p.chips > 0);
+        if (playersWithChips.length >= 2) {
+          console.log(`🔄 [GameEngine] Ready for new hand with ${playersWithChips.length} players`);
+          this.emit("readyForNewHand");
+        }
       }
       return;
     }
@@ -204,7 +211,7 @@ export class GameEngine extends EventEmitter {
         actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
         minRaise: Math.max(this.room.minBet, maxBet + this.room.minBet),
-        timeLeftMs: 10000 // 10 second timer
+        timeLeftMs: this.actionTimeoutMs
       });
     }
   }
@@ -232,7 +239,7 @@ export class GameEngine extends EventEmitter {
         actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
         minRaise: Math.max(this.room.minBet, maxBet + this.room.minBet),
-        timeLeftMs: 10000 // 10 second timer
+        timeLeftMs: this.actionTimeoutMs
       });
     }
   }
@@ -350,7 +357,7 @@ export class GameEngine extends EventEmitter {
         actingIndex: currentPlayer.seat, // this is the SEAT INDEX (0-8) that client expects
         betToCall,
         minRaise: Math.max(this.room.minBet, maxBet + this.room.minBet),
-        timeLeftMs: 10000 // 10 second timer
+        timeLeftMs: this.actionTimeoutMs
       });
     }
   }
