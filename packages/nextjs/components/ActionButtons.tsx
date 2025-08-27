@@ -4,10 +4,10 @@ import { useGameStore } from "../hooks/useGameStore";
 
 export default function ActionButtons() {
   const actions = usePokerActions();
-  const { playerAction, bigBlind, chips, playerIds, walletId } = useGameStore();
+  const { playerAction, bigBlind, chips, playerIds, currentWalletId } = useGameStore();
   
   const mySeatIndex = playerIds.findIndex(id => 
-    id && walletId && id.toLowerCase() === walletId.toLowerCase()
+    id && currentWalletId && id.toLowerCase() === currentWalletId.toLowerCase()
   );
   const myChips = mySeatIndex >= 0 ? (chips[mySeatIndex] || 0) : 0;
   const maxBet = Math.max(myChips, bigBlind);

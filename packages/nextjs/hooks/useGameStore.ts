@@ -43,18 +43,22 @@ interface GameStoreState {
   bigBlind: number;
   startBlindTimer: () => void;
   socket: WebSocket | null;
-  /** connected wallet identifier if any */
-  walletId: string | null;
+  /** current connected wallet address - single source of truth */
+  currentWalletId: string | null;
+  /** map of tableId to seatIndex for multi-table support */
+  tableSeats: Map<string, number>;
   /** current table ID */
   tableId: string | null;
   /** unified countdown timer from server */
   timer: number | null;
   
   connectWallet: (address: string) => void;
+  handleDisconnect: () => Promise<void>;
   joinTable: (tableId: string) => void;
   createTable: (name: string) => Promise<void>;
   joinSeat: (seatIdx: number, tableId?: string) => Promise<void>;
-  leaveSeat: () => Promise<void>;
+  leaveSeat: (tableId?: string) => Promise<void>;
+  leaveAllTables: () => Promise<void>;
   playerAction: (action: {
     type: "fold" | "call" | "raise" | "check";
     amount?: number;
@@ -143,7 +147,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         } as any;
         socket!.send(JSON.stringify(cmd));
         console.log("📤 Sent ATTACH command with userId:", address);
-        set({ walletId: address });
+        set({ currentWalletId: address });
       } else {
         console.log("ℹ️ No wallet address found, continuing without attachment");
       }
@@ -168,7 +172,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             if (msg.userId) {
               // Store in walletAddress as primary key
               localStorage.setItem("walletAddress", msg.userId);
-              set({ walletId: msg.userId });
+              set({ currentWalletId: msg.userId });
               console.log("💾 Stored wallet address:", msg.userId);
             }
             break;
@@ -188,6 +192,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               // Use full wallet address as player name for consistency
               arr[msg.seat] = msg.playerId;
               ids[msg.seat] = msg.playerId;
+              
+              // If this is our wallet joining, update table seats tracking
+              if (msg.playerId === s.currentWalletId) {
+                const newTableSeats = new Map(s.tableSeats);
+                newTableSeats.set(msg.tableId || s.tableId || "", msg.seat);
+                return { players: arr, playerIds: ids, tableSeats: newTableSeats };
+              }
+              
               return { players: arr, playerIds: ids };
             });
             get().addLog(`${shortAddress(msg.playerId)} joined`);
@@ -200,6 +212,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               ids[msg.seat] = null;
               const states = [...s.playerStates];
               states[msg.seat] = PlayerState.EMPTY;
+              
+              // If this is our wallet leaving, update table seats tracking
+              if (msg.playerId === s.currentWalletId) {
+                const newTableSeats = new Map(s.tableSeats);
+                newTableSeats.delete(msg.tableId || s.tableId || "");
+                return { players: arr, playerIds: ids, playerStates: states, tableSeats: newTableSeats };
+              }
+              
               return { players: arr, playerIds: ids, playerStates: states };
             });
             get().addLog(`${shortAddress(msg.playerId)} left`);
@@ -331,30 +351,111 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       );
     },
     socket,
-    walletId:
+    currentWalletId:
       typeof window !== "undefined"
         ? localStorage.getItem("walletAddress") || localStorage.getItem("sessionId")
         : null,
+    tableSeats: new Map<string, number>(),
     tableId: null,
     timer: null,
 
     connectWallet: (address: string) => {
-      set({ walletId: address });
+      const previousWallet = get().currentWalletId;
+      
+      // If switching wallets, disconnect from previous wallet's sessions
+      if (previousWallet && previousWallet !== address) {
+        console.log("🔄 Switching from", previousWallet, "to", address);
+        get().handleDisconnect().then(() => {
+          // After cleanup, connect with new wallet
+          set({ currentWalletId: address, tableSeats: new Map() });
+          if (typeof window !== "undefined") {
+            localStorage.setItem("walletAddress", address);
+            localStorage.removeItem("sessionId");
+          }
+          // Attach new wallet to WebSocket
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            const cmd: ClientCommand = {
+              cmdId: crypto.randomUUID(),
+              type: "ATTACH",
+              userId: address,
+            } as any;
+            socket.send(JSON.stringify(cmd));
+            console.log("📤 Sent ATTACH command with new wallet:", address);
+          }
+        });
+      } else {
+        // First time connecting or same wallet
+        set({ currentWalletId: address });
+        if (typeof window !== "undefined") {
+          localStorage.setItem("walletAddress", address);
+          localStorage.removeItem("sessionId");
+        }
+        // Attach to WebSocket if connected
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          const cmd: ClientCommand = {
+            cmdId: crypto.randomUUID(),
+            type: "ATTACH",
+            userId: address,
+          } as any;
+          socket.send(JSON.stringify(cmd));
+          console.log("📤 Sent ATTACH command with wallet address:", address);
+        }
+      }
+    },
+
+    handleDisconnect: async () => {
+      console.log("🔌 Handling wallet disconnect...");
+      const { currentWalletId, tableSeats } = get();
+      
+      if (!currentWalletId) return;
+
+      // Auto-fold and leave all tables where this wallet is seated
+      const promises: Promise<void>[] = [];
+      tableSeats.forEach((seatIndex, tableId) => {
+        promises.push(
+          (async () => {
+            try {
+              // Try to fold first if it's this player's turn
+              await get().playerAction({ type: "fold" });
+            } catch (error) {
+              // Ignore fold errors - player might not be on turn
+              console.log("Failed to auto-fold (expected if not on turn):", error);
+            }
+            
+            // Leave the table
+            try {
+              await get().leaveSeat(tableId);
+            } catch (error) {
+              console.error("Failed to leave table", tableId, error);
+            }
+          })()
+        );
+      });
+      
+      await Promise.all(promises);
+      
+      // Clear all wallet-related state and storage
       if (typeof window !== "undefined") {
-        localStorage.setItem("walletAddress", address);
-        // Clear sessionId to avoid conflicts
+        localStorage.removeItem("walletAddress");
         localStorage.removeItem("sessionId");
       }
-      // Attach to WebSocket if connected
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        const cmd: ClientCommand = {
-          cmdId: crypto.randomUUID(),
-          type: "ATTACH",
-          userId: address,
-        } as any;
-        socket.send(JSON.stringify(cmd));
-        console.log("📤 Sent ATTACH command with wallet address:", address);
-      }
+      
+      set({ 
+        currentWalletId: null, 
+        tableSeats: new Map(),
+        tableId: null,
+        // Reset game state for safety
+        players: Array(9).fill(null),
+        playerIds: Array(9).fill(null),
+        playerHands: Array(9).fill(null),
+        chips: Array(9).fill(0),
+        playerBets: Array(9).fill(0),
+        playerStates: Array(9).fill(PlayerState.EMPTY),
+        currentTurn: null,
+        pot: 0
+      });
+      
+      console.log("✅ Wallet disconnect handled successfully");
     },
 
     joinTable: (tableId: string) => {
@@ -388,37 +489,82 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         set({ error: "No table selected" });
         return;
       }
+      
+      const { currentWalletId, tableSeats } = get();
+      if (!currentWalletId) {
+        set({ error: "No wallet connected" });
+        return;
+      }
+      
+      // Check if already seated at this table
+      if (tableSeats.has(currentTableId)) {
+        set({ error: "Already seated at this table" });
+        return;
+      }
+      
       if (socket && socket.readyState === WebSocket.OPEN) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
           type: "SIT",
           tableId: currentTableId,
           seat: seatIdx,
-          buyIn: 10000,
+          buyIn: 10000, // Always $10k per seat
         } as ClientCommand;
         socket.send(JSON.stringify(cmd));
+        
+        // Optimistically update local state
+        const newTableSeats = new Map(tableSeats);
+        newTableSeats.set(currentTableId, seatIdx);
+        set({ tableSeats: newTableSeats });
       }
     },
 
-    leaveSeat: async () => {
+    leaveSeat: async (tableId?: string) => {
+      const currentTableId = tableId || get().tableId;
+      if (!currentTableId) return;
+      
+      const { currentWalletId, tableSeats } = get();
+      if (!currentWalletId || !tableSeats.has(currentTableId)) return;
+      
       if (socket && socket.readyState === WebSocket.OPEN) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
           type: "LEAVE",
+          tableId: currentTableId,
         } as ClientCommand;
         socket.send(JSON.stringify(cmd));
       }
-      set((s) => {
-        const idx = s.playerIds.findIndex((id) => id === s.walletId);
-        if (idx === -1) return {};
-        const players = [...s.players];
-        const ids = [...s.playerIds];
-        const states = [...s.playerStates];
-        players[idx] = null;
-        ids[idx] = null;
-        states[idx] = PlayerState.EMPTY;
-        return { players, playerIds: ids, playerStates: states };
+      
+      // Update local state
+      const newTableSeats = new Map(tableSeats);
+      newTableSeats.delete(currentTableId);
+      set({ tableSeats: newTableSeats });
+      
+      // If leaving current table, clear player state
+      if (currentTableId === get().tableId) {
+        set((s) => {
+          const idx = s.playerIds.findIndex((id) => id === s.currentWalletId);
+          if (idx === -1) return {};
+          const players = [...s.players];
+          const ids = [...s.playerIds];
+          const states = [...s.playerStates];
+          players[idx] = null;
+          ids[idx] = null;
+          states[idx] = PlayerState.EMPTY;
+          return { players, playerIds: ids, playerStates: states };
+        });
+      }
+    },
+
+    leaveAllTables: async () => {
+      const { tableSeats } = get();
+      const promises: Promise<void>[] = [];
+      
+      tableSeats.forEach((seatIndex, tableId) => {
+        promises.push(get().leaveSeat(tableId));
       });
+      
+      await Promise.all(promises);
     },
 
     startHand: async () => {},

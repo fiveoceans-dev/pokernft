@@ -538,6 +538,21 @@ wss.on("connection", (ws) => {
             break;
           }
           
+          // Check if player is already seated at THIS table (prevent multiple seats per table)
+          const existingPlayerOnTable = room.players.find(p => p.id === playerId);
+          if (existingPlayerOnTable) {
+            console.log(`❌ [${clientId}] Player ${playerId} already seated at table ${room.id}`);
+            ws.send(
+              JSON.stringify({
+                tableId: room.id,
+                type: "ERROR",
+                code: "ALREADY_SEATED",
+                msg: "You are already seated at this table",
+              } satisfies ServerEvent),
+            );
+            break;
+          }
+
           const seatingMgr = seating.get(room.id);
           const table = tables.get(room.id);
           console.log(`🔍 [${clientId}] Table objects - seatingMgr: ${!!seatingMgr}, table: ${!!table}`);
@@ -554,7 +569,7 @@ wss.on("connection", (ws) => {
           const finalSeatingMgr = seating.get(room.id);
           const finalTable = tables.get(room.id);
           
-          // Validate seat availability and buy-in using SeatingManager
+          // Validate seat availability using SeatingManager  
           if (finalSeatingMgr && finalTable) {
             if (seatIndex < 0 || seatIndex >= finalTable.seats.length) {
               console.log(`❌ [${clientId}] Seat ${seatIndex} out of range`);
@@ -580,24 +595,11 @@ wss.on("connection", (ws) => {
               );
               break;
             }
-            if (buyIn < finalTable.minBuyIn || buyIn > finalTable.maxBuyIn) {
-              console.log(
-                `❌ [${clientId}] Buy-in ${buyIn} outside range ${finalTable.minBuyIn}-${finalTable.maxBuyIn}`,
-              );
-              ws.send(
-                JSON.stringify({
-                  tableId: room.id,
-                  type: "ERROR",
-                  code: "INVALID_BUYIN",
-                  msg: `Buy-in must be between ${finalTable.minBuyIn} and ${finalTable.maxBuyIn}`,
-                } satisfies ServerEvent),
-              );
-              break;
-            }
 
-            // Use SeatingManager to seat the player in the Table
-            console.log(`🪑 [${clientId}] Using seating manager to seat player ${playerId} at seat ${seatIndex}`);
-            const tablePlayer = finalSeatingMgr.seatPlayer(seatIndex, playerId, buyIn);
+            // Use SeatingManager to seat the player - always use $10k
+            const SEAT_BUYIN = 10000;
+            console.log(`🪑 [${clientId}] Using seating manager to seat player ${playerId} at seat ${seatIndex} with $${SEAT_BUYIN}`);
+            const tablePlayer = finalSeatingMgr.seatPlayer(seatIndex, playerId, SEAT_BUYIN);
             if (!tablePlayer) {
               ws.send(
                 JSON.stringify({
@@ -611,17 +613,18 @@ wss.on("connection", (ws) => {
             }
           }
 
-          // Add player to GameEngine
+          // Add player to GameEngine - always give $10k per seat
+          const SEAT_BUYIN = 10000;
           engine.addPlayer({
             id: playerId,
             nickname,
             seat: seatIndex,
-            chips: buyIn,
+            chips: SEAT_BUYIN,
           });
           seatMaps.get(room.id)?.set(playerId, seatIndex);
           session.roomId = room.id;
           void saveSession(session);
-          console.log(`✅ [${clientId}] Player ${nickname} successfully seated at ${seatIndex} with ${buyIn} chips`);
+          console.log(`✅ [${clientId}] Player ${nickname} successfully seated at ${seatIndex} with ${SEAT_BUYIN} chips (always $10k per seat)`);
           
           broadcast(room.id, {
             type: "PLAYER_JOINED",
@@ -643,11 +646,16 @@ wss.on("connection", (ws) => {
           break;
         }
         case "LEAVE": {
-          if (!session.roomId) break;
-          const engine = getEngine(session.roomId);
+          // Support leaving specific table or current table
+          const tableIdToLeave = (msg as any).tableId || session.roomId;
+          if (!tableIdToLeave) break;
+          
+          const engine = getEngine(tableIdToLeave);
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const seatIndex = seatMaps.get(room.id)?.get(playerId);
+          
+          console.log(`🚪 [${session.sessionId}] Player ${playerId} leaving table ${room.id} from seat ${seatIndex}`);
           
           // Remove from SeatingManager
           const seatingMgr = seating.get(room.id);
@@ -666,7 +674,12 @@ wss.on("connection", (ws) => {
               });
             }
           }
-          session.roomId = undefined;
+          
+          // Only clear session roomId if leaving current room
+          if (tableIdToLeave === session.roomId) {
+            session.roomId = undefined;
+          }
+          
           void saveSession(session);
           void saveRoom(room);
           broadcast(room.id, { type: "TABLE_SNAPSHOT", table: room });

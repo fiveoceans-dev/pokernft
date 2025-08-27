@@ -8,16 +8,19 @@ import {
 } from "@heroicons/react/24/outline";
 import { BlockieAvatar } from "~~/components/scaffold-stark";
 import { useOutsideClick } from "~~/hooks/scaffold-stark";
+import { useGameStore } from "~~/hooks/useGameStore";
 
 export const DemoInfoDropdown = ({ address }: { address: string }) => {
   const [addressCopied, setAddressCopied] = useState(false);
   const dropdownRef = useRef<HTMLDetailsElement>(null);
   const closeDropdown = () => dropdownRef.current?.removeAttribute("open");
+  const { handleDisconnect } = useGameStore();
 
   useOutsideClick(dropdownRef, closeDropdown);
 
-  const handleLogout = () => {
-    localStorage.removeItem("sessionId");
+  const handleLogout = async () => {
+    // Use the game store disconnect handler for proper cleanup
+    await handleDisconnect();
     window.location.reload();
   };
 

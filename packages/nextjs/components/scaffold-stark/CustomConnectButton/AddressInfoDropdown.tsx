@@ -16,6 +16,7 @@ import {
 import { useLocalStorage } from "usehooks-ts";
 import { BlockieAvatar, isENS } from "~~/components/scaffold-stark";
 import { useOutsideClick } from "~~/hooks/scaffold-stark";
+import { useGameStore } from "~~/hooks/useGameStore";
 import { BurnerConnector, burnerAccounts } from "@scaffold-stark/stark-burner";
 import { getTargetNetworks } from "~~/utils/scaffold-stark";
 import { Address } from "@starknet-react/chains";
@@ -24,7 +25,6 @@ import { getStarknetPFPIfExists } from "~~/utils/profile";
 import { useScaffoldStarkProfile } from "~~/hooks/scaffold-stark/useScaffoldStarkProfile";
 import { useTheme } from "next-themes";
 import { default as NextImage } from "next/image";
-import { useGameStore } from "~~/hooks/useGameStore";
 
 const allowedNetworks = getTargetNetworks();
 
@@ -50,7 +50,7 @@ export const AddressInfoDropdown = ({
   const { connectors, connect } = useConnect();
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
-  const { leaveSeat } = useGameStore();
+  const { handleDisconnect } = useGameStore();
   const dropdownRef = useRef<HTMLDetailsElement>(null);
   const closeDropdown = () => {
     setSelectingNetwork(false);
@@ -113,18 +113,6 @@ export const AddressInfoDropdown = ({
           className={`dropdown-content menu z-[2] p-2 mt-2 rounded-[5px] gap-1 border border-[#5c4fe5] bg-base-100`}
         >
           <NetworkOptions hidden={!selectingNetwork} />
-          <li className={selectingNetwork ? "hidden" : ""}>
-            <button
-              className="btn-sm !rounded-xl flex gap-3 py-3"
-              type="button"
-              onClick={() => {
-                leaveSeat();
-              }}
-            >
-              <ArrowLeftStartOnRectangleIcon className="h-6 w-4 ml-2 sm:ml-0" />
-              <span className="whitespace-nowrap">Leave seat</span>
-            </button>
-          </li>
           <li className={selectingNetwork ? "hidden" : ""}>
             {addressCopied ? (
               <div className="btn-sm !rounded-xl flex gap-3 py-3">
@@ -284,8 +272,9 @@ export const AddressInfoDropdown = ({
             <button
               className="btn-sm !rounded-xl flex gap-3 py-3"
               type="button"
-              onClick={() => {
-                localStorage.removeItem("sessionId");
+              onClick={async () => {
+                // Use game store disconnect handler for proper cleanup
+                await handleDisconnect();
                 disconnect();
               }}
             >

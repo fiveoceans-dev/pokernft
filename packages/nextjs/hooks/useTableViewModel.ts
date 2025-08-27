@@ -61,6 +61,9 @@ export function useTableViewModel(_timer?: number | null) {
     playerStates,
     dealerIndex,
     timer: serverTimer,
+    currentWalletId,
+    tableSeats,
+    tableId,
   } = useGameStore();
 
   const isMobile = useIsMobile();
@@ -105,11 +108,23 @@ export function useTableViewModel(_timer?: number | null) {
 
   const { address } = useWalletGameSync();
   const walletSeatIdx = useMemo(() => {
-    if (!address) return -1;
+    if (!currentWalletId || !tableId) return -1;
+    
+    // Check if we have a seat at the current table
+    const seatIndex = tableSeats.get(tableId);
+    if (seatIndex !== undefined) {
+      // Verify the seat is still ours in the current player list
+      const playerId = playerIds[seatIndex];
+      if (playerId && playerId.toLowerCase() === currentWalletId.toLowerCase()) {
+        return seatIndex;
+      }
+    }
+    
+    // Fallback: search through playerIds (for compatibility)
     return playerIds.findIndex(
-      (id) => id && id.toLowerCase() === address.toLowerCase(),
+      (id) => id && currentWalletId && id.toLowerCase() === currentWalletId.toLowerCase(),
     );
-  }, [playerIds, address]);
+  }, [playerIds, currentWalletId, tableSeats, tableId]);
 
   useEffect(() => {
     if (currentTurn !== null) {

@@ -13,14 +13,14 @@ export function usePokerActions() {
     currentTurn,
     playerBets,
     chips,
-    walletId,
+    currentWalletId,
     playerIds
   } = useGameStore();
 
   return useMemo(() => {
     // Find the current player's seat using case-insensitive comparison
     const mySeatIndex = playerIds.findIndex(id => 
-      id && walletId && id.toLowerCase() === walletId.toLowerCase()
+      id && currentWalletId && id.toLowerCase() === currentWalletId.toLowerCase()
     );
     const isMyTurn = mySeatIndex >= 0 && currentTurn === mySeatIndex;
     const myChips = mySeatIndex >= 0 ? (chips[mySeatIndex] || 0) : 0;
@@ -63,5 +63,5 @@ export function usePokerActions() {
     ];
 
     return actions;
-  }, [currentTurn, playerBets, chips, walletId, playerIds]);
+  }, [currentTurn, playerBets, chips, currentWalletId, playerIds]);
 }
