@@ -271,12 +271,25 @@ function getRoom(id: string): GameRoom {
 
 function broadcast(roomId: string, event: any) {
   const msg = JSON.stringify({ tableId: roomId, ...event });
+  let sentCount = 0;
+  let totalClients = 0;
+  
   wss.clients.forEach((client) => {
+    totalClients++;
     const session = sessions.get(client as WebSocket);
-    if (session?.roomId === roomId && client.readyState === WebSocket.OPEN) {
+    const isInRoom = session?.roomId === roomId;
+    const isOpen = client.readyState === WebSocket.OPEN;
+    
+    console.log(`📡 [broadcast] Client check: sessionId=${session?.sessionId?.slice(0, 10)}..., roomId=${session?.roomId || 'none'}, targetRoom=${roomId}, inRoom=${isInRoom}, open=${isOpen}`);
+    
+    if (isInRoom && isOpen) {
       client.send(msg);
+      sentCount++;
+      console.log(`✅ [broadcast] Message sent to client in room ${roomId}`);
     }
   });
+  
+  console.log(`📡 [broadcast] Event: ${event.type}, Room: ${roomId}, Sent: ${sentCount}/${totalClients} clients`);
 }
 
 function startGameCountdown(roomId: string) {
@@ -555,20 +568,21 @@ wss.on("connection", (ws) => {
           if (attached) {
             const hadTimeout = attached.timeout !== undefined;
             session.userId = attached.userId;
-            session.roomId = attached.roomId;
+            // Preserve current roomId if it exists, otherwise use attached roomId
+            session.roomId = session.roomId || attached.roomId;
             sessions.handleReconnect(attached);
             void saveSession(session);
-            console.log(`✅ [${clientId}] Session attached successfully - userId: ${attached.userId}, roomId: ${attached.roomId || 'none'}`);
+            console.log(`✅ [${clientId}] Session attached successfully - userId: ${attached.userId}, roomId: ${session.roomId || 'none'}`);
             ws.send(
               JSON.stringify({
-                tableId: attached.roomId ?? "",
+                tableId: session.roomId ?? "",
                 type: "SESSION",
                 sessionId: attached.sessionId,
                 userId: attached.userId,
               } satisfies ServerEvent),
             );
-            if (attached.roomId) {
-              const engine = getEngine(attached.roomId);
+            if (session.roomId) {
+              const engine = getEngine(session.roomId);
               const room = engine.getState();
               if (hadTimeout) {
                 const playerId = attached.userId ?? attached.sessionId;

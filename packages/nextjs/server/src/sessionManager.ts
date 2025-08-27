@@ -56,6 +56,7 @@ export class SessionManager {
       this.sessions.set(ws, session);
       this.bySessionId.set(session.sessionId, session);
     }
+    // Preserve existing roomId when attaching userId
     session.userId = userId;
     this.byUserId.set(userId, session);
     return session;
