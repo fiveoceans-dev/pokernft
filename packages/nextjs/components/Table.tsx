@@ -44,6 +44,17 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   const { isConnected, address } = useWalletGameSync();
 
+  // Debug logging for player data
+  console.log("🎲 Table component debug:", {
+    playersCount: players.filter(p => p).length,
+    players: players.map((p, i) => ({ seat: i, name: p })).filter(p => p.name),
+    playerIds: playerIds.map((id, i) => ({ seat: i, id: id?.slice(0, 10) + "..." })).filter(p => p.id && p.id !== "undefined..."),
+    chips: chips.map((c, i) => ({ seat: i, chips: c })).filter(c => c.chips > 0),
+    currentTurn,
+    dealerIndex,
+    displayTimer
+  });
+
   const handleSeatRequest = (idx: number) => {
     if (!isConnected || !address) {
       // Show wallet connect modal

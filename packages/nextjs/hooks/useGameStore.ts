@@ -93,8 +93,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const states = Array(9).fill(PlayerState.EMPTY) as PlayerState[];
 
     room.players?.forEach((p: any) => {
-      // Use wallet address as player name for consistency
-      seats[p.seat] = p.id;
+      // Use nickname if available, otherwise use wallet address for display
+      seats[p.seat] = p.nickname || p.id;
       ids[p.seat] = p.id;
       if (p.hand?.length === 2) {
         hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
@@ -183,8 +183,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               set((s) => {
                 const arr = [...s.players];
                 const ids = [...s.playerIds];
-                // Use full wallet address as player name for consistency
-                arr[msg.seat] = msg.playerId;
+                // Use nickname if available, otherwise use playerId for display
+                arr[msg.seat] = (msg as any).nickname || msg.playerId;
                 ids[msg.seat] = msg.playerId;
                 
                 // If this is our wallet joining, update table seats tracking

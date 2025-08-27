@@ -92,6 +92,7 @@ ensurePersistentTables();
 
 function ensurePersistentTables() {
   const persistentTables = [
+    { id: "demo", name: "🎲 Demo Table", blinds: { small: 25, big: 50 } },
     { id: "andromeda", name: "🌌 Andromeda Station", blinds: { small: 25, big: 50 } },
     { id: "orion", name: "🚀 Orion Outpost", blinds: { small: 50, big: 100 } }
   ];
@@ -273,6 +274,9 @@ function broadcast(roomId: string, event: any) {
   const msg = JSON.stringify({ tableId: roomId, ...event });
   let sentCount = 0;
   let totalClients = 0;
+  let inRoomClients = 0;
+  
+  console.log(`📡 [broadcast] Starting broadcast for event: ${event.type} to room: ${roomId}`);
   
   wss.clients.forEach((client) => {
     totalClients++;
@@ -280,16 +284,28 @@ function broadcast(roomId: string, event: any) {
     const isInRoom = session?.roomId === roomId;
     const isOpen = client.readyState === WebSocket.OPEN;
     
-    console.log(`📡 [broadcast] Client check: sessionId=${session?.sessionId?.slice(0, 10)}..., roomId=${session?.roomId || 'none'}, targetRoom=${roomId}, inRoom=${isInRoom}, open=${isOpen}`);
+    if (isInRoom) {
+      inRoomClients++;
+      console.log(`📡 [broadcast] Found client in room ${roomId}: sessionId=${session?.sessionId?.slice(0, 10)}..., userId=${session?.userId?.slice(0, 10) || 'none'}..., open=${isOpen}`);
+    }
     
     if (isInRoom && isOpen) {
-      client.send(msg);
-      sentCount++;
-      console.log(`✅ [broadcast] Message sent to client in room ${roomId}`);
+      try {
+        client.send(msg);
+        sentCount++;
+        console.log(`✅ [broadcast] Message sent successfully to client in room ${roomId}`);
+      } catch (error) {
+        console.error(`❌ [broadcast] Failed to send message to client:`, error);
+      }
     }
   });
   
-  console.log(`📡 [broadcast] Event: ${event.type}, Room: ${roomId}, Sent: ${sentCount}/${totalClients} clients`);
+  console.log(`📡 [broadcast] Event: ${event.type}, Room: ${roomId}, Sent: ${sentCount}/${inRoomClients} clients in room (${totalClients} total clients)`);
+  
+  // Warn if no clients received the message
+  if (sentCount === 0 && inRoomClients > 0) {
+    console.warn(`⚠️ [broadcast] WARNING: ${inRoomClients} clients in room but 0 messages sent! Possible connection issues.`);
+  }
 }
 
 function startGameCountdown(roomId: string) {
@@ -821,12 +837,19 @@ wss.on("connection", (ws) => {
               type: action.toLowerCase() as any,
               amount: msg.amount,
             });
+            
+            // Broadcast action event first
             broadcast(room.id, {
               type: "PLAYER_ACTION_APPLIED",
               playerId,
               action,
               amount: msg.amount,
             });
+            
+            // Then broadcast updated table state to ensure all clients are synchronized
+            const updatedRoom = engine.getState();
+            broadcast(room.id, { type: "TABLE_SNAPSHOT", table: updatedRoom });
+            
             timeoutCounts.delete(playerId);
           } catch (error) {
             ws.send(
