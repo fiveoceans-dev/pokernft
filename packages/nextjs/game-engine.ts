@@ -7,7 +7,8 @@ export type {
   Card,
   Table,
   Player,
-  Stage
+  Stage,
+  GameRoom
 } from "./server/game-engine/types";
 
 // Export types from networking.ts
@@ -29,3 +30,7 @@ export {
   indexToCard,
   cardToIndex 
 } from "./server/game-engine/utils";
+
+// Export classes for server use
+export { GameEngine } from "./server/game-engine/gameEngine";
+export { SeatingManager } from "./server/game-engine/seatingManager";

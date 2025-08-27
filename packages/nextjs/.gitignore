@@ -35,3 +35,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# compiled typescript files
+server/**/*.js
+server/**/*.d.ts
+server/**/*.js.map
+utils/**/*.js
+utils/**/*.d.ts
+utils/**/*.js.map
+!postcss.config.js
