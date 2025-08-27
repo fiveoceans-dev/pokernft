@@ -408,12 +408,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         reconnectAttempts = 0;
         set({ connectionState: 'connected', connectionError: null });
         
-        // Use single consistent wallet address source - prioritize walletAddress over sessionId
-        const walletAddress = localStorage.getItem("walletAddress");
-        const sessionAddress = localStorage.getItem("sessionId");
-        const address = walletAddress || sessionAddress;
+        // Use walletAddress as the single source of truth for connected wallet
+        const address = localStorage.getItem("walletAddress");
         
-        console.log("🔍 Checking for stored addresses:", { walletAddress, sessionAddress, finalAddress: address });
+        console.log("🔍 Checking for stored wallet address:", address);
         
         if (address) {
           try {
@@ -539,7 +537,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     socket,
     currentWalletId:
       typeof window !== "undefined"
-        ? localStorage.getItem("walletAddress") || localStorage.getItem("sessionId")
+        ? localStorage.getItem("walletAddress")
         : null,
     tableSeats: new Map<string, number>(),
     tableId: null,
@@ -563,8 +561,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           // After cleanup, connect with new wallet
           set({ currentWalletId: address, tableSeats: new Map(), connectionError: null });
           if (typeof window !== "undefined") {
+            // Always store wallet address in walletAddress for consistency
             localStorage.setItem("walletAddress", address);
-            localStorage.removeItem("sessionId");
+            // Keep sessionId for session management but don't use it for wallet identity
           }
           // Ensure WebSocket is connected before attaching
           if (socket && socket.readyState === WebSocket.OPEN) {
@@ -592,8 +591,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         // First time connecting or same wallet
         set({ currentWalletId: address, connectionError: null });
         if (typeof window !== "undefined") {
+          // Always store wallet address in walletAddress for consistency
           localStorage.setItem("walletAddress", address);
-          localStorage.removeItem("sessionId");
+          // Keep sessionId for session management but don't use it for wallet identity
         }
         // Ensure WebSocket is connected before attaching
         if (socket && socket.readyState === WebSocket.OPEN) {

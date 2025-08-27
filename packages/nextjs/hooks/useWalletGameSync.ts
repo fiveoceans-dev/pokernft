@@ -70,7 +70,7 @@ export function useWalletGameSync() {
         
       } else if (status === "disconnected" && currentWalletId) {
         // Only handle disconnect if we have a stored wallet - this means user logged out
-        const storedAddress = localStorage.getItem("walletAddress") || localStorage.getItem("sessionId");
+        const storedAddress = localStorage.getItem("walletAddress");
         
         if (!storedAddress) {
           // User actually logged out, handle disconnect
@@ -85,7 +85,7 @@ export function useWalletGameSync() {
         
       } else if (status === "disconnected" && !currentWalletId && !isInitialized) {
         // Check for stored wallet address on initial load
-        const storedAddress = localStorage.getItem("walletAddress") || localStorage.getItem("sessionId");
+        const storedAddress = localStorage.getItem("walletAddress");
         if (storedAddress) {
           console.log('🔄 Found stored wallet on initial load, connecting');
           safeConnectWallet(storedAddress);
@@ -109,7 +109,7 @@ export function useWalletGameSync() {
   // Safe localStorage access with error handling
   const getStoredWalletAddress = useCallback(() => {
     try {
-      return localStorage.getItem("walletAddress") || localStorage.getItem("sessionId");
+      return localStorage.getItem("walletAddress");
     } catch (err) {
       console.error('🚫 LocalStorage access error:', err);
       return null;
@@ -117,8 +117,8 @@ export function useWalletGameSync() {
   }, []);
 
   return {
-    isConnected: status === "connected" || !!getStoredWalletAddress(),
-    address: address || getStoredWalletAddress(),
+    isConnected: status === "connected" || !!currentWalletId,
+    address: currentWalletId || address || getStoredWalletAddress(),
     status,
     error,
     isInitialized,

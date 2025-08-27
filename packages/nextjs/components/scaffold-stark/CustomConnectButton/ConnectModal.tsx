@@ -67,7 +67,7 @@ const ConnectModal = () => {
 
   function handleDemoPlayer() {
     const addr = randomAddress();
-    localStorage.setItem("sessionId", addr);
+    localStorage.setItem("walletAddress", addr);
     handleCloseModal();
     window.location.reload();
   }

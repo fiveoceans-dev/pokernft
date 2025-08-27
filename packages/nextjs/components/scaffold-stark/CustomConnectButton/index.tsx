@@ -26,7 +26,7 @@ export const CustomConnectButton = () => {
   const [accountChainId, setAccountChainId] = useState<bigint>(0n);
   const { chain } = useNetwork();
   const [demoAddress, setDemoAddress] = useState<string | null>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("sessionId") : null,
+    typeof window !== "undefined" ? localStorage.getItem("walletAddress") : null,
   );
 
   const blockExplorerAddressLink = useMemo(() => {
@@ -36,19 +36,21 @@ export const CustomConnectButton = () => {
     );
   }, [accountAddress, targetNetwork]);
 
-  useEffect(() => {
-    if (accountAddress) {
-      localStorage.setItem("sessionId", accountAddress);
-    }
-  }, [accountAddress]);
+  // Real wallet addresses are managed by useWalletGameSync, not here
+  // Remove the localStorage.setItem("sessionId", accountAddress) to avoid conflicts
 
   useEffect(() => {
     if (status === "disconnected") {
       const stored =
         typeof window !== "undefined"
-          ? localStorage.getItem("sessionId")
+          ? localStorage.getItem("walletAddress")
           : null;
-      setDemoAddress(stored);
+      // Only show as demo if it's actually a demo address (42 chars) and not a real wallet
+      if (stored && stored.length === 42 && stored.startsWith("0x")) {
+        setDemoAddress(stored);
+      } else {
+        setDemoAddress(null);
+      }
     } else {
       setDemoAddress(null);
     }
