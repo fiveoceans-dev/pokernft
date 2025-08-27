@@ -23,13 +23,18 @@ export class GameEngine extends EventEmitter {
 
   constructor(id: string, minBet = 10) {
     super();
+    console.log(`🎮 [GameEngine] Creating new game engine for table ${id} with minBet $${minBet}`);
     this.room = createRoomImpl(id, minBet);
     this.machine = new PokerStateMachine();
+    console.log(`✅ [GameEngine] Game engine created successfully for table ${id}`);
   }
 
   /** Load an existing room snapshot */
   loadState(room: GameRoom): void {
+    console.log(`📂 [GameEngine] Loading room state for ${room.id} with ${room.players.length} players`);
     this.room = room;
+    console.log(`✅ [GameEngine] Room state loaded successfully, stage: ${this.room.stage}`);
+    this.emit("stateChanged", this.room);
   }
 
   /** current high level engine phase */
@@ -49,24 +54,35 @@ export class GameEngine extends EventEmitter {
       "isDealer" | "isTurn" | "hand" | "hasFolded" | "currentBet" | "tableId"
     >,
   ): PlayerSession {
-    return addPlayerImpl(this.room, player);
+    console.log(`🪑 [GameEngine] Adding player ${player.id} (${player.nickname}) to seat ${player.seat} with ${player.chips} chips`);
+    const result = addPlayerImpl(this.room, player);
+    console.log(`✅ [GameEngine] Player added successfully. Table now has ${this.room.players.length} players`);
+    this.emit("stateChanged", this.room);
+    return result;
   }
 
   /** Remove a player from the room */
   removePlayer(playerId: string): boolean {
+    console.log(`👋 [GameEngine] Removing player ${playerId} from table ${this.room.id}`);
     const idx = this.room.players.findIndex((p) => p.id === playerId);
-    if (idx === -1) return false;
+    if (idx === -1) {
+      console.log(`❌ [GameEngine] Player ${playerId} not found in table ${this.room.id}`);
+      return false;
+    }
     this.room.players.splice(idx, 1);
+    console.log(`✅ [GameEngine] Player removed. Table now has ${this.room.players.length} players`);
     this.emit("stateChanged", this.room);
     return true;
   }
 
   /** Start a fresh hand */
   startHand() {
+    console.log(`🎯 [GameEngine] Starting new hand for table ${this.room.id} with ${this.room.players.length} players`);
     this.machine.dispatch({ type: "PLAYERS_READY" });
     this.machine.dispatch({ type: "SHUFFLE_COMPLETE" });
     startHandImpl(this.room);
     this.machine.dispatch({ type: "DEAL_COMPLETE" });
+    console.log(`✅ [GameEngine] Hand started successfully, stage: ${this.room.stage}, pot: $${this.room.pot}`);
     this.emit("stateChanged", this.room);
     this.emit("phaseChanged", this.machine.state);
     this.emit("handStarted", this.room);
@@ -140,8 +156,11 @@ export class GameEngine extends EventEmitter {
 
   /** manually advance stage (used for dev controls) */
   progressStage() {
+    const prevStage = this.room.stage;
+    console.log(`⏭️ [GameEngine] Manually advancing stage from ${prevStage} for table ${this.room.id}`);
     progressStageImpl(this.room);
     this.machine.dispatch({ type: "DEAL_COMPLETE" });
+    console.log(`✅ [GameEngine] Stage advanced from ${prevStage} to ${this.room.stage}`);
     this.emit("phaseChanged", this.machine.state);
     this.emit("stageChanged", this.room.stage);
     this.emit("stateChanged", this.room);
@@ -170,7 +189,11 @@ export class GameEngine extends EventEmitter {
 
   /** Split the pot amongst winners */
   payout(winners: PlayerSession[]) {
+    const potAmount = this.room.pot;
+    console.log(`💰 [GameEngine] Paying out $${potAmount} to ${winners.length} winner(s): ${winners.map(w => w.id).join(', ')}`);
     payoutImpl(this.room, winners);
+    console.log(`✅ [GameEngine] Payout completed`);
+    this.emit("stateChanged", this.room);
   }
 
   private resolveRound() {
