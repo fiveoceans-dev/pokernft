@@ -2,9 +2,6 @@ import { GameRoom, PlayerSession, Stage } from "./types";
 import { dealDeck, draw } from "./utils";
 import { randomInt } from "./rng";
 import { evaluateHand } from "./hashEvaluator";
-import { BlindManager } from "./blindManager";
-import { BettingRuleEngine } from "./BettingRuleEngine";
-import { TurnOrderManager } from "./TurnOrderManager";
 
 /** Create an empty game room */
 export function createRoom(id: string, minBet = 50): GameRoom {
@@ -52,8 +49,8 @@ export function addPlayer(
 
 /**
  * Start a new hand at the room level and deal cards. Requires at least
- * two players to be seated with chips. Updates dealer/button positions
- * and posts blinds via {@link BlindManager}.
+ * two players to be seated with chips. Updates dealer/button positions.
+ * Note: This is a legacy utility function - GameController should be used for full game logic.
  */
 export function startRoomHand(room: GameRoom) {
   console.log(`🔄 [${room.id}] Starting new hand with ${room.players.length} players`);
@@ -121,10 +118,24 @@ export function startRoomHand(room: GameRoom) {
   
   console.log(`🃏 [${room.id}] Dealer is ${room.players[room.dealerIndex].id} at seat ${room.players[room.dealerIndex].seat}`);
 
-  // Post blinds using the table's default amounts
-  const blindMgr = new BlindManager(room.smallBlindAmount, room.bigBlindAmount);
-  const { sb, bb } = blindMgr.postBlinds(room);
-  console.log(`💰 [${room.id}] Blinds posted - SB: $${room.smallBlindAmount} at seat ${room.players[sb].seat}, BB: $${room.bigBlindAmount} at seat ${room.players[bb].seat}`);
+  // Basic blind posting logic (GameController should handle this in full implementation)
+  const sbIndex = (room.dealerIndex + 1) % room.players.length;
+  const bbIndex = (room.dealerIndex + 2) % room.players.length;
+  
+  // Post small blind
+  room.players[sbIndex].chips -= room.smallBlindAmount;
+  room.players[sbIndex].currentBet = room.smallBlindAmount;
+  room.pot += room.smallBlindAmount;
+  
+  // Post big blind  
+  room.players[bbIndex].chips -= room.bigBlindAmount;
+  room.players[bbIndex].currentBet = room.bigBlindAmount;
+  room.pot += room.bigBlindAmount;
+  
+  console.log(`💰 [${room.id}] Blinds posted - SB: $${room.smallBlindAmount} at seat ${room.players[sbIndex].seat}, BB: $${room.bigBlindAmount} at seat ${room.players[bbIndex].seat}`);
+  
+  const sb = sbIndex;
+  const bb = bbIndex;
   
   // Record blind postings as forced actions (not voluntary)
   room.actionHistory.push({
@@ -142,9 +153,11 @@ export function startRoomHand(room: GameRoom) {
     timestamp: Date.now()
   });
   
-  // Initialize proper preflop turn order with BB acting last
-  TurnOrderManager.initializeTurnOrder(room);
+  // Initialize turn order - first to act is after big blind (UTG)
+  room.currentTurnIndex = (bbIndex + 1) % room.players.length;
+  room.firstToActIndex = room.currentTurnIndex;
   room.lastAggressorIndex = bb; // Big blind is initial "aggressor" with their forced bet
+  room.players[room.currentTurnIndex].isTurn = true;
   
   const currentPlayer = room.players[room.currentTurnIndex];
   console.log(`🎯 [${room.id}] First to act: ${currentPlayer.id} at seat ${currentPlayer.seat} (position ${room.currentTurnIndex})`);
@@ -215,7 +228,7 @@ export function handleAction(
   nextTurn(room);
 }
 
-/** Advance turn to the next active player using TurnOrderManager */
+/** Advance turn to the next active player */
 export function nextTurn(room: GameRoom) {
   if (room.players.length === 0) {
     console.log(`⚠️ [${room.id}] Cannot advance turn: no players`);
@@ -224,13 +237,19 @@ export function nextTurn(room: GameRoom) {
   
   const currentPlayerId = room.players[room.currentTurnIndex]?.id;
   
-  // Use TurnOrderManager which handles BB last action in preflop
-  TurnOrderManager.advanceToNextPlayer(room);
+  // Clear current player's turn flag
+  if (room.currentTurnIndex >= 0 && room.currentTurnIndex < room.players.length) {
+    room.players[room.currentTurnIndex].isTurn = false;
+  }
+  
+  // Find next active player
+  room.currentTurnIndex = nextActiveIndex(room, room.currentTurnIndex);
   
   const newPlayer = room.players[room.currentTurnIndex];
-  if (newPlayer) {
+  if (newPlayer && !newPlayer.hasFolded && newPlayer.chips > 0) {
+    newPlayer.isTurn = true;
     console.log(`🔄 [${room.id}] Turn advanced from ${currentPlayerId} to ${newPlayer.id} (position ${room.currentTurnIndex})`);
-  } else if (room.currentTurnIndex === -1) {
+  } else {
     console.log(`✅ [${room.id}] No more players to act - betting round should complete`);
   }
 }
@@ -275,8 +294,12 @@ export function progressStage(room: GameRoom) {
   room.actionHistory = []; // Reset action history for new betting round
   room.stage = next;
   
-  // Use TurnOrderManager to properly initialize turn order for the new stage
-  TurnOrderManager.initializeTurnOrder(room);
+  // Initialize turn order for post-flop (dealer acts last)
+  room.currentTurnIndex = nextActiveIndex(room, room.dealerIndex);
+  room.firstToActIndex = room.currentTurnIndex;
+  if (room.currentTurnIndex >= 0 && room.currentTurnIndex < room.players.length) {
+    room.players[room.currentTurnIndex].isTurn = true;
+  }
   
   const currentPlayer = room.players[room.currentTurnIndex];
   console.log(`🎯 [${room.id}] Stage progressed to ${next}, first to act: ${currentPlayer?.id} at seat ${currentPlayer?.seat}`);
@@ -296,10 +319,18 @@ export function determineWinners(room: GameRoom): PlayerSession[] {
 
 /**
  * Determine if the current betting round within a room is complete.
- * Now delegates to the centralized BettingRuleEngine for consistent logic.
+ * Basic logic - GameController should handle this in full implementation.
  */
 export function isRoomRoundComplete(room: GameRoom): boolean {
-  return BettingRuleEngine.isBettingRoundComplete(room);
+  const activePlayers = room.players.filter(p => !p.hasFolded && p.chips > 0);
+  
+  if (activePlayers.length <= 1) return true;
+  
+  // Check if all active players have equal bets
+  const maxBet = Math.max(0, ...room.players.map(p => p.currentBet));
+  const allEqual = activePlayers.every(p => p.currentBet === maxBet || p.chips === 0);
+  
+  return allEqual;
 }
 
 /** Split the pot equally amongst winners */

@@ -4,6 +4,7 @@ import { BettingRoundState, BettingState } from "./BettingRoundState";
 import { PositionManager } from "./PositionManager";
 import { ActionValidator } from "./ActionValidator";
 import { TimerManager } from "./TimerManager";
+import { dealDeck } from "../utils";
 
 /**
  * Action processing result
@@ -22,10 +23,10 @@ interface ActionResult {
  */
 export class GameController {
   private room: GameRoom;
-  private turnOrder: TurnOrderManager;
-  private bettingState: BettingRoundState;
-  private positions: PositionManager;
-  private actionValidator: ActionValidator;
+  private turnOrder!: TurnOrderManager;
+  private bettingState!: BettingRoundState;
+  private positions!: PositionManager;
+  private actionValidator!: ActionValidator;
   private timerManager: TimerManager;
 
   constructor(room: GameRoom) {
@@ -49,8 +50,30 @@ export class GameController {
    */
   public startNewHand(): void {
     console.log(`🆕 [${this.room.id}] Starting new hand with GameController`);
+    
+    // Check minimum players
+    if (this.room.players.length < 2) {
+      this.room.stage = "waiting";
+      console.log(`⚠️ [${this.room.id}] Not enough players for hand, waiting...`);
+      return;
+    }
+    
+    // Filter out busted players
+    const playersBeforeFilter = this.room.players.length;
+    this.room.players = this.room.players.filter((p) => p.chips > 0);
+    
+    if (this.room.players.length !== playersBeforeFilter) {
+      console.log(`👋 [${this.room.id}] Removed ${playersBeforeFilter - this.room.players.length} busted players`);
+    }
+    
+    if (this.room.players.length < 2) {
+      this.room.stage = "waiting";
+      console.log(`⚠️ [${this.room.id}] Not enough players after removing busted players, waiting...`);
+      return;
+    }
 
-    // Reset room state
+    // Shuffle deck and reset room state
+    this.room.deck = dealDeck();
     this.room.pot = 0;
     this.room.communityCards = [];
     this.room.actionHistory = [];
@@ -406,6 +429,39 @@ export class GameController {
    */
   public canAnyPlayerAct(): boolean {
     return this.actionValidator.canAnyPlayerAct();
+  }
+
+  /**
+   * Check if we should fast-forward to showdown (all-in scenario)
+   */
+  public shouldFastForwardToShowdown(): boolean {
+    const activePlayers = this.room.players.filter(p => !p.hasFolded);
+    
+    // Need at least 2 active players
+    if (activePlayers.length < 2) {
+      return false;
+    }
+    
+    // Check if all active players except at most one are all-in
+    const playersWithChips = activePlayers.filter(p => p.chips > 0);
+    
+    // If 0 or 1 player has chips, fast forward
+    return playersWithChips.length <= 1;
+  }
+
+  /**
+   * Fast forward through remaining betting rounds to showdown
+   */
+  public fastForwardToShowdown(): void {
+    console.log(`⏩ [${this.room.id}] Fast-forwarding to showdown (all players all-in)`);
+    
+    // Mark betting as blocked
+    this.bettingState.refresh();
+    
+    // Progress directly to showdown
+    while (this.room.stage !== "showdown") {
+      this.progressStage();
+    }
   }
 
   /**

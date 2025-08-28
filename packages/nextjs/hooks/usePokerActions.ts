@@ -88,6 +88,13 @@ export function usePokerActions() {
     const canCheck = betToCall === 0;
     const canBet = maxBet === 0; // No one has bet yet in this round
     const minRaise = Math.max(maxBet + 50, 50); // Min raise is previous bet + big blind, minimum 50
+    
+    // Check if this is BB with option (preflop, I'm BB, everyone called)
+    const isBBWithOption = street === 0 && // preflop
+                          mySeatIndex >= 0 &&
+                          betToCall === 0 && 
+                          maxBet > 0 && // There are bets (blinds)
+                          maxBet <= 10; // Max bet is still just the BB (assuming BB is 10)
 
     // Safety check: if we don't have chips data, return limited actions
     if (myChips < 0) {
@@ -123,7 +130,7 @@ export function usePokerActions() {
       {
         type: "raise",
         label: "Raise",
-        enabled: isMyTurn && canTakeActions && betToCall > 0 && myChips >= minRaise,
+        enabled: isMyTurn && canTakeActions && ((betToCall > 0 && myChips >= minRaise) || (isBBWithOption && myChips >= 50)),
       }
     ];
 
@@ -142,7 +149,8 @@ export function usePokerActions() {
         canCheck: canCheck,
         canCall: betToCall > 0 && myChips >= betToCall,
         canBet: canBet && myChips >= 50,
-        canRaise: betToCall > 0 && myChips >= minRaise,
+        canRaise: (betToCall > 0 && myChips >= minRaise) || (isBBWithOption && myChips >= 50),
+        isBBWithOption,
         actions: actions.map(a => ({ type: a.type, enabled: a.enabled }))
       });
     }

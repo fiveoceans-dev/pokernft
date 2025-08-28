@@ -46,18 +46,20 @@ export * from "./hashEvaluator";
 export * from "./handEvaluator";
 export * from "./rng";
 export * from "./gameEngine";
-export * from "./blindManager";
-export * from "./seatingManager";
+// Legacy exports removed - functionality moved to GameController
+// export * from "./blindManager";
+// export * from "./seatingManager";
 export * from "./eventBus";
 export * from "./playerStateMachine";
 export * from "./tableStateMachine";
 export * from "./dealer";
-export {
-  startBettingRound,
-  applyAction,
-  applyActionFromJson,
-  isBettingRoundComplete,
-} from "./bettingEngine";
+// Legacy betting engine exports removed - functionality moved to GameController
+// export {
+//   startBettingRound,
+//   applyAction,
+//   applyActionFromJson,
+//   isBettingRoundComplete,
+// } from "./bettingEngine";
 export * from "./potManager";
 export * from "./timerService";
 export * from "./handReset";

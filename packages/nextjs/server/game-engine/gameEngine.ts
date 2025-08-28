@@ -11,9 +11,6 @@ import {
   payout as payoutImpl,
 } from "./room";
 import { PokerStateMachine, GameState } from "./stateMachine";
-import { BettingRuleEngine } from "./BettingRuleEngine";
-import { AllInDetectionEngine } from "./AllInDetectionEngine";
-import { TurnOrderManager } from "./TurnOrderManager";
 import { GameController } from "./data-structures/GameController";
 
 /**
@@ -137,10 +134,10 @@ export class GameEngine extends EventEmitter {
     console.log(`✅ [GameEngine] Player removed. Table now has ${this.room.players.length} players`);
     
     // Check if game countdown should be cancelled with fewer players
-    if (this.gameController && this.room.stage === "waiting") {
+    if (this.room.stage === "waiting") {
       const activePlayers = this.room.players.filter(p => p.chips > 0);
       if (activePlayers.length < 2) {
-        this.gameController.getTimerManager().cancelGameStart();
+        this.gameController!.getTimerManager().cancelGameStart();
       }
     }
     
@@ -161,7 +158,11 @@ export class GameEngine extends EventEmitter {
     
     this.machine.dispatch({ type: "PLAYERS_READY" });
     this.machine.dispatch({ type: "SHUFFLE_COMPLETE" });
-    startHandImpl(this.room);
+    
+    // Use GameController for complete new hand logic
+    console.log(`🎮 [GameEngine] Using GameController for new hand`);
+    this.gameController!.startNewHand();
+    
     this.machine.dispatch({ type: "DEAL_COMPLETE" });
     console.log(`✅ [GameEngine] Hand started successfully, stage: ${this.room.stage}, pot: $${this.room.pot}`);
     this.emit("stateChanged", this.room);
@@ -205,19 +206,34 @@ export class GameEngine extends EventEmitter {
       throw new Error("Cannot perform actions - insufficient active players");
     }
     
-    handleActionImpl(this.room, playerId, action);
+    // Use GameController for action processing
+    console.log(`🎮 [GameEngine] Using GameController for action processing`);
+    const result = this.gameController!.processAction(playerId, action.type as any, action.amount);
+    
+    if (!result.success) {
+      console.warn(`🚫 [GameEngine] GameController rejected action: ${result.error}`);
+      throw new Error(result.error || "Invalid action");
+    }
+    
+    // GameController handles all state updates internally
     this.emit("stateChanged", this.room);
+    
+    if (result.gameComplete) {
+      this.handleWinnerScenario();
+      return;
+    }
+    
+    if (result.roundComplete) {
+      this.resolveRound();
+      return;
+    }
     
     // Use unified winner scenario handler - single source of truth
     if (this.handleWinnerScenario()) {
       return; // Game ended with winner, no further processing needed
     }
     
-    // Check if round is complete using new betting rule engine
-    if (BettingRuleEngine.isBettingRoundComplete(this.room)) {
-      this.resolveRound();
-      return;
-    }
+    // Round completion is handled by GameController above
     
     // Emit turn changed event for the next player to act
     const currentPlayer = this.room.players[this.room.currentTurnIndex];
@@ -309,9 +325,13 @@ export class GameEngine extends EventEmitter {
     const remaining = this.room.players.filter((p) => !p.hasFolded).length;
     
     // Check if we should fast-forward due to all-in scenario
-    if (AllInDetectionEngine.shouldFastForward(this.room)) {
+    const activePlayers = this.room.players.filter(p => !p.hasFolded);
+    const playersWithChips = activePlayers.filter(p => p.chips > 0);
+    const shouldFastForward = playersWithChips.length <= 1;
+    
+    if (shouldFastForward) {
       console.log(`⚡ [GameEngine] Fast-forwarding to showdown - no more betting possible`);
-      AllInDetectionEngine.fastForwardToShowdown(this.room);
+      this.gameController!.fastForwardToShowdown();
       
       // Go directly to showdown
       const winners = determineWinnersImpl(this.room);
@@ -406,8 +426,8 @@ export class GameEngine extends EventEmitter {
     this.emit("stageChanged", this.room.stage);
     this.emit("stateChanged", this.room);
     
-    // Initialize proper turn order for new betting round using TurnOrderManager
-    TurnOrderManager.initializeTurnOrder(this.room);
+    // Initialize proper turn order for new betting round using GameController turn management
+    this.gameController!.progressStage();
     
     // Emit turn changed event for first player to act in new betting round
     const currentPlayer = this.room.players[this.room.currentTurnIndex];
@@ -536,9 +556,7 @@ export class GameEngine extends EventEmitter {
    * Setup timer callbacks for GameController
    */
   private setupTimerCallbacks(): void {
-    if (!this.gameController) return;
-    
-    this.gameController.setTimerCallbacks({
+    this.gameController!.setTimerCallbacks({
       onGameAutoStart: () => {
         console.log(`🚀 [GameEngine] Auto-starting game from timer`);
         this.emit("gameAutoStarted");
@@ -555,9 +573,7 @@ export class GameEngine extends EventEmitter {
    * Setup timer event forwarding to UI
    */
   private setupTimerEvents(): void {
-    if (!this.gameController) return;
-    
-    const timerManager = this.gameController.getTimerManager();
+    const timerManager = this.gameController!.getTimerManager();
     
     // Forward timer events to UI
     timerManager.on('game-start-countdown', (remainingMs) => {
@@ -597,8 +613,8 @@ export class GameEngine extends EventEmitter {
    * Check if game should auto-start when players join
    */
   private checkAutoStart(): void {
-    if (this.gameController && this.room.stage === "waiting") {
-      this.gameController.checkGameStart();
+    if (this.room.stage === "waiting") {
+      this.gameController!.checkGameStart();
     }
   }
 
@@ -611,9 +627,7 @@ export class GameEngine extends EventEmitter {
       this.showdownTimer = null;
     }
     
-    if (this.gameController) {
-      this.gameController.destroy();
-    }
+    this.gameController!.destroy();
     
     this.removeAllListeners();
   }

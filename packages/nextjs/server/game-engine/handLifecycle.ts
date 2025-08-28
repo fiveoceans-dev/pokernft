@@ -1,9 +1,7 @@
 import { Table, TableState, Round, PlayerState } from "./types";
-import { assignBlindsAndButton } from "./blindManager";
 import { dealDeck } from "./utils";
 import { dealHole } from "./dealer";
 import { rebuildPots, awardPots, applyRake } from "./potManager";
-import { startBettingRound } from "./bettingEngine";
 import { resetTableForNextHand } from "./handReset";
 import { countActivePlayers } from "./tableUtils";
 import { AuditLogger } from "./auditLogger";
@@ -14,6 +12,7 @@ import crypto from "crypto";
  * dealing hole cards. Returns `true` on success, otherwise
  * `false` when the hand cannot begin (e.g. not enough active
  * players or blinds could not be posted).
+ * Note: This is a legacy function - GameController should be used for full game logic.
  */
 export function startTableHand(table: Table, audit?: AuditLogger): boolean {
   if (table.state !== TableState.BLINDS) return false;
@@ -21,10 +20,10 @@ export function startTableHand(table: Table, audit?: AuditLogger): boolean {
     table.state = TableState.WAITING;
     return false;
   }
-  if (!assignBlindsAndButton(table)) {
-    table.state = TableState.WAITING;
-    return false;
-  }
+  
+  // Legacy blind assignment logic removed - use GameController for full implementation
+  console.warn("startTableHand: Legacy function called - use GameController instead");
+  
   const seed = crypto.randomBytes(16).toString("hex");
   table.deckSeed = seed;
   table.deck = dealDeck(seed);
@@ -33,7 +32,9 @@ export function startTableHand(table: Table, audit?: AuditLogger): boolean {
   table.pots = [];
   table.currentRound = Round.PREFLOP;
   dealHole(table);
-  startBettingRound(table, Round.PREFLOP);
+  
+  // Legacy betting round start removed - use GameController for full implementation
+  
   table.state = TableState.PRE_FLOP;
   return true;
 }

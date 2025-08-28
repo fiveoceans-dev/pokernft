@@ -54,8 +54,9 @@ export * from "./server/game-engine/hashEvaluator";
 export * from "./server/game-engine/handEvaluator";
 export * from "./server/game-engine/rng";
 export * from "./server/game-engine/gameEngine";
-export * from "./server/game-engine/blindManager";
-export * from "./server/game-engine/seatingManager";
+// Legacy modules removed - functionality moved to GameController
+// export * from "./server/game-engine/blindManager";
+// export * from "./server/game-engine/seatingManager";
 export * from "./server/game-engine/eventBus";
 export * from "./server/game-engine/playerStateMachine";
 export * from "./server/game-engine/tableStateMachine";
@@ -78,13 +79,13 @@ export {
   progressStage,
 } from "./server/game-engine/room";
 
-// Export specific functions from betting engine
-export {
-  startBettingRound,
-  applyAction,
-  applyActionFromJson,
-  isBettingRoundComplete,
-} from "./server/game-engine/bettingEngine";
+// Legacy betting engine exports removed - functionality moved to GameController
+// export {
+//   startBettingRound,
+//   applyAction,
+//   applyActionFromJson,
+//   isBettingRoundComplete,
+// } from "./server/game-engine/bettingEngine";
 
 // Export specific functions from hand lifecycle
 export { startTableHand, endHand } from "./server/game-engine/handLifecycle";

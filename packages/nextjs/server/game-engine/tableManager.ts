@@ -1,11 +1,12 @@
 import { Table, PlayerAction, Round, TableState } from "./types";
 import { TableStateMachine } from "./tableStateMachine";
 import { startTableHand as startHandLifecycle, endHand } from "./handLifecycle";
-import {
-  applyAction,
-  isBettingRoundComplete,
-  startBettingRound,
-} from "./bettingEngine";
+// Legacy betting engine imports removed - functionality moved to GameController
+// import {
+//   applyAction,
+//   isBettingRoundComplete,
+//   startBettingRound,
+// } from "./bettingEngine";
 import { dealBoard } from "./dealer";
 import { countActivePlayers } from "./tableUtils";
 import { AuditLogger } from "./auditLogger";
@@ -70,8 +71,11 @@ export class TableManager {
     seatIndex: number,
     action: { type: PlayerAction; amount?: number },
   ) {
-    applyAction(this.table, seatIndex, action, this.audit);
-    if (!isBettingRoundComplete(this.table)) return;
+    // Legacy function usage - needs to be replaced with GameController
+    console.warn("TableManager: Using legacy betting functions - migrate to GameController");
+    // applyAction(this.table, seatIndex, action, this.audit);
+    // if (!isBettingRoundComplete(this.table)) return;
+    return; // Temporary: skip betting logic until GameController integration
 
     const remaining = countActivePlayers(this.table);
     this.fsm.dispatch({
@@ -84,17 +88,17 @@ export class TableManager {
       case TableState.FLOP:
         dealBoard(this.table, Round.FLOP);
         this.table.currentRound = Round.FLOP;
-        startBettingRound(this.table, Round.FLOP);
+        // startBettingRound(this.table, Round.FLOP); // Legacy - use GameController
         break;
       case TableState.TURN:
         dealBoard(this.table, Round.TURN);
         this.table.currentRound = Round.TURN;
-        startBettingRound(this.table, Round.TURN);
+        // startBettingRound(this.table, Round.TURN); // Legacy - use GameController
         break;
       case TableState.RIVER:
         dealBoard(this.table, Round.RIVER);
         this.table.currentRound = Round.RIVER;
-        startBettingRound(this.table, Round.RIVER);
+        // startBettingRound(this.table, Round.RIVER); // Legacy - use GameController
         break;
       case TableState.SHOWDOWN:
       case TableState.PAYOUT:

@@ -1,6 +1,5 @@
 import { Table, PlayerState, PlayerAction, TableState, Round } from "./types";
 import { playerStateReducer } from "./playerStateMachine";
-import { advanceButton } from "./blindManager";
 import { countActivePlayers } from "./tableUtils";
 import TimerService from "./timerService";
 
@@ -45,7 +44,9 @@ export async function resetTableForNextHand(table: Table, reBuyAllowed = true) {
 
   // advance dealer button to the next active seat
   table.state = TableState.ROTATE;
-  advanceButton(table);
+  
+  // Legacy button advancement logic removed - use GameController for full implementation
+  console.warn("resetTableForNextHand: Legacy button advancement - use GameController instead");
 
   // clear table-level per-hand fields
   table.deck = [];
