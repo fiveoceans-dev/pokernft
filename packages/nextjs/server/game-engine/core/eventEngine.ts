@@ -166,10 +166,30 @@ export class EventEngine extends EventEmitter {
     // Apply event through pure reducer
     const newTable = reduce(this.table, event);
     
-    // Check if state actually changed
+    // Check if state actually changed - if not, validation failed
     if (newTable === this.table) {
-      console.log(`⚠️ [EventEngine] Event ${event.t} produced no state change`);
-      return;
+      console.log(`⚠️ [EventEngine] Event ${event.t} produced no state change - validation failed`);
+      
+      // For PlayerJoin events, determine specific error type
+      if (event.t === "PlayerJoin") {
+        const seat = this.table.seats[event.seat];
+        
+        // Check specific validation failures
+        if (event.seat < 0 || event.seat >= this.table.seats.length) {
+          throw new Error("Invalid seat index");
+        } else if (seat.pid) {
+          throw new Error("Seat already taken");
+        } else if (this.table.seats.find(s => s.pid === event.pid)) {
+          throw new Error("Player already seated");
+        } else if (event.chips <= 0) {
+          throw new Error("Invalid chips amount");
+        } else {
+          throw new Error("Failed to add player");
+        }
+      }
+      
+      // For other events, throw generic validation error
+      throw new Error(`Event validation failed: ${event.t}`);
     }
     
     // Update state and log event

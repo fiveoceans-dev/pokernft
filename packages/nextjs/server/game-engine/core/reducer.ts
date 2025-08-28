@@ -353,11 +353,32 @@ function endHand(table: Table): Table {
 }
 
 /**
- * Add player to table
+ * Add player to table with proper validation
  */
 function addPlayer(table: Table, seatId: number, pid: string, chips: number, nickname?: string): Table {
+  // Validate seat index
   if (seatId < 0 || seatId >= table.seats.length) {
+    console.error(`❌ [Reducer] Invalid seat index: ${seatId}`);
     return table; // Invalid seat
+  }
+  
+  // Check if seat is already occupied
+  if (table.seats[seatId].pid) {
+    console.error(`❌ [Reducer] Seat ${seatId} is already occupied by ${table.seats[seatId].pid}`);
+    return table; // Seat taken
+  }
+  
+  // Check if player is already seated elsewhere
+  const existingSeat = table.seats.find(seat => seat.pid === pid);
+  if (existingSeat) {
+    console.error(`❌ [Reducer] Player ${pid} is already seated at seat ${existingSeat.id}`);
+    return table; // Player already seated
+  }
+  
+  // Validate chips amount
+  if (chips <= 0) {
+    console.error(`❌ [Reducer] Invalid chips amount: ${chips}`);
+    return table; // Invalid chips
   }
   
   const newSeats = [...table.seats];
@@ -370,6 +391,8 @@ function addPlayer(table: Table, seatId: number, pid: string, chips: number, nic
     status: "active",
     nickname
   };
+  
+  console.log(`✅ [Reducer] Added player ${pid} to seat ${seatId} with ${chips} chips`);
   
   return {
     ...table,

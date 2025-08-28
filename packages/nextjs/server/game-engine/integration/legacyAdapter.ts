@@ -207,13 +207,42 @@ export class LegacyGameEngineAdapter extends EventEmitter {
    * Add player to table
    */
   addPlayer(playerData: { id: string; nickname?: string; seat: number; chips: number }): void {
-    this.eventEngine.processCommand({
+    // Pre-validate to provide immediate feedback
+    const table = this.eventEngine.getState();
+    
+    // Validate seat index
+    if (playerData.seat < 0 || playerData.seat >= table.seats.length) {
+      throw new Error("Invalid seat");
+    }
+    
+    // Check if seat is already occupied
+    if (table.seats[playerData.seat].pid) {
+      throw new Error("Seat already taken");
+    }
+    
+    // Check if player is already seated elsewhere
+    const existingSeat = table.seats.find(seat => seat.pid === playerData.id);
+    if (existingSeat) {
+      throw new Error("Player already seated");
+    }
+    
+    // Validate chips amount
+    if (playerData.chips <= 0) {
+      throw new Error("Invalid chips amount");
+    }
+    
+    // Process the command - this will also validate through the EventEngine
+    const success = this.eventEngine.processCommand({
       type: "join",
       playerId: playerData.id,
       seatId: playerData.seat,
       chips: playerData.chips,
       nickname: playerData.nickname
     });
+    
+    // Note: processCommand is async but we need to maintain sync interface
+    // The validation above should catch most issues immediately
+    console.log(`🔗 [LegacyAdapter] Dispatched join command for player ${playerData.id}`);
   }
 
   /**
