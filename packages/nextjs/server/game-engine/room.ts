@@ -3,6 +3,8 @@ import { dealDeck, draw } from "./utils";
 import { randomInt } from "./rng";
 import { evaluateHand } from "./hashEvaluator";
 import { BlindManager } from "./blindManager";
+import { BettingRuleEngine } from "./BettingRuleEngine";
+import { TurnOrderManager } from "./TurnOrderManager";
 
 /** Create an empty game room */
 export function createRoom(id: string, minBet = 50): GameRoom {
@@ -23,6 +25,7 @@ export function createRoom(id: string, minBet = 50): GameRoom {
     smallBlindAmount: smallBlind,
     bigBlindAmount: bigBlind,
     deck: [],
+    actionHistory: [],
   };
 }
 
@@ -79,6 +82,7 @@ export function startRoomHand(room: GameRoom) {
   room.deck = dealDeck();
   room.communityCards = [];
   room.pot = 0;
+  room.actionHistory = []; // Reset action history for new hand
   
   // Reset all player betting and turn state to clean slate
   room.players.forEach((p) => {
@@ -122,16 +126,28 @@ export function startRoomHand(room: GameRoom) {
   const { sb, bb } = blindMgr.postBlinds(room);
   console.log(`💰 [${room.id}] Blinds posted - SB: $${room.smallBlindAmount} at seat ${room.players[sb].seat}, BB: $${room.bigBlindAmount} at seat ${room.players[bb].seat}`);
   
-  // First to act preflop is UTG (left of big blind)
-  const firstToAct = blindMgr.nextActiveIndex(room, bb + 1);
-  room.currentTurnIndex = firstToAct;
-  room.firstToActIndex = firstToAct;
+  // Record blind postings as forced actions (not voluntary)
+  room.actionHistory.push({
+    playerId: room.players[sb].id,
+    playerIndex: sb,
+    action: "blind",
+    amount: room.smallBlindAmount,
+    timestamp: Date.now()
+  });
+  room.actionHistory.push({
+    playerId: room.players[bb].id,
+    playerIndex: bb,
+    action: "blind",
+    amount: room.bigBlindAmount,
+    timestamp: Date.now()
+  });
+  
+  // Initialize proper preflop turn order with BB acting last
+  TurnOrderManager.initializeTurnOrder(room);
   room.lastAggressorIndex = bb; // Big blind is initial "aggressor" with their forced bet
   
-  // Set turn flags
-  room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
-  
-  console.log(`🎯 [${room.id}] First to act: ${room.players[firstToAct].id} at seat ${room.players[firstToAct].seat} (position ${firstToAct})`);
+  const currentPlayer = room.players[room.currentTurnIndex];
+  console.log(`🎯 [${room.id}] First to act: ${currentPlayer.id} at seat ${currentPlayer.seat} (position ${room.currentTurnIndex})`);
 }
 
 function maxBet(room: GameRoom): number {
@@ -151,6 +167,7 @@ export function handleAction(
   player.isTurn = false;
 
   const currentMax = maxBet(room);
+  let actionAmount = 0;
 
   switch (action.type) {
     case "fold":
@@ -163,6 +180,7 @@ export function handleAction(
       player.chips -= callAmt;
       player.currentBet += callAmt;
       room.pot += callAmt;
+      actionAmount = callAmt;
       break;
     }
     case "raise": {
@@ -173,6 +191,7 @@ export function handleAction(
       room.pot += raiseAmt;
       room.minBet = player.currentBet;
       room.lastAggressorIndex = idx;
+      actionAmount = raiseAmt;
       break;
     }
     case "check":
@@ -180,13 +199,23 @@ export function handleAction(
         throw new Error("cannot check when behind on bets");
       break;
   }
+  
+  // Record voluntary action in history
+  room.actionHistory.push({
+    playerId,
+    playerIndex: idx,
+    action: action.type as any,
+    amount: actionAmount > 0 ? actionAmount : undefined,
+    timestamp: Date.now()
+  });
+
   // Winner detection is now handled by GameEngine.handleWinnerScenario()
   // This simplifies room logic to just handle basic action processing
 
   nextTurn(room);
 }
 
-/** Advance turn to the next active player */
+/** Advance turn to the next active player using TurnOrderManager */
 export function nextTurn(room: GameRoom) {
   if (room.players.length === 0) {
     console.log(`⚠️ [${room.id}] Cannot advance turn: no players`);
@@ -194,25 +223,16 @@ export function nextTurn(room: GameRoom) {
   }
   
   const currentPlayerId = room.players[room.currentTurnIndex]?.id;
-  let next = room.currentTurnIndex;
-  let count = 0;
   
-  do {
-    next = (next + 1) % room.players.length;
-    count++;
-    if (count > room.players.length) {
-      // no eligible player to take action (all folded or all-in)
-      console.log(`⚠️ [${room.id}] No eligible players to act - all folded or all-in`);
-      room.players.forEach((p) => (p.isTurn = false));
-      return;
-    }
-  } while (room.players[next].hasFolded || room.players[next].chips === 0);
+  // Use TurnOrderManager which handles BB last action in preflop
+  TurnOrderManager.advanceToNextPlayer(room);
   
-  room.currentTurnIndex = next;
-  room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
-  
-  const newPlayerId = room.players[next].id;
-  console.log(`🔄 [${room.id}] Turn advanced from ${currentPlayerId} to ${newPlayerId} (position ${next})`);
+  const newPlayer = room.players[room.currentTurnIndex];
+  if (newPlayer) {
+    console.log(`🔄 [${room.id}] Turn advanced from ${currentPlayerId} to ${newPlayer.id} (position ${room.currentTurnIndex})`);
+  } else if (room.currentTurnIndex === -1) {
+    console.log(`✅ [${room.id}] No more players to act - betting round should complete`);
+  }
 }
 
 /** Find the next active player index starting from `start` */
@@ -252,16 +272,14 @@ export function progressStage(room: GameRoom) {
 
   // Reset bets for new betting round
   room.players.forEach((p) => (p.currentBet = 0));
+  room.actionHistory = []; // Reset action history for new betting round
   room.stage = next;
   
-  // For post-flop betting, first to act is first active player left of dealer
-  const first = nextActiveIndex(room, room.dealerIndex);
-  room.currentTurnIndex = first;
-  room.firstToActIndex = first;
-  room.lastAggressorIndex = first;
-  room.players.forEach((p, i) => (p.isTurn = i === room.currentTurnIndex));
+  // Use TurnOrderManager to properly initialize turn order for the new stage
+  TurnOrderManager.initializeTurnOrder(room);
   
-  console.log(`🎯 [${room.id}] Stage progressed to ${next}, first to act: ${room.players[first].id} at seat ${room.players[first].seat}`);
+  const currentPlayer = room.players[room.currentTurnIndex];
+  console.log(`🎯 [${room.id}] Stage progressed to ${next}, first to act: ${currentPlayer?.id} at seat ${currentPlayer?.seat}`);
 }
 
 /** Determine the winners of the current room */
@@ -278,52 +296,10 @@ export function determineWinners(room: GameRoom): PlayerSession[] {
 
 /**
  * Determine if the current betting round within a room is complete.
- * A round is complete when all active players have matched the highest bet
- * or are all-in, and the turn has returned to the appropriate player.
+ * Now delegates to the centralized BettingRuleEngine for consistent logic.
  */
 export function isRoomRoundComplete(room: GameRoom): boolean {
-  const active = room.players.filter((p) => !p.hasFolded);
-  
-  // Round is complete if only one or zero players remain
-  if (active.length <= 1) {
-    console.log(`✅ [${room.id}] Round complete: only ${active.length} active players`);
-    return true;
-  }
-  
-  // Round is complete if all active players are all-in
-  if (active.every((p) => p.chips === 0)) {
-    console.log(`✅ [${room.id}] Round complete: all active players are all-in`);
-    return true;
-  }
-  
-  const maxBet = Math.max(...active.map((p) => p.currentBet));
-  const allMatched = active.every(
-    (p) => p.chips === 0 || p.currentBet === maxBet,
-  );
-  
-  // Not complete if players haven't matched the highest bet
-  if (!allMatched) {
-    console.log(`⏳ [${room.id}] Round not complete: not all bets matched (max: ${maxBet})`);
-    return false;
-  }
-  
-  // Check if action has returned to the appropriate player
-  let actionComplete = false;
-  if (room.lastAggressorIndex === room.firstToActIndex) {
-    // No raises occurred, check if we're back to first to act
-    actionComplete = room.currentTurnIndex === room.firstToActIndex;
-  } else {
-    // Raises occurred, check if we're back to last aggressor
-    actionComplete = room.currentTurnIndex === room.lastAggressorIndex;
-  }
-  
-  if (actionComplete) {
-    console.log(`✅ [${room.id}] Round complete: action returned to appropriate player`);
-  } else {
-    console.log(`⏳ [${room.id}] Round not complete: waiting for action to return`);
-  }
-  
-  return actionComplete;
+  return BettingRuleEngine.isBettingRoundComplete(room);
 }
 
 /** Split the pot equally amongst winners */

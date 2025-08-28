@@ -11,6 +11,10 @@ import {
   payout as payoutImpl,
 } from "./room";
 import { PokerStateMachine, GameState } from "./stateMachine";
+import { BettingRuleEngine } from "./BettingRuleEngine";
+import { AllInDetectionEngine } from "./AllInDetectionEngine";
+import { TurnOrderManager } from "./TurnOrderManager";
+import { GameController } from "./data-structures/GameController";
 
 /**
  * Central game engine orchestrating table workflow.  It wraps the low level
@@ -22,6 +26,7 @@ export class GameEngine extends EventEmitter {
   private machine: PokerStateMachine;
   private showdownTimer: NodeJS.Timeout | null = null;
   private actionTimeoutMs: number;
+  private gameController: GameController | null = null;
 
   constructor(id: string, minBet = 10, actionTimeoutSeconds = 10) {
     super();
@@ -29,6 +34,12 @@ export class GameEngine extends EventEmitter {
     this.room = createRoomImpl(id, minBet);
     this.machine = new PokerStateMachine();
     this.actionTimeoutMs = actionTimeoutSeconds * 1000;
+    
+    // Initialize GameController with timer system
+    this.gameController = new GameController(this.room);
+    this.setupTimerCallbacks();
+    this.setupTimerEvents();
+    
     console.log(`✅ [GameEngine] Game engine created successfully for table ${id}`);
   }
 
@@ -81,6 +92,10 @@ export class GameEngine extends EventEmitter {
     
     const result = addPlayerImpl(this.room, player);
     console.log(`✅ [GameEngine] Player added successfully. Table now has ${this.room.players.length} players`);
+    
+    // Check if game should auto-start with new player
+    this.checkAutoStart();
+    
     this.emit("stateChanged", this.room);
     return result;
   }
@@ -120,6 +135,15 @@ export class GameEngine extends EventEmitter {
     }
     
     console.log(`✅ [GameEngine] Player removed. Table now has ${this.room.players.length} players`);
+    
+    // Check if game countdown should be cancelled with fewer players
+    if (this.gameController && this.room.stage === "waiting") {
+      const activePlayers = this.room.players.filter(p => p.chips > 0);
+      if (activePlayers.length < 2) {
+        this.gameController.getTimerManager().cancelGameStart();
+      }
+    }
+    
     this.emit("stateChanged", this.room);
     return true;
   }
@@ -189,8 +213,8 @@ export class GameEngine extends EventEmitter {
       return; // Game ended with winner, no further processing needed
     }
     
-    // Check if round is complete before emitting turn events
-    if (isRoundCompleteImpl(this.room)) {
+    // Check if round is complete using new betting rule engine
+    if (BettingRuleEngine.isBettingRoundComplete(this.room)) {
       this.resolveRound();
       return;
     }
@@ -283,6 +307,35 @@ export class GameEngine extends EventEmitter {
 
   private resolveRound() {
     const remaining = this.room.players.filter((p) => !p.hasFolded).length;
+    
+    // Check if we should fast-forward due to all-in scenario
+    if (AllInDetectionEngine.shouldFastForward(this.room)) {
+      console.log(`⚡ [GameEngine] Fast-forwarding to showdown - no more betting possible`);
+      AllInDetectionEngine.fastForwardToShowdown(this.room);
+      
+      // Go directly to showdown
+      const winners = determineWinnersImpl(this.room);
+      const potAmount = this.room.pot;
+      
+      console.log(`🃏 [GameEngine] Fast-forward showdown - ${winners.length} winner(s), pot: $${potAmount}`);
+      
+      // Set timer for showdown completion
+      if (this.showdownTimer) {
+        clearTimeout(this.showdownTimer);
+      }
+      
+      this.showdownTimer = setTimeout(() => {
+        this.completeShowdown(winners, potAmount);
+      }, 4000);
+      
+      // Emit events for fast-forward showdown
+      this.emit("phaseChanged", this.machine.state);
+      this.emit("stageChanged", this.room.stage);
+      this.emit("stateChanged", this.room);
+      this.emit("showdownStarted", { winners: winners.map(w => w.id), potAmount });
+      return;
+    }
+    
     this.machine.dispatch({
       type: "BETTING_COMPLETE",
       remainingPlayers: remaining,
@@ -352,6 +405,9 @@ export class GameEngine extends EventEmitter {
     this.emit("phaseChanged", this.machine.state);
     this.emit("stageChanged", this.room.stage);
     this.emit("stateChanged", this.room);
+    
+    // Initialize proper turn order for new betting round using TurnOrderManager
+    TurnOrderManager.initializeTurnOrder(this.room);
     
     // Emit turn changed event for first player to act in new betting round
     const currentPlayer = this.room.players[this.room.currentTurnIndex];
@@ -474,6 +530,92 @@ export class GameEngine extends EventEmitter {
     }
     
     return false; // Game continues
+  }
+
+  /**
+   * Setup timer callbacks for GameController
+   */
+  private setupTimerCallbacks(): void {
+    if (!this.gameController) return;
+    
+    this.gameController.setTimerCallbacks({
+      onGameAutoStart: () => {
+        console.log(`🚀 [GameEngine] Auto-starting game from timer`);
+        this.emit("gameAutoStarted");
+        this.emit("stateChanged", this.room);
+      },
+      onShowdownComplete: () => {
+        console.log(`⏰ [GameEngine] Showdown timer complete - starting new hand`);
+        this.startHand();
+      }
+    });
+  }
+
+  /**
+   * Setup timer event forwarding to UI
+   */
+  private setupTimerEvents(): void {
+    if (!this.gameController) return;
+    
+    const timerManager = this.gameController.getTimerManager();
+    
+    // Forward timer events to UI
+    timerManager.on('game-start-countdown', (remainingMs) => {
+      this.emit('gameStartCountdown', { remainingMs });
+    });
+    
+    timerManager.on('game-start-cancelled', () => {
+      this.emit('gameStartCancelled');
+    });
+    
+    timerManager.on('game-start-triggered', () => {
+      this.emit('gameStartTriggered');
+    });
+    
+    timerManager.on('showdown-countdown', (remainingMs) => {
+      this.emit('showdownCountdown', { remainingMs });
+    });
+    
+    timerManager.on('showdown-complete', () => {
+      this.emit('showdownComplete');
+    });
+    
+    timerManager.on('action-countdown', (playerId, remainingMs) => {
+      this.emit('actionCountdown', { playerId, remainingMs });
+    });
+    
+    timerManager.on('action-warning', (playerId, remainingMs) => {
+      this.emit('actionWarning', { playerId, remainingMs });
+    });
+    
+    timerManager.on('action-timeout', (playerId) => {
+      this.emit('actionTimeout', { playerId });
+    });
+  }
+
+  /**
+   * Check if game should auto-start when players join
+   */
+  private checkAutoStart(): void {
+    if (this.gameController && this.room.stage === "waiting") {
+      this.gameController.checkGameStart();
+    }
+  }
+
+  /**
+   * Clean up resources
+   */
+  public destroy(): void {
+    if (this.showdownTimer) {
+      clearTimeout(this.showdownTimer);
+      this.showdownTimer = null;
+    }
+    
+    if (this.gameController) {
+      this.gameController.destroy();
+    }
+    
+    this.removeAllListeners();
   }
 }
 

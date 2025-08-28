@@ -46,6 +46,18 @@ export interface PlayerSession {
   currentBet: number;
 }
 
+/** Room action types for tracking voluntary vs forced actions */
+export type RoomActionType = "fold" | "call" | "raise" | "check" | "blind";
+
+/** Action history entry for tracking voluntary vs forced actions */
+export interface ActionHistoryEntry {
+  playerId: string;
+  playerIndex: number;
+  action: RoomActionType;
+  amount?: number;
+  timestamp: number;
+}
+
 /** High level room state used by the server */
 export interface GameRoom {
   id: string;
@@ -66,6 +78,8 @@ export interface GameRoom {
   bigBlindAmount: number;
   /** remaining cards in the deck */
   deck: Card[];
+  /** track voluntary actions in current betting round */
+  actionHistory: ActionHistoryEntry[];
 }
 
 export interface UiPlayer {
