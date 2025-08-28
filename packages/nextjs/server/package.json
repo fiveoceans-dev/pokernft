@@ -8,23 +8,23 @@
     "start": "node dist/src/index.js",
     "dev": "ts-node src/index.ts",
     "server-local": "./server-local.sh",
-    "test": "jest",
+    "test": "vitest",
     "deploy": "git subtree push --prefix=packages/nextjs/server heroku main",
     "deploy-heroku": "./heroku-deploy.sh",
     "heroku-postbuild": "npm run build"
   },
   "dependencies": {
-    "ws": "^8.18.3",
     "redis": "^4.7.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@types/ws": "^8.18.1",
     "@types/uuid": "^9.0.0",
+    "@types/ws": "^8.18.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
-    "jest": "^30.0.5"
+    "vitest": "^2.1.9"
   },
   "overrides": {
     "babel-plugin-istanbul": {
@@ -35,6 +35,11 @@
     "node": "18.x",
     "npm": ">=8.0.0"
   },
-  "keywords": ["poker", "websocket", "multiplayer", "starknet"],
+  "keywords": [
+    "poker",
+    "websocket",
+    "multiplayer",
+    "starknet"
+  ],
   "license": "MIT"
 }

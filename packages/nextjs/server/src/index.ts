@@ -1,6 +1,7 @@
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { GameEngine, TableState, Round } from "../game-engine";
+import { createGameEngine, LegacyGameEngineAdapter } from "../game-engine/newIndex";
+import type { LegacyGameEngineAdapter as GameEngine } from "../game-engine/newIndex";
 import type {
   GameRoom,
   ServerEvent,
@@ -8,6 +9,7 @@ import type {
   PlayerAction,
   Stage,
   Table,
+  Round,
 } from "../game-engine";
 import {
   listTables,
@@ -213,7 +215,7 @@ function ensurePersistentTables() {
 function getEngine(id: string, snapshot?: GameRoom): GameEngine {
   let engine = getRegisteredEngine(id);
   if (!engine) {
-    engine = new GameEngine(id, 50, ACTION_TIMEOUT_SECONDS);
+    engine = createGameEngine(id, 50, ACTION_TIMEOUT_SECONDS);
     if (snapshot) {
       engine.loadState(snapshot);
     }

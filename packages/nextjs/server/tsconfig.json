@@ -15,8 +15,8 @@
     "noEmitOnError": false,
     "baseUrl": ".",
     "paths": {
-      "../../game-engine": ["../game-engine/index.ts"],
-      "../../game-engine/*": ["../game-engine/*"]
+      "../../game-engine": ["./game-engine/index.ts"],
+      "../../game-engine/*": ["./game-engine/*"]
     }
   },
   "ts-node": {
@@ -42,9 +42,8 @@
   "exclude": [
     "dist", 
     "node_modules", 
-    "tests",
-    "../game-engine/tests",
-    "../game-engine/index.ts",
+    "**/*.test.ts",
+    "**/__tests__/**",
     "../utils/address.ts",
     "../utils/scaffold-stark/**/*",
     "../app/**/*",

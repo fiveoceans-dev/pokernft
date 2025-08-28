@@ -62,6 +62,8 @@ interface GameStoreState {
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
   /** Connection error message */
   connectionError: string | null;
+  /** Action history for the current hand */
+  actionHistory: Array<{ playerId: string; action: string; amount?: number }>;
   
   connectWallet: (address: string) => void;
   handleDisconnect: () => Promise<void>;
@@ -583,6 +585,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     timer: null,
     connectionState: 'disconnected',
     connectionError: null,
+    actionHistory: [],
 
     connectWallet: (address: string) => {
       const previousWallet = get().currentWalletId;

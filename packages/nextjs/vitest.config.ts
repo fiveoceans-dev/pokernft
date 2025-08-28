@@ -9,10 +9,18 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+    include: ['**/*.test.tsx', '**/*.test.ts'],
+    exclude: [
+      'node_modules/**',
+      'dist/**',
+      'server/**',
+    ],
   },
   resolve: {
     alias: {
       "~~": path.resolve(__dirname, "./"),
+      "../game-engine": path.resolve(__dirname, "./game-engine.ts"),
+      "../../game-engine": path.resolve(__dirname, "./game-engine.ts"),
     },
   },
 });

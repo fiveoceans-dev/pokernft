@@ -16,7 +16,7 @@ describe.skip("Betting Scenarios - NEEDS MIGRATION TO GAMECONTROLLER", () => {
   /**
    * Creates a test room with specified number of players
    */
-  function createTestRoom(playerCount: number = 3, stage: string = "preflop"): GameRoom {
+  function createTestRoom(playerCount = 3, stage = "preflop"): GameRoom {
     const room: GameRoom = {
       id: "test-room",
       players: [],

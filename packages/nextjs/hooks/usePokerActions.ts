@@ -64,7 +64,7 @@ export function usePokerActions() {
     // Check player state - don't allow actions if sitting out
     const safePlayerStates = Array.isArray(playerStates) ? playerStates : [];
     const myPlayerState = mySeatIndex < safePlayerStates.length ? safePlayerStates[mySeatIndex] : PlayerState.ACTIVE;
-    const canTakeActions = myPlayerState === PlayerState.ACTIVE && myPlayerState !== PlayerState.SITTING_OUT;
+    const canTakeActions = myPlayerState === PlayerState.ACTIVE;
 
     // Calculate the current betting state with defensive checks
     const maxBet = safePlayerBets.length > 0 ? Math.max(...safePlayerBets.filter(bet => typeof bet === 'number' && !isNaN(bet))) : 0;

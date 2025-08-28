@@ -1,0 +1,458 @@
+/**
+ * Event Engine - Replacement for GameEngine
+ * 
+ * Event-driven architecture with:
+ * - Pure reducer functions for state updates
+ * - Event queue for deterministic processing
+ * - Complete event sourcing for auditability
+ * - Timer integration for automated actions
+ */
+
+import { EventEmitter } from "events";
+import { Table, PokerEvent, GameSnapshot, ActionType, TimerEvent } from './newTypes';
+import { reduce } from './reducer';
+import { validateAction, getAvailableActions } from '../logic/validation';
+import { getBettingRoundState } from '../utils/ringOrder';
+import { collectIntoPots, calculatePayouts, handleUncalledBet } from '../logic/potManager';
+import { getNextStreet } from '../logic/betting';
+
+/**
+ * Event queue entry for processing
+ */
+interface QueuedEvent {
+  event: PokerEvent;
+  timestamp: number;
+  id: string;
+}
+
+/**
+ * External command interface (from WebSocket/API)
+ */
+export interface GameCommand {
+  type: "join" | "leave" | "action" | "start_hand";
+  playerId?: string;
+  seatId?: number;
+  action?: ActionType;
+  amount?: number;
+  chips?: number;
+  nickname?: string;
+}
+
+/**
+ * Event Engine manages table state through pure event processing
+ */
+export class EventEngine extends EventEmitter {
+  private table: Table;
+  private eventLog: PokerEvent[] = [];
+  private eventQueue: QueuedEvent[] = [];
+  private processing = false;
+  private timerManager?: any; // Will be injected
+
+  constructor(tableId: string, smallBlind: number, bigBlind: number) {
+    super();
+    
+    // Initialize table with empty state
+    this.table = {
+      id: tableId,
+      seats: Array.from({ length: 9 }, (_, i) => ({
+        id: i,
+        chips: 0,
+        committed: 0,
+        streetCommitted: 0,
+        status: "empty"
+      })),
+      button: 0,
+      smallBlind,
+      bigBlind,
+      phase: "lobby",
+      currentBet: 0,
+      pots: [],
+      communityCards: [],
+      blinds: { sb: smallBlind, bb: bigBlind },
+      handNumber: 0,
+      timestamp: Date.now()
+    };
+    
+    console.log(`🎮 [EventEngine] Created for table ${tableId}`);
+  }
+
+  /**
+   * Get current table state (immutable)
+   */
+  getState(): Table {
+    return { ...this.table }; // Shallow copy for immutability
+  }
+
+  /**
+   * Get complete event log
+   */
+  getEventLog(): PokerEvent[] {
+    return [...this.eventLog]; // Immutable copy
+  }
+
+  /**
+   * Get game snapshot for debugging/replay
+   */
+  getSnapshot(): GameSnapshot {
+    return {
+      table: { ...this.table },
+      eventLog: [...this.eventLog],
+      timestamp: Date.now(),
+      handNumber: this.table.handNumber
+    };
+  }
+
+  /**
+   * Process external command and convert to internal events
+   */
+  async processCommand(command: GameCommand): Promise<boolean> {
+    try {
+      const events = this.commandToEvents(command);
+      
+      for (const event of events) {
+        await this.dispatch(event);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`❌ [EventEngine] Command failed:`, error);
+      this.emit('error', { command, error });
+      return false;
+    }
+  }
+
+  /**
+   * Dispatch event for processing
+   */
+  async dispatch(event: PokerEvent): Promise<void> {
+    const queuedEvent: QueuedEvent = {
+      event,
+      timestamp: Date.now(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    };
+    
+    this.eventQueue.push(queuedEvent);
+    await this.processEventQueue();
+  }
+
+  /**
+   * Process event queue sequentially for deterministic behavior
+   */
+  private async processEventQueue(): Promise<void> {
+    if (this.processing) {
+      return; // Already processing
+    }
+    
+    this.processing = true;
+    
+    try {
+      while (this.eventQueue.length > 0) {
+        const queuedEvent = this.eventQueue.shift()!;
+        await this.processEvent(queuedEvent);
+      }
+    } finally {
+      this.processing = false;
+    }
+  }
+
+  /**
+   * Process individual event
+   */
+  private async processEvent(queuedEvent: QueuedEvent): Promise<void> {
+    const { event, timestamp } = queuedEvent;
+    
+    console.log(`📨 [EventEngine] Processing event: ${event.t}`, event);
+    
+    // Apply event through pure reducer
+    const newTable = reduce(this.table, event);
+    
+    // Check if state actually changed
+    if (newTable === this.table) {
+      console.log(`⚠️ [EventEngine] Event ${event.t} produced no state change`);
+      return;
+    }
+    
+    // Update state and log event
+    this.table = newTable;
+    this.eventLog.push(event);
+    
+    // Emit state change for external listeners
+    this.emit('stateChanged', this.table);
+    this.emit('eventProcessed', event, this.table);
+    
+    // Check for automatic transitions
+    await this.checkAutomaticTransitions();
+    
+    console.log(`✅ [EventEngine] Event ${event.t} processed successfully`);
+  }
+
+  /**
+   * Check for automatic state transitions after event processing
+   */
+  private async checkAutomaticTransitions(): Promise<void> {
+    const { phase, street } = this.table;
+    
+    switch (phase) {
+      case "preflop":
+      case "flop":
+      case "turn":
+      case "river":
+        await this.checkBettingRoundComplete();
+        break;
+        
+      case "deal":
+        await this.startBettingRounds();
+        break;
+        
+      case "showdown":
+        await this.processShowdown();
+        break;
+        
+      case "payout":
+        await this.processPayout();
+        break;
+        
+      case "handEnd":
+        // Hand complete - ready for next hand
+        break;
+    }
+  }
+
+  /**
+   * Check if current betting round is complete and advance
+   */
+  private async checkBettingRoundComplete(): Promise<void> {
+    const bettingState = getBettingRoundState(this.table);
+    
+    if (!bettingState.isComplete) {
+      return; // Betting continues
+    }
+    
+    console.log(`🔄 [EventEngine] Betting round complete: ${bettingState.reason}`);
+    
+    // Collect chips into pots
+    await this.dispatch({ t: "CloseStreet" });
+    
+    // Determine next phase
+    if (bettingState.reason === "fold-to-one") {
+      // Skip to payout
+      const distributions = handleUncalledBet(this.table);
+      await this.dispatch({ t: "Payout", distributions });
+    } else if (this.table.street === "river" || bettingState.reason === "all-allin") {
+      // Go to showdown
+      await this.dispatch({ t: "Showdown", results: [] }); // Results will be calculated
+    } else {
+      // Advance to next street
+      const nextStreet = getNextStreet(this.table.street!);
+      if (nextStreet) {
+        const cards = this.getCommunityCards(nextStreet);
+        await this.dispatch({ t: "EnterStreet", street: nextStreet, cards });
+      }
+    }
+  }
+
+  /**
+   * Start betting rounds after deal phase
+   */
+  private async startBettingRounds(): Promise<void> {
+    // Post blinds and start preflop
+    await this.dispatch({
+      t: "PostBlinds",
+      sb: this.table.blinds.sb,
+      bb: this.table.blinds.bb,
+      ante: this.table.blinds.ante
+    });
+  }
+
+  /**
+   * Process showdown phase
+   */
+  private async processShowdown(): Promise<void> {
+    // In a full implementation, evaluate hands here
+    // For now, create mock results
+    const mockResults = this.createMockShowdownResults();
+    
+    const distributions = calculatePayouts(this.table.pots, mockResults);
+    await this.dispatch({ t: "Payout", distributions });
+  }
+
+  /**
+   * Process payout phase
+   */
+  private async processPayout(): Promise<void> {
+    // Payout complete - end hand
+    await this.dispatch({ t: "HandEnd" });
+  }
+
+  /**
+   * Convert external commands to internal events
+   */
+  private commandToEvents(command: GameCommand): PokerEvent[] {
+    switch (command.type) {
+      case "join":
+        if (command.playerId && command.seatId !== undefined && command.chips) {
+          return [{
+            t: "PlayerJoin",
+            seat: command.seatId,
+            pid: command.playerId,
+            chips: command.chips,
+            nickname: command.nickname
+          }];
+        }
+        break;
+        
+      case "leave":
+        if (command.playerId && command.seatId !== undefined) {
+          return [{
+            t: "PlayerLeave",
+            seat: command.seatId,
+            pid: command.playerId
+          }];
+        }
+        break;
+        
+      case "action":
+        if (command.seatId !== undefined && command.action) {
+          return [{
+            t: "Action",
+            seat: command.seatId,
+            action: command.action,
+            amount: command.amount
+          }];
+        }
+        break;
+        
+      case "start_hand":
+        return [{
+          t: "StartHand",
+          handNumber: this.table.handNumber + 1,
+          timestamp: Date.now()
+        }];
+    }
+    
+    return [];
+  }
+
+  /**
+   * Get community cards for street transitions
+   */
+  private getCommunityCards(street: string): number[] {
+    // In a full implementation, deal from shuffled deck
+    // For now, return mock cards
+    switch (street) {
+      case "flop": return [0, 1, 2]; // Mock card indices
+      case "turn": return [3];
+      case "river": return [4];
+      default: return [];
+    }
+  }
+
+  /**
+   * Create mock showdown results for testing
+   */
+  private createMockShowdownResults(): Array<{ pid: string; rank: number; description: string }> {
+    const playersInHand = this.table.seats.filter(seat => 
+      seat.pid && (seat.status === "active" || seat.status === "allin")
+    );
+    
+    return playersInHand.map((seat, index) => ({
+      pid: seat.pid!,
+      rank: index + 1, // Lower is better
+      description: `Mock hand #${index + 1}`
+    }));
+  }
+
+  /**
+   * Set timer manager for automated actions
+   */
+  setTimerManager(timerManager: any): void {
+    this.timerManager = timerManager;
+    
+    // Listen for timer events
+    this.timerManager?.on('timeout', (data: TimerEvent) => {
+      this.dispatch({
+        t: "TimeoutAutoFold",
+        seat: data.seat
+      });
+    });
+  }
+
+  /**
+   * Start action timer for current player
+   */
+  private startActionTimer(): void {
+    if (!this.timerManager || this.table.actor === undefined) {
+      return;
+    }
+    
+    const seat = this.table.seats[this.table.actor];
+    if (!seat.pid) {
+      return;
+    }
+    
+    const timerData: TimerEvent = {
+      pid: seat.pid,
+      seat: this.table.actor,
+      deadline: Date.now() + 30000, // 30 second timer
+      actionTimeoutMs: 30000
+    };
+    
+    this.timerManager.startTimer(timerData);
+  }
+
+  /**
+   * Legacy compatibility methods
+   */
+  
+  // Add player (legacy interface)
+  addPlayer(playerData: { id: string; seat: number; chips: number; nickname?: string }): boolean {
+    this.dispatch({
+      t: "PlayerJoin",
+      seat: playerData.seat,
+      pid: playerData.id,
+      chips: playerData.chips,
+      nickname: playerData.nickname
+    });
+    return true;
+  }
+  
+  // Remove player (legacy interface)  
+  removePlayer(playerId: string): boolean {
+    const seat = this.table.seats.find(s => s.pid === playerId);
+    if (seat) {
+      this.dispatch({
+        t: "PlayerLeave",
+        seat: seat.id,
+        pid: playerId
+      });
+      return true;
+    }
+    return false;
+  }
+  
+  // Handle action (legacy interface)
+  handleAction(playerId: string, action: { type: string; amount?: number }): boolean {
+    const seat = this.table.seats.find(s => s.pid === playerId);
+    if (!seat) {
+      return false;
+    }
+    
+    this.dispatch({
+      t: "Action",
+      seat: seat.id,
+      action: action.type as ActionType,
+      amount: action.amount
+    });
+    
+    return true;
+  }
+  
+  // Start hand (legacy interface)
+  startHand(): void {
+    this.dispatch({
+      t: "StartHand",
+      handNumber: this.table.handNumber + 1,
+      timestamp: Date.now()
+    });
+  }
+}

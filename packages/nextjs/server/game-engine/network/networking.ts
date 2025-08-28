@@ -31,6 +31,9 @@ export type ServerEvent =
   | { tableId: string; type: "PLAYER_REJOINED"; seat: number; playerId: string }
   | { tableId: string; type: "PLAYER_WAITING"; seat: number; playerId: string }
   | { tableId: string; type: "WAITING_FOR_NEXT_HAND"; seat: number; msg: string }
+  | { tableId: string; type: "PLAYER_SAT_OUT"; seat: number; playerId: string; reason?: string }
+  | { tableId: string; type: "PLAYER_SAT_IN"; seat: number; playerId: string }
+  | { tableId: string; type: "TABLE_RESET"; message?: string }
   | {
       tableId: string;
       type: "ACTION_PROMPT";
