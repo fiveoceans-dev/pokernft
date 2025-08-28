@@ -365,9 +365,7 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
     // Timer event listeners - forward TimerManager events to client-compatible format with monitoring
     engine!.on("actionCountdown", (data: { playerId: string, remainingMs: number }) => {
       const countdown = Math.ceil(data.remainingMs / 1000);
-      console.log(`⏰ [WebSocket] Timer countdown for ${data.playerId}: ${countdown}s (${data.remainingMs}ms)`);
       broadcast(id, { type: "TIMER", countdown });
-      console.log(`📡 [WebSocket] Timer countdown broadcasted to clients for room ${id}`);
     });
 
     engine!.on("actionTimeout", (data: { playerId: string }) => {
@@ -935,7 +933,7 @@ wss.on("connection", (ws) => {
             // Try to emit a state changed event to keep UI responsive
             try {
               console.log(`🔧 [WebSocket] Attempting state recovery after action error for ${playerId}`);
-              engine.emit("stateChanged", engine.room);
+              engine.emit("stateChanged", engine.getState());
             } catch (recoveryError) {
               console.error(`❌ [WebSocket] Failed to recover state after action error:`, recoveryError);
             }

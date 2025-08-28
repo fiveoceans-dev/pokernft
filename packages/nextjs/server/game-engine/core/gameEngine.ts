@@ -569,13 +569,6 @@ export class GameEngine extends EventEmitter {
       },
       onActionTimeout: (playerId: string, action: RoomActionType) => {
         console.log(`⏰ [GameEngine] Timer expired for ${playerId}, executing auto-action: ${action}`);
-        console.log(`🎲 [GameEngine] Game state before timer action:`, {
-          currentTurnIndex: this.room.currentTurnIndex,
-          currentPlayer: this.room.players[this.room.currentTurnIndex]?.id,
-          stage: this.room.stage,
-          playersCount: this.room.players.length,
-          activePlayers: this.room.players.filter(p => !p.hasFolded && p.chips > 0).length
-        });
         
         try {
           // Process the auto-action through the normal flow
@@ -583,13 +576,6 @@ export class GameEngine extends EventEmitter {
           const result = this.handleAction(playerId, { type: action as "fold" | "call" | "raise" | "check" });
           console.log(`✅ [GameEngine] Timer auto-action completed successfully for ${playerId}:`, result);
           
-          // Verify game state after action
-          console.log(`🎲 [GameEngine] Game state after timer action:`, {
-            currentTurnIndex: this.room.currentTurnIndex,
-            currentPlayer: this.room.players[this.room.currentTurnIndex]?.id,
-            stage: this.room.stage,
-            activePlayers: this.room.players.filter(p => !p.hasFolded && p.chips > 0).length
-          });
           
         } catch (error) {
           console.error(`❌ [GameEngine] Failed to process timer auto-action for ${playerId}:`, {

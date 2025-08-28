@@ -118,7 +118,7 @@ export class BettingRoundState {
       return;
     }
 
-    // Preflop unopened pot - BB needs option
+    // Preflop unopened pot - BB needs option (HIGH PRIORITY)
     if (this.room.stage === "preflop" && this.maxBet === this.room.bigBlindAmount) {
       const bbIndex = this.getBigBlindIndex();
       const bbPlayer = this.room.players[bbIndex];
@@ -128,6 +128,8 @@ export class BettingRoundState {
         console.log(`🔍 [BettingRoundState] BB option check: bbIndex=${bbIndex}, bbHasActed=${bbHasActed}, maxBet=${this.maxBet}, bbAmount=${this.room.bigBlindAmount}`);
         if (!bbHasActed) {
           console.log(`🔍 [BettingRoundState] BB needs option - setting requirement to BB_OPTION`);
+          // Ensure BB is in playersWhoNeedToAct set for option
+          this.playersWhoNeedToAct.add(bbIndex);
           this.requirement = ActionRequirement.BB_OPTION;
           return;
         }
@@ -220,10 +222,9 @@ export class BettingRoundState {
     // Remove player from need-to-act set
     this.playersWhoNeedToAct.delete(playerIndex);
 
-    // If player raises, other players may need to act again
-    if (action === "raise") {
-      this.calculatePlayersWhoNeedToAct();
-    }
+    // For all actions, recalculate who needs to act
+    // This ensures BB option is properly detected after any action
+    this.calculatePlayersWhoNeedToAct();
 
     // Recalculate requirements and state
     this.determineRequirement();

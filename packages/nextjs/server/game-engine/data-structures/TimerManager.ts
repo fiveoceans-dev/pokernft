@@ -162,16 +162,9 @@ export class TimerManager extends EventEmitter {
     this.currentActionPlayerId = playerId;
     const startTime = Date.now();
     console.log(`🕐 [TimerManager] Starting ${this.actionTimeoutMs/1000}s action timer for ${playerId}`);
-    console.log(`📊 [TimerManager] Timer state before start:`, {
-      currentActionPlayerId: this.currentActionPlayerId,
-      actionTimer: !!this.actionTimer,
-      actionCountdown: !!this.actionCountdown,
-      timestamp: new Date().toISOString()
-    });
     
     // Emit initial countdown
     this.emit('action-countdown', playerId, this.actionTimeoutMs);
-    console.log(`📡 [TimerManager] Initial countdown emitted: ${this.actionTimeoutMs}ms`);
     
     // Start countdown updates
     this.actionCountdown = setInterval(() => {
@@ -242,12 +235,6 @@ export class TimerManager extends EventEmitter {
     
     if (wasActive) {
       console.log(`🛑 [TimerManager] Action timer cleared for ${prevPlayerId}`);
-      console.log(`📊 [TimerManager] Timer state after clear:`, {
-        actionTimer: !!this.actionTimer,
-        actionCountdown: !!this.actionCountdown,
-        currentActionPlayerId: this.currentActionPlayerId,
-        timestamp: new Date().toISOString()
-      });
     }
   }
 

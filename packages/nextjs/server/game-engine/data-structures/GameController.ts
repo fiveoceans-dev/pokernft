@@ -195,11 +195,25 @@ export class GameController extends EventEmitter {
     // Record action in betting state
     this.bettingState.recordAction(playerIndex, action, amount);
     
+    // Refresh betting state to sync with updated player bets
+    this.bettingState.refresh();
+    
     // Validate game state consistency after action
     const stateValidation = this.validateGameState(`after processing ${action} for ${playerId}`);
     if (!stateValidation.isValid) {
       console.error(`❌ [GameController] Game state invalid after action:`, stateValidation);
-      // Don't throw error, but log for debugging
+      
+      // Attempt to recover from desynchronization
+      console.log(`🔧 [GameController] Attempting state recovery...`);
+      this.recoverFromDesynchronization();
+      
+      // Re-validate after recovery
+      const recoveryValidation = this.validateGameState(`after recovery from ${action}`);
+      if (!recoveryValidation.isValid) {
+        console.error(`💀 [GameController] Recovery failed, state still invalid:`, recoveryValidation);
+      } else {
+        console.log(`✅ [GameController] State recovered successfully`);
+      }
     }
 
     // Check if round is complete
@@ -373,6 +387,24 @@ export class GameController extends EventEmitter {
     console.error(`💀 [GameController] CRITICAL: Could not find any valid player during recovery`);
     // Last resort: force complete the betting round
     this.room.players.forEach(p => p.isTurn = false);
+  }
+
+  /**
+   * Recovery mechanism for state desynchronization between modules
+   */
+  private recoverFromDesynchronization(): void {
+    console.log(`🔧 [GameController] Attempting to recover from state desynchronization...`);
+    
+    // Force refresh all state managers to resync with actual game state
+    this.positions.refresh();
+    this.bettingState.refresh();
+    this.turnOrder.reset();
+    this.actionValidator.updateBettingState(this.bettingState);
+    
+    // Ensure current player state is consistent
+    this.updateCurrentPlayer();
+    
+    console.log(`🔄 [GameController] State recovery complete - all modules refreshed`);
   }
 
   /**
@@ -732,6 +764,41 @@ export class GameController extends EventEmitter {
       if (this.bettingState.isComplete() && playersNeedingAction.length > 0) {
         errors.push(`Betting marked complete but ${playersNeedingAction.length} players still need to act`);
       }
+    }
+    
+    // Check BB option synchronization
+    if (this.room.stage === "preflop") {
+      const bbIndex = (this.room.dealerIndex + 2) % this.room.players.length;
+      const bbPlayer = this.room.players[bbIndex];
+      const maxBet = Math.max(0, ...this.room.players.map(p => p.currentBet));
+      
+      if (bbPlayer && !bbPlayer.hasFolded && bbPlayer.chips > 0) {
+        const isUnopened = maxBet === this.room.bigBlindAmount;
+        const bbHasActed = this.room.actionHistory.some(entry => 
+          entry.playerIndex === bbIndex && entry.action !== "blind"
+        );
+        
+        if (isUnopened && !bbHasActed) {
+          // BB should have option - betting shouldn't be complete
+          if (this.bettingState.isComplete()) {
+            errors.push(`BB (${bbPlayer.id}) should have option but betting marked complete`);
+          }
+          
+          // BB should be in players who need to act
+          const bettingPlayersNeeded = this.bettingState.getPlayersWhoNeedToAct();
+          if (!bettingPlayersNeeded.includes(bbIndex)) {
+            errors.push(`BB (${bbPlayer.id}) needs option but not in playersWhoNeedToAct`);
+          }
+        }
+      }
+    }
+    
+    // Check synchronization between BettingRoundState and TurnOrderManager
+    const bettingComplete = this.bettingState.isComplete();
+    const currentPlayerInfo = this.turnOrder.getCurrentPlayer();
+    
+    if (bettingComplete && currentPlayerInfo && currentPlayerInfo.player.chips > 0) {
+      errors.push(`Betting complete but TurnOrderManager has active player: ${currentPlayerInfo.player.id}`);
     }
     
     if (errors.length > 0) {
