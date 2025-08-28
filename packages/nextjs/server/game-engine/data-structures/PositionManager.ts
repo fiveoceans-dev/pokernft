@@ -1,4 +1,4 @@
-import { GameRoom, PlayerSession, Stage } from "../types";
+import { GameRoom, PlayerSession, Stage } from "../core/types";
 
 /**
  * Player position types in poker
@@ -312,7 +312,8 @@ export class PositionManager {
       playerIndex: sbIndex,
       action: "blind",
       amount: sbAmount,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      stage: this.room.stage
     });
 
     this.room.actionHistory.push({
@@ -320,7 +321,8 @@ export class PositionManager {
       playerIndex: bbIndex,
       action: "blind",
       amount: bbAmount,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      stage: this.room.stage
     });
 
     console.log(`💰 [${this.room.id}] Blinds posted - SB: ${sbPlayer.id} $${sbAmount}, BB: ${bbPlayer.id} $${bbAmount}`);

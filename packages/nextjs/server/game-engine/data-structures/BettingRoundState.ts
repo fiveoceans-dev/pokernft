@@ -1,4 +1,4 @@
-import { GameRoom, PlayerSession, Stage, RoomActionType } from "../types";
+import { GameRoom, PlayerSession, Stage, RoomActionType } from "../core/types";
 
 /**
  * Betting round states
@@ -64,7 +64,6 @@ export class BettingRoundState {
     this.determineRequirement();
     this.updateState();
 
-    console.log(`🎰 [${this.room.id}] BettingRoundState initialized: ${this.state}, requirement: ${this.requirement}`);
   }
 
   /**
@@ -106,6 +105,7 @@ export class BettingRoundState {
     
     // Single player remaining
     if (activePlayers.length <= 1) {
+      console.log(`🔍 [BettingRoundState] Single player remaining - setting requirement to NONE`);
       this.requirement = ActionRequirement.NONE;
       return;
     }
@@ -113,6 +113,7 @@ export class BettingRoundState {
     // All players are all-in
     const playersWithChips = activePlayers.filter(p => p.chips > 0);
     if (playersWithChips.length <= 1) {
+      console.log(`🔍 [BettingRoundState] All players all-in - setting requirement to NONE`);
       this.requirement = ActionRequirement.NONE;
       return;
     }
@@ -124,7 +125,9 @@ export class BettingRoundState {
       
       if (bbPlayer && !bbPlayer.hasFolded && bbPlayer.chips > 0) {
         const bbHasActed = this.hasPlayerActedVoluntarily(bbIndex);
+        console.log(`🔍 [BettingRoundState] BB option check: bbIndex=${bbIndex}, bbHasActed=${bbHasActed}, maxBet=${this.maxBet}, bbAmount=${this.room.bigBlindAmount}`);
         if (!bbHasActed) {
+          console.log(`🔍 [BettingRoundState] BB needs option - setting requirement to BB_OPTION`);
           this.requirement = ActionRequirement.BB_OPTION;
           return;
         }
@@ -133,11 +136,13 @@ export class BettingRoundState {
 
     // Players need to match a raise
     if (this.playersWhoNeedToAct.size > 0) {
+      console.log(`🔍 [BettingRoundState] ${this.playersWhoNeedToAct.size} players need to act - setting requirement to MATCH_RAISE`);
       this.requirement = ActionRequirement.MATCH_RAISE;
       return;
     }
 
     // Normal round completion
+    console.log(`🔍 [BettingRoundState] Normal completion - setting requirement to COMPLETE_ROUND`);
     this.requirement = ActionRequirement.COMPLETE_ROUND;
   }
 
@@ -167,21 +172,28 @@ export class BettingRoundState {
     // Determine active states
     switch (this.requirement) {
       case ActionRequirement.NONE:
+        console.log(`🔍 [BettingRoundState] Requirement NONE - setting state to COMPLETE`);
         this.state = BettingState.COMPLETE;
         break;
         
       case ActionRequirement.BB_OPTION:
+        console.log(`🔍 [BettingRoundState] Requirement BB_OPTION - setting state to AWAITING_ACTION`);
         this.state = BettingState.AWAITING_ACTION;
         break;
         
       case ActionRequirement.MATCH_RAISE:
+        console.log(`🔍 [BettingRoundState] Requirement MATCH_RAISE - setting state to BETTING`);
         this.state = BettingState.BETTING;
         break;
         
       case ActionRequirement.COMPLETE_ROUND:
-        if (this.hasActionReturned()) {
+        const hasReturned = this.hasActionReturned();
+        console.log(`🔍 [BettingRoundState] Requirement COMPLETE_ROUND - hasActionReturned=${hasReturned}`);
+        if (hasReturned) {
+          console.log(`🔍 [BettingRoundState] Action returned - setting state to COMPLETE`);
           this.state = BettingState.COMPLETE;
         } else {
+          console.log(`🔍 [BettingRoundState] Action not returned - setting state to BETTING`);
           this.state = BettingState.BETTING;
         }
         break;
@@ -198,7 +210,6 @@ export class BettingRoundState {
       return;
     }
 
-    console.log(`📝 [${this.room.id}] Recording action: ${player.id} ${action} ${amount || ''}`);
 
     // Update max bet if this is a raise
     if (action === "raise" && amount) {

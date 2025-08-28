@@ -1,4 +1,4 @@
-import { Table, Player, PlayerState, Pot } from "./types";
+import { Table, Player, PlayerState, Pot } from "../core/types";
 import { rankHand, compareHands } from "./handEvaluator";
 
 /**

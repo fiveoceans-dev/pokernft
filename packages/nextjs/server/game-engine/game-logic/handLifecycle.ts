@@ -1,10 +1,10 @@
-import { Table, TableState, Round, PlayerState } from "./types";
-import { dealDeck } from "./utils";
+import { Table, TableState, Round, PlayerState } from "../core/types";
+import { dealDeck } from "../utils/utils";
 import { dealHole } from "./dealer";
 import { rebuildPots, awardPots, applyRake } from "./potManager";
 import { resetTableForNextHand } from "./handReset";
-import { countActivePlayers } from "./tableUtils";
-import { AuditLogger } from "./auditLogger";
+import { countActivePlayers } from "../tableUtils";
+import { AuditLogger } from "../auditLogger";
 import crypto from "crypto";
 
 /**

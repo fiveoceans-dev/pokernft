@@ -1,4 +1,4 @@
-import { PlayerState } from "./types";
+import { PlayerState } from "../core/types";
 
 export type PlayerEvent =
   | {

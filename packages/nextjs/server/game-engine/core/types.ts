@@ -52,10 +52,11 @@ export type RoomActionType = "fold" | "call" | "raise" | "check" | "blind";
 /** Action history entry for tracking voluntary vs forced actions */
 export interface ActionHistoryEntry {
   playerId: string;
-  playerIndex: number;
+  playerIndex?: number;
   action: RoomActionType;
   amount?: number;
   timestamp: number;
+  stage?: Stage;
 }
 
 /** High level room state used by the server */

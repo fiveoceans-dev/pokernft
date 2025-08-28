@@ -1,9 +1,9 @@
-import { RANKS } from "./constants";
-import type { Card } from "./types";
+import { RANKS } from "../core/constants";
+import type { Card } from "../core/types";
 import type {
   HandEvaluatorRequest,
   HandEvaluatorResponse,
-} from "./jsonFormats";
+} from "../jsonFormats";
 
 export interface RankedHand {
   rankValue: number; // lower = better

@@ -1,0 +1,9 @@
+# Coding Guidelines
+- Do not include emoji in code comments, variable names, or output
+- Write production-quality code with clear naming conventions and consistent style
+- Avoid unnecessary comments or clutter
+- Maintain consistent indentation and spacing
+- Use blank lines to separate logical code blocks
+- Preferably, Keep each file around 200–250 lines for readability and maintainability
+- Use descriptive variable and function names
+- Follow language-specific best practices and standard conventions

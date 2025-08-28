@@ -16,7 +16,11 @@ export function usePokerActions() {
     chips,
     currentWalletId,
     playerIds,
-    playerStates
+    playerStates,
+    dealerIndex,
+    bigBlind,
+    street,
+    actionHistory
   } = useGameStore();
 
   return useMemo(() => {
@@ -90,11 +94,18 @@ export function usePokerActions() {
     const minRaise = Math.max(maxBet + 50, 50); // Min raise is previous bet + big blind, minimum 50
     
     // Check if this is BB with option (preflop, I'm BB, everyone called)
+    const totalPlayers = safePlayerIds.length;
+    const bbIndex = dealerIndex !== null && totalPlayers > 2 
+      ? (dealerIndex + 2) % totalPlayers // Multi-way: BB is 2 seats after dealer
+      : dealerIndex !== null && totalPlayers === 2 
+        ? (dealerIndex + 1) % totalPlayers // Heads-up: BB is 1 seat after dealer (non-dealer)
+        : -1;
+    
     const isBBWithOption = street === 0 && // preflop
-                          mySeatIndex >= 0 &&
-                          betToCall === 0 && 
-                          maxBet > 0 && // There are bets (blinds)
-                          maxBet <= 10; // Max bet is still just the BB (assuming BB is 10)
+                          mySeatIndex === bbIndex && // I'm the big blind
+                          betToCall === 0 && // No additional bet to call
+                          maxBet === bigBlind && // Max bet is still just the BB
+                          mySeatIndex >= 0; // Valid seat index
 
     // Safety check: if we don't have chips data, return limited actions
     if (myChips < 0) {

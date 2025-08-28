@@ -19,65 +19,64 @@ export type {
   RakeConfig,
   HandAction,
   HandLog
-} from "./server/game-engine/types";
+} from "./server/game-engine/core/types";
 
 // Export types from networking.ts
 export type {
   LobbyTable,
   ServerEvent,
   ClientCommand
-} from "./server/game-engine/networking";
+} from "./server/game-engine/network/networking";
 
 // Export enums and constants
 export { 
   PlayerState,
   TableState,
   Round as BettingRound
-} from "./server/game-engine/types";
+} from "./server/game-engine/core/types";
 
 // Export constants
-export * from "./server/game-engine/constants";
+export * from "./server/game-engine/core/constants";
 
 // Export utility functions that are safe for client use
 export { 
   indexToCard,
   cardToIndex 
-} from "./server/game-engine/utils";
+} from "./server/game-engine/utils/utils";
 
 // Export address utilities for client use
 export { shortAddress, randomAddress } from "./utils/address";
 
 // Export wildcard modules (matching original client game-engine)
-export * from "./server/game-engine/stateMachine";
-export * from "./server/game-engine/utils";
-export * from "./server/game-engine/hashEvaluator";
-export * from "./server/game-engine/handEvaluator";
-export * from "./server/game-engine/rng";
-export * from "./server/game-engine/gameEngine";
+export * from "./server/game-engine/state/stateMachine";
+export * from "./server/game-engine/utils/utils";
+export * from "./server/game-engine/utils/hashEvaluator";
+export * from "./server/game-engine/game-logic/handEvaluator";
+export * from "./server/game-engine/utils/rng";
+export * from "./server/game-engine/core/gameEngine";
 // Legacy modules removed - functionality moved to GameController
 // export * from "./server/game-engine/blindManager";
 // export * from "./server/game-engine/seatingManager";
-export * from "./server/game-engine/eventBus";
-export * from "./server/game-engine/playerStateMachine";
-export * from "./server/game-engine/tableStateMachine";
-export * from "./server/game-engine/dealer";
-export * from "./server/game-engine/potManager";
-export * from "./server/game-engine/timerService";
-export * from "./server/game-engine/handReset";
+export * from "./server/game-engine/network/eventBus";
+export * from "./server/game-engine/state/playerStateMachine";
+export * from "./server/game-engine/state/tableStateMachine";
+export * from "./server/game-engine/game-logic/dealer";
+export * from "./server/game-engine/game-logic/potManager";
+// export * from "./server/game-engine/timerService"; // Legacy - use TimerManager
+export * from "./server/game-engine/game-logic/handReset";
 export * from "./server/game-engine/auditLogger";
 
 // Export specific functions from room module
 export {
   createRoom,
   addPlayer,
-  handleAction,
   nextTurn,
   determineWinners,
   isRoomRoundComplete,
   payout,
   startRoomHand,
   progressStage,
-} from "./server/game-engine/room";
+} from "./server/game-engine/core/room";
 
 // Legacy betting engine exports removed - functionality moved to GameController
 // export {
@@ -88,4 +87,4 @@ export {
 // } from "./server/game-engine/bettingEngine";
 
 // Export specific functions from hand lifecycle
-export { startTableHand, endHand } from "./server/game-engine/handLifecycle";
+export { startTableHand, endHand } from "./server/game-engine/game-logic/handLifecycle";

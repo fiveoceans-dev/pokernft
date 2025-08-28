@@ -1,4 +1,4 @@
-import { GameRoom, PlayerSession } from "../types";
+import { GameRoom, PlayerSession } from "../core/types";
 // Legacy imports removed - these classes are now in GameController
 // import { BettingRuleEngine } from "../legacy/BettingRuleEngine";
 // import { AllInDetectionEngine } from "../legacy/AllInDetectionEngine";

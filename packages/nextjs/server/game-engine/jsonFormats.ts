@@ -1,4 +1,4 @@
-import type { Card, PlayerAction, Table } from "./types";
+import type { Card, PlayerAction, Table } from "./core/types";
 
 export interface HandEvaluatorRequest {
   cards: Card[];

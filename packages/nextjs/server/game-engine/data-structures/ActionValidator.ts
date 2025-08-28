@@ -1,4 +1,4 @@
-import { GameRoom, PlayerSession, Stage, RoomActionType } from "../types";
+import { GameRoom, PlayerSession, Stage, RoomActionType } from "../core/types";
 import { BettingRoundState, BettingState } from "./BettingRoundState";
 
 /**
@@ -83,10 +83,8 @@ export class ActionValidator {
     }
 
     // If we get here, player can act
-    const validActions = this.getValidActions(playerIndex);
     return { 
-      isValid: true, 
-      validActions 
+      isValid: true
     };
   }
 

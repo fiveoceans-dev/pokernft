@@ -1,13 +1,13 @@
-import { Table, PlayerAction, Round, TableState } from "./types";
-import { TableStateMachine } from "./tableStateMachine";
-import { startTableHand as startHandLifecycle, endHand } from "./handLifecycle";
+import { Table, PlayerAction, Round, TableState } from "./core/types";
+import { TableStateMachine } from "./state/tableStateMachine";
+import { startTableHand as startHandLifecycle, endHand } from "./game-logic/handLifecycle";
 // Legacy betting engine imports removed - functionality moved to GameController
 // import {
 //   applyAction,
 //   isBettingRoundComplete,
 //   startBettingRound,
 // } from "./bettingEngine";
-import { dealBoard } from "./dealer";
+import { dealBoard } from "./game-logic/dealer";
 import { countActivePlayers } from "./tableUtils";
 import { AuditLogger } from "./auditLogger";
 

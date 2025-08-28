@@ -1,4 +1,4 @@
-import { TableState } from "./types";
+import { TableState } from "../core/types";
 
 export type TableEvent =
   | { type: "START_HAND"; activeSeats: number }

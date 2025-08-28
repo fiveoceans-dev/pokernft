@@ -1,4 +1,4 @@
-import { HandAction, PlayerAction, Round } from "./types";
+import { HandAction, PlayerAction, Round } from "./core/types";
 
 /**
  * Simple in-memory audit logger storing actions for the current hand.

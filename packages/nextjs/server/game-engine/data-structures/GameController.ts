@@ -1,10 +1,11 @@
-import { GameRoom, PlayerSession, RoomActionType } from "../types";
+import { EventEmitter } from "events";
+import { GameRoom, PlayerSession, RoomActionType } from "../core/types";
 import { TurnOrderManager } from "./TurnOrderManager";
 import { BettingRoundState, BettingState } from "./BettingRoundState";
 import { PositionManager } from "./PositionManager";
 import { ActionValidator } from "./ActionValidator";
 import { TimerManager } from "./TimerManager";
-import { dealDeck } from "../utils";
+import { dealDeck, draw } from "../utils/utils";
 
 /**
  * Action processing result
@@ -21,7 +22,7 @@ interface ActionResult {
  * Unified game controller that manages all game logic using data structures
  * Replaces scattered logic with centralized, structured approach
  */
-export class GameController {
+export class GameController extends EventEmitter {
   private room: GameRoom;
   private turnOrder!: TurnOrderManager;
   private bettingState!: BettingRoundState;
@@ -30,9 +31,61 @@ export class GameController {
   private timerManager: TimerManager;
 
   constructor(room: GameRoom) {
+    super();
     this.room = room;
     this.timerManager = new TimerManager();
+    this.setupTimerErrorHandling();
     this.initializeStructures();
+  }
+
+  /**
+   * Setup error handling for timer callbacks
+   */
+  private setupTimerErrorHandling(): void {
+    this.timerManager.on('timeout-callback-error', (data: { playerId: string, error: any }) => {
+      console.error(`🚨 [GameController] Timer callback error for ${data.playerId}, attempting recovery:`, data.error);
+      
+      // Try to force fold the player as last resort
+      try {
+        const player = this.room.players.find(p => p.id === data.playerId);
+        if (player && !player.hasFolded) {
+          console.log(`🔧 [GameController] Force folding ${data.playerId} after timer callback failure`);
+          
+          // Directly modify player state and advance turn
+          player.hasFolded = true;
+          this.room.actionHistory.push({
+            playerId: data.playerId,
+            action: "fold",
+            amount: 0,
+            timestamp: Date.now(),
+            stage: this.room.stage
+          });
+          
+          // Advance to next player
+          this.turnOrder.next();
+          
+          // Check if betting round is complete
+          if (this.bettingState.isComplete()) {
+            console.log(`✅ [GameController] Betting round complete after forced fold recovery`);
+            // Emit state change to notify game progression
+            this.emit('state-changed');
+          }
+          
+          console.log(`✅ [GameController] Recovery successful: ${data.playerId} folded and turn advanced`);
+        }
+      } catch (recoveryError) {
+        console.error(`💀 [GameController] CRITICAL: Recovery failed after timer callback error:`, recoveryError);
+        // Emit state change as absolute last resort
+        this.emit('state-changed');
+      }
+    });
+  }
+
+  /**
+   * Set action timeout for timer manager
+   */
+  public setActionTimeout(timeoutMs: number): void {
+    this.timerManager.setActionTimeout(timeoutMs);
   }
 
   /**
@@ -49,7 +102,7 @@ export class GameController {
    * Start a new hand
    */
   public startNewHand(): void {
-    console.log(`🆕 [${this.room.id}] Starting new hand with GameController`);
+    // console.log(`🆕 [${this.room.id}] Starting new hand with GameController`);
     
     // Check minimum players
     if (this.room.players.length < 2) {
@@ -94,6 +147,12 @@ export class GameController {
     const blindResult = this.positions.postBlinds();
     console.log(`💰 [${this.room.id}] Blinds posted: SB $${blindResult.smallBlindAmount}, BB $${blindResult.bigBlindAmount}`);
 
+    // Deal hole cards to all players
+    this.room.players.forEach(player => {
+      player.hand = [draw(this.room.deck), draw(this.room.deck)];
+    });
+    console.log(`🃏 [${this.room.id}] Dealt hole cards to ${this.room.players.length} players`);
+
     // Set up turn order and betting state
     this.turnOrder.reset();
     this.bettingState.reset();
@@ -129,13 +188,19 @@ export class GameController {
     }
 
     const player = this.room.players[playerIndex];
-    console.log(`🎮 [${this.room.id}] Processing action: ${player.id} ${action} ${amount || ''}`);
 
     // Process the action
     this.executeAction(playerIndex, action, amount);
 
     // Record action in betting state
     this.bettingState.recordAction(playerIndex, action, amount);
+    
+    // Validate game state consistency after action
+    const stateValidation = this.validateGameState(`after processing ${action} for ${playerId}`);
+    if (!stateValidation.isValid) {
+      console.error(`❌ [GameController] Game state invalid after action:`, stateValidation);
+      // Don't throw error, but log for debugging
+    }
 
     // Check if round is complete
     const roundComplete = this.bettingState.isComplete();
@@ -228,7 +293,8 @@ export class GameController {
       playerIndex,
       action,
       amount: amount || 0,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      stage: this.room.stage
     });
   }
 
@@ -246,8 +312,67 @@ export class GameController {
       // Set current player's turn
       currentPlayerInfo.player.isTurn = true;
       
-      console.log(`👤 [${this.room.id}] Current player: ${currentPlayerInfo.player.id} (index ${currentPlayerInfo.playerIndex})`);
+      console.log(`🔄 Turn updated to player ${currentPlayerInfo.player.id} (index: ${currentPlayerInfo.playerIndex})`);
+    } else {
+      console.error(`❌ [GameController] No current player found in turn order! Attempting recovery...`);
+      this.recoverFromNoActivePlayer();
     }
+  }
+
+  /**
+   * Recovery mechanism when no active player is found
+   */
+  private recoverFromNoActivePlayer(): void {
+    console.log(`🚨 [GameController] Starting recovery from no active player state`);
+    
+    const activePlayers = this.room.players.filter(p => !p.hasFolded && p.chips > 0);
+    
+    if (activePlayers.length === 0) {
+      console.error(`💀 [GameController] CRITICAL: No players left in game`);
+      // This should trigger game end, but don't break the system
+      this.room.stage = "showdown";
+      return;
+    }
+    
+    if (activePlayers.length === 1) {
+      console.log(`🏆 [GameController] Only one player left, ending betting round`);
+      // Mark betting round as complete and proceed to showdown/payout
+      this.room.players.forEach(p => p.isTurn = false);
+      return;
+    }
+    
+    // Find next valid player starting from current index
+    const currentIndex = this.room.currentTurnIndex;
+    let nextIndex = (currentIndex + 1) % this.room.players.length;
+    let searchCount = 0;
+    
+    while (searchCount < this.room.players.length) {
+      const candidate = this.room.players[nextIndex];
+      if (candidate && !candidate.hasFolded && candidate.chips > 0) {
+        console.log(`✅ [GameController] Recovery: Found valid player ${candidate.id} at index ${nextIndex}`);
+        
+        // Clear all turn flags and set the new current player
+        this.room.players.forEach(p => p.isTurn = false);
+        candidate.isTurn = true;
+        this.room.currentTurnIndex = nextIndex;
+        
+        // Reinitialize turn order from this point
+        try {
+          this.turnOrder.reset();
+          console.log(`🔧 [GameController] Turn order reinitialized from recovery player`);
+        } catch (reinitError) {
+          console.error(`❌ [GameController] Failed to reinitialize turn order during recovery:`, reinitError);
+        }
+        
+        return;
+      }
+      nextIndex = (nextIndex + 1) % this.room.players.length;
+      searchCount++;
+    }
+    
+    console.error(`💀 [GameController] CRITICAL: Could not find any valid player during recovery`);
+    // Last resort: force complete the betting round
+    this.room.players.forEach(p => p.isTurn = false);
   }
 
   /**
@@ -482,7 +607,11 @@ export class GameController {
       const action: RoomActionType = betToCall > 0 ? "fold" : "check";
       
       console.log(`🤖 [${this.room.id}] Auto-${action} for timed out player ${currentPlayer.player.id}`);
-      this.processAction(currentPlayer.player.id, action);
+      
+      // Use callback to trigger action through game engine to avoid recursion
+      if (this.onActionTimeout) {
+        this.onActionTimeout(currentPlayer.player.id, action);
+      }
     });
   }
 
@@ -538,9 +667,11 @@ export class GameController {
   public setTimerCallbacks(callbacks: {
     onGameAutoStart?: () => void;
     onShowdownComplete?: () => void;
+    onActionTimeout?: (playerId: string, action: RoomActionType) => void;
   }): void {
     this.onGameAutoStart = callbacks.onGameAutoStart;
     this.onShowdownComplete = callbacks.onShowdownComplete;
+    this.onActionTimeout = callbacks.onActionTimeout;
   }
 
   /**
@@ -557,7 +688,73 @@ export class GameController {
     this.timerManager.clearAllTimers();
   }
 
+  /**
+   * Validate game state consistency
+   */
+  private validateGameState(context: string): { isValid: boolean, errors: string[] } {
+    const errors: string[] = [];
+    
+    // Check that we have active players
+    const activePlayers = this.room.players.filter(p => !p.hasFolded && p.chips > 0);
+    if (activePlayers.length === 0) {
+      errors.push("No active players remaining");
+    }
+    
+    // Check that current turn index is valid
+    if (this.room.currentTurnIndex < 0 || this.room.currentTurnIndex >= this.room.players.length) {
+      errors.push(`Invalid current turn index: ${this.room.currentTurnIndex} (total players: ${this.room.players.length})`);
+    }
+    
+    // Check that exactly one player has isTurn = true (or none if betting round complete)
+    const playersWithTurn = this.room.players.filter(p => p.isTurn);
+    if (!this.bettingState.isComplete() && playersWithTurn.length !== 1) {
+      errors.push(`Expected 1 player with isTurn=true, found ${playersWithTurn.length}: ${playersWithTurn.map(p => p.id).join(', ')}`);
+    }
+    
+    // Check that current player is not folded and has chips
+    const currentPlayer = this.room.players[this.room.currentTurnIndex];
+    if (currentPlayer && !this.bettingState.isComplete()) {
+      if (currentPlayer.hasFolded) {
+        errors.push(`Current player ${currentPlayer.id} has folded but is still current`);
+      }
+      if (currentPlayer.chips <= 0 && !currentPlayer.hasFolded) {
+        errors.push(`Current player ${currentPlayer.id} has no chips but hasn't folded`);
+      }
+    }
+    
+    // Check betting state consistency
+    if (activePlayers.length > 1) {
+      const maxBet = Math.max(0, ...this.room.players.map(p => p.currentBet));
+      const playersNeedingAction = activePlayers.filter(p => 
+        p.currentBet < maxBet && p.chips > 0 && !p.hasFolded
+      );
+      
+      if (this.bettingState.isComplete() && playersNeedingAction.length > 0) {
+        errors.push(`Betting marked complete but ${playersNeedingAction.length} players still need to act`);
+      }
+    }
+    
+    if (errors.length > 0) {
+      console.log(`🔍 [GameController] State validation failed (${context}):`, {
+        errors,
+        gameState: {
+          currentTurnIndex: this.room.currentTurnIndex,
+          currentPlayer: currentPlayer?.id,
+          stage: this.room.stage,
+          activePlayers: activePlayers.map(p => ({ id: p.id, chips: p.chips, currentBet: p.currentBet, isTurn: p.isTurn })),
+          bettingComplete: this.bettingState.isComplete()
+        }
+      });
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
   // Callback handlers
   private onGameAutoStart?: () => void;
   private onShowdownComplete?: () => void;
+  private onActionTimeout?: (playerId: string, action: RoomActionType) => void;
 }

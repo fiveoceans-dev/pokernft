@@ -261,7 +261,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     <div className="relative flex flex-col items-center justify-center w-full h-full">
       {/* Unified white countdown timer - used for both game start and player action timers */}
       {displayTimer !== null && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono text-white bg-black/50 px-3 py-1 rounded">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 text-3xl font-mono text-white bg-black/50 px-3 py-1 rounded z-50">
           {displayTimer.toString().padStart(2, "0")}
         </div>
       )}

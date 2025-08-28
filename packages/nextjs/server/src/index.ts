@@ -65,7 +65,6 @@ const processed = new Map<WebSocket, Set<string>>();
 let connectionCount = 0;
 const seatMaps = new Map<string, Map<string, number>>();
 const gameStartTimers = new Map<string, NodeJS.Timeout>();
-const actionTimers = new Map<string, NodeJS.Timeout>();
 const timeoutCounts = new Map<string, number>();
 const sitOutPlayers = new Map<string, number>(); // playerId -> sit out timestamp
 const tableIdleTimers = new Map<string, NodeJS.Timeout>(); // tableId -> timer
@@ -126,10 +125,6 @@ function cleanupIdleTable(tableId: string) {
   if (gameStartTimers.has(tableId)) {
     clearTimeout(gameStartTimers.get(tableId)!);
     gameStartTimers.delete(tableId);
-  }
-  if (actionTimers.has(tableId)) {
-    clearTimeout(actionTimers.get(tableId)!);
-    actionTimers.delete(tableId);
   }
 
   // Clear idle timer
@@ -307,13 +302,7 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
     engine!.on("handEnded", () => {
       broadcast(id, { type: "HAND_END" });
       
-      // Clear action timer immediately when hand ends (including winner scenarios)
-      const actionTimer = actionTimers.get(id);
-      if (actionTimer) {
-        clearInterval(actionTimer);
-        actionTimers.delete(id);
-        console.log(`⏰ [${id}] Cleared action timer on hand end`);
-      }
+      // Action timer is now managed by GameController/TimerManager
     });
 
     engine!.on("dealerMessage", (message: string) => {
@@ -370,8 +359,30 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
         timeLeftMs: turnInfo.timeLeftMs,
       });
       
-      // Start action timer for the current player
-      startActionTimer(id, turnInfo.playerId);
+      // Action timer is now managed by GameController/TimerManager
+    });
+
+    // Timer event listeners - forward TimerManager events to client-compatible format with monitoring
+    engine!.on("actionCountdown", (data: { playerId: string, remainingMs: number }) => {
+      const countdown = Math.ceil(data.remainingMs / 1000);
+      console.log(`⏰ [WebSocket] Timer countdown for ${data.playerId}: ${countdown}s (${data.remainingMs}ms)`);
+      broadcast(id, { type: "TIMER", countdown });
+      console.log(`📡 [WebSocket] Timer countdown broadcasted to clients for room ${id}`);
+    });
+
+    engine!.on("actionTimeout", (data: { playerId: string }) => {
+      console.log(`⚠️ [WebSocket] Timer timeout event received for ${data.playerId} in room ${id}`);
+      // Timer expired - send countdown 0
+      broadcast(id, { type: "TIMER", countdown: 0 });
+      console.log(`📡 [WebSocket] Timer timeout (countdown: 0) broadcasted to clients for room ${id}`);
+    });
+
+    engine!.on("actionWarning", (data: { playerId: string, remainingMs: number }) => {
+      // Warning at 5 seconds - continue normal countdown
+      const countdown = Math.ceil(data.remainingMs / 1000);
+      console.log(`⚠️ [WebSocket] Timer warning for ${data.playerId}: ${countdown}s remaining`);
+      broadcast(id, { type: "TIMER", countdown });
+      console.log(`📡 [WebSocket] Timer warning broadcasted to clients for room ${id}`);
     });
   }
   return engine;
@@ -450,104 +461,8 @@ function startGameCountdown(roomId: string) {
   gameStartTimers.set(roomId, timer);
 }
 
-function startActionTimer(roomId: string, playerId: string) {
-  // Clear existing timer
-  const existingTimer = actionTimers.get(roomId);
-  if (existingTimer) {
-    clearInterval(existingTimer);
-  }
-
-  let countdown = ACTION_TIMEOUT_SECONDS;
-  broadcast(roomId, { type: "TIMER", countdown });
-
-  const timer = setInterval(() => {
-    countdown--;
-    broadcast(roomId, { type: "TIMER", countdown });
-
-    if (countdown <= 0) {
-      clearInterval(timer);
-      actionTimers.delete(roomId);
-      
-      // Auto-action (fold or check based on rules)
-      const engine = getEngine(roomId);
-      const room = engine.getState();
-      const player = room.players.find((p) => p.id === playerId);
-
-      if (player && player.isTurn) {
-        const maxBet = Math.max(0, ...room.players.map((p) => p.currentBet));
-        const betToCall = maxBet - player.currentBet;
-
-        // If no bet to call, check; otherwise fold
-        const autoAction = betToCall === 0 ? "check" : "fold";
-
-        try {
-          console.log(`⏰ [${playerId}] Auto-action: ${autoAction} (timeout)`);
-          engine.handleAction(playerId, { type: autoAction });
-          broadcast(roomId, {
-            type: "PLAYER_ACTION_APPLIED",
-            playerId,
-            action: autoAction.toUpperCase() as any,
-          });
-
-          // Check if this auto-action results in only one player remaining
-          const updatedRoom = engine.getState();
-          const activePlayersAfterAction = updatedRoom.players.filter(p => !p.hasFolded);
-          
-          if (activePlayersAfterAction.length === 1) {
-            console.log(`🏆 [${roomId}] Auto-fold resulted in single winner: ${activePlayersAfterAction[0].id}, stage: ${updatedRoom.stage}`);
-            // The GameEngine.handleAction should have already handled the payout and state change
-            // Events will be emitted by GameEngine, server just needs to ensure timers are cleared
-            clearInterval(timer);
-            actionTimers.delete(roomId);
-          }
-
-          // Track consecutive timeouts with progressive punishment
-          const count = (timeoutCounts.get(playerId) ?? 0) + 1;
-          timeoutCounts.set(playerId, count);
-
-          if (count === 1) {
-            console.log(`⚠️ [${roomId}] Warning: Player ${playerId} timed out once`);
-            // First timeout - just a warning, continue playing
-          } else if (count === 2) {
-            // Second timeout - sit out the player
-            console.log(`😴 [${roomId}] Sitting out player ${playerId} due to inactivity`);
-            sitOutPlayers.set(playerId, Date.now());
-            
-            const seatIndex = seatMaps.get(roomId)?.get(playerId);
-            if (seatIndex !== undefined) {
-              broadcast(roomId, {
-                type: "PLAYER_SAT_OUT",
-                seat: seatIndex,
-                playerId,
-                reason: "inactivity"
-              });
-            }
-          } else if (count >= 3) {
-            // Third timeout or more - remove the player permanently
-            const seatIndex = seatMaps.get(roomId)?.get(playerId);
-            console.log(`🚪 [${roomId}] Removing player ${playerId} due to extended inactivity`);
-            
-            seatMaps.get(roomId)?.delete(playerId);
-            sitOutPlayers.delete(playerId);
-            if (engine.removePlayer(playerId)) {
-              broadcast(roomId, {
-                type: "PLAYER_LEFT",
-                seat: seatIndex,
-                playerId,
-                reason: "inactivity"
-              });
-            }
-            timeoutCounts.delete(playerId);
-          }
-        } catch (error) {
-          console.error("Auto-action failed:", error);
-        }
-      }
-    }
-  }, 1000);
-
-  actionTimers.set(roomId, timer);
-}
+// Legacy startActionTimer function removed - replaced by TimerManager in GameController
+// All timer functionality including auto-actions on timeout are now handled by the new timer system
 
 wss.on("connection", (ws) => {
   connectionCount++;
@@ -973,17 +888,15 @@ wss.on("connection", (ws) => {
           }
 
           try {
-            // Clear action timer when player takes action
-            const timer = actionTimers.get(room.id);
-            if (timer) {
-              clearInterval(timer);
-              actionTimers.delete(room.id);
-            }
+            console.log(`🎮 [WebSocket] Processing action from ${playerId}: ${action}${msg.amount ? ` (${msg.amount})` : ''}`);
             
-            engine.handleAction(playerId, {
+            // Action timer is now managed by GameController/TimerManager
+            const actionResult = engine.handleAction(playerId, {
               type: action.toLowerCase() as any,
               amount: msg.amount,
             });
+            
+            console.log(`✅ [WebSocket] Action processed successfully for ${playerId}:`, actionResult);
             
             // Broadcast action event first
             broadcast(room.id, {
@@ -994,9 +907,21 @@ wss.on("connection", (ws) => {
             });
             
             // GameEngine automatically broadcasts TABLE_SNAPSHOT via stateChanged event - no manual broadcast needed
+            console.log(`📡 [WebSocket] Action broadcast completed for ${playerId}`);
             
             timeoutCounts.delete(playerId);
           } catch (error) {
+            // Enhanced error logging for debugging
+            console.error(`❌ [WebSocket] Action failed for player ${playerId}:`, {
+              action,
+              amount: msg.amount,
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              playerId,
+              roomId: room.id,
+              timestamp: new Date().toISOString()
+            });
+            
             ws.send(
               JSON.stringify({
                 tableId: room.id,
@@ -1005,6 +930,15 @@ wss.on("connection", (ws) => {
                 msg: String(error),
               } satisfies ServerEvent),
             );
+            
+            // Don't let action processing errors completely break the game
+            // Try to emit a state changed event to keep UI responsive
+            try {
+              console.log(`🔧 [WebSocket] Attempting state recovery after action error for ${playerId}`);
+              engine.emit("stateChanged", engine.room);
+            } catch (recoveryError) {
+              console.error(`❌ [WebSocket] Failed to recover state after action error:`, recoveryError);
+            }
           }
           break;
         }

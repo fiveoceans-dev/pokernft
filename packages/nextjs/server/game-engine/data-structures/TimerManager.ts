@@ -6,7 +6,7 @@ import { EventEmitter } from "events";
 export const TIMER_CONFIG = {
   GAME_START_DELAY: 10_000,      // 10 seconds to start game with 2+ players
   SHOWDOWN_TO_NEW_HAND: 5_000,   // 5 seconds between showdown and new hand
-  ACTION_TIMEOUT: 15_000,        // 15 seconds for player action
+  DEFAULT_ACTION_TIMEOUT: 15_000, // Default 15 seconds for player action (can be overridden)
   WARNING_THRESHOLD: 5_000,      // Show warning at 5 seconds remaining
   COUNTDOWN_INTERVAL: 1_000      // Update countdown every second
 } as const;
@@ -37,6 +37,14 @@ export class TimerManager extends EventEmitter {
   private actionTimer: NodeJS.Timeout | null = null;
   private actionCountdown: NodeJS.Timeout | null = null;
   private currentActionPlayerId: string | null = null;
+  private actionTimeoutMs: number = TIMER_CONFIG.DEFAULT_ACTION_TIMEOUT;
+
+  /**
+   * Set the action timeout duration in milliseconds
+   */
+  public setActionTimeout(timeoutMs: number): void {
+    this.actionTimeoutMs = timeoutMs;
+  }
 
   /**
    * Start 10-second countdown to begin game when 2+ players are seated
@@ -153,20 +161,28 @@ export class TimerManager extends EventEmitter {
     
     this.currentActionPlayerId = playerId;
     const startTime = Date.now();
-    console.log(`🕐 Starting 15-second action timer for player ${playerId}`);
+    console.log(`🕐 [TimerManager] Starting ${this.actionTimeoutMs/1000}s action timer for ${playerId}`);
+    console.log(`📊 [TimerManager] Timer state before start:`, {
+      currentActionPlayerId: this.currentActionPlayerId,
+      actionTimer: !!this.actionTimer,
+      actionCountdown: !!this.actionCountdown,
+      timestamp: new Date().toISOString()
+    });
     
     // Emit initial countdown
-    this.emit('action-countdown', playerId, TIMER_CONFIG.ACTION_TIMEOUT);
+    this.emit('action-countdown', playerId, this.actionTimeoutMs);
+    console.log(`📡 [TimerManager] Initial countdown emitted: ${this.actionTimeoutMs}ms`);
     
     // Start countdown updates
     this.actionCountdown = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, TIMER_CONFIG.ACTION_TIMEOUT - elapsed);
+      const remaining = Math.max(0, this.actionTimeoutMs - elapsed);
       
       this.emit('action-countdown', playerId, remaining);
       
       // Emit warning at 5 seconds
       if (remaining <= TIMER_CONFIG.WARNING_THRESHOLD && remaining > TIMER_CONFIG.WARNING_THRESHOLD - TIMER_CONFIG.COUNTDOWN_INTERVAL) {
+        console.log(`⚠️ [TimerManager] Warning threshold reached for ${playerId}: ${remaining}ms`);
         this.emit('action-warning', playerId, remaining);
       }
       
@@ -182,17 +198,36 @@ export class TimerManager extends EventEmitter {
       this.actionCountdown = null;
       this.actionTimer = null;
       
-      console.log(`⏰ Action timer expired for player ${playerId}`);
+      console.log(`⏰ [TimerManager] Action timer expired for player ${playerId}`);
       this.emit('action-timeout', playerId);
       this.currentActionPlayerId = null;
-      onTimeout();
-    }, TIMER_CONFIG.ACTION_TIMEOUT);
+      
+      // Execute callback with error handling and recovery
+      try {
+        console.log(`🎮 [TimerManager] Executing timeout callback for ${playerId}`);
+        onTimeout();
+        console.log(`✅ [TimerManager] Timeout callback completed successfully for ${playerId}`);
+      } catch (error) {
+        console.error(`❌ [TimerManager] Timeout callback failed for ${playerId}:`, {
+          playerId,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Emit error event so GameEngine can handle it
+        this.emit('timeout-callback-error', { playerId, error });
+      }
+    }, this.actionTimeoutMs);
   }
 
   /**
    * Clear action timer (called when player acts)
    */
   public clearActionTimer(): void {
+    const wasActive = !!this.actionTimer || !!this.actionCountdown;
+    const prevPlayerId = this.currentActionPlayerId;
+    
     if (this.actionTimer) {
       clearTimeout(this.actionTimer);
       this.actionTimer = null;
@@ -204,6 +239,16 @@ export class TimerManager extends EventEmitter {
     }
     
     this.currentActionPlayerId = null;
+    
+    if (wasActive) {
+      console.log(`🛑 [TimerManager] Action timer cleared for ${prevPlayerId}`);
+      console.log(`📊 [TimerManager] Timer state after clear:`, {
+        actionTimer: !!this.actionTimer,
+        actionCountdown: !!this.actionCountdown,
+        currentActionPlayerId: this.currentActionPlayerId,
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 
   /**

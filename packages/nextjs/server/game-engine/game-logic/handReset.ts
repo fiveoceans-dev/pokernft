@@ -1,7 +1,7 @@
-import { Table, PlayerState, PlayerAction, TableState, Round } from "./types";
-import { playerStateReducer } from "./playerStateMachine";
-import { countActivePlayers } from "./tableUtils";
-import TimerService from "./timerService";
+import { Table, PlayerState, PlayerAction, TableState, Round } from "../core/types";
+import { playerStateReducer } from "../state/playerStateMachine";
+import { countActivePlayers } from "../tableUtils";
+// import TimerService from "./timerService"; // Legacy - use TimerManager instead
 
 /**
  * Reset per-hand table and player fields after a hand finishes and
@@ -63,7 +63,7 @@ export async function resetTableForNextHand(table: Table, reBuyAllowed = true) {
 
   const active = countActivePlayers(table);
   if (active >= 2) {
-    await TimerService.wait(table.interRoundDelayMs);
+    // Legacy TimerService.wait removed - handle timing in GameEngine/GameController
     table.state = TableState.BLINDS;
   } else {
     table.state = TableState.WAITING;

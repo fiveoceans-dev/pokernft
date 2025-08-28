@@ -1,4 +1,4 @@
-import type { Card, Table, PlayerAction, Round, GameRoom } from "./types";
+import type { Card, Table, PlayerAction, Round, GameRoom } from "../core/types";
 
 export interface LobbyTable {
   id: string;

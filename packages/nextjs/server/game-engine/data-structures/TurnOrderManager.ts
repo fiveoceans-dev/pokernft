@@ -1,4 +1,4 @@
-import { GameRoom, PlayerSession, Stage } from "../types";
+import { GameRoom, PlayerSession, Stage } from "../core/types";
 
 /**
  * Turn sequence entry representing a player in the turn order
@@ -57,8 +57,6 @@ export class TurnOrderManager {
     this.currentTurnPosition = this.findFirstActingPosition();
     this.roundStartPosition = this.currentTurnPosition;
 
-    console.log(`🎯 [${this.room.id}] Turn order initialized for ${this.stage}:`, 
-      this.turnSequence.map(t => `${t.playerId}(${t.playerIndex})`).join(' → '));
   }
 
   /**
@@ -274,7 +272,6 @@ export class TurnOrderManager {
       this.room.currentTurnIndex = currentPlayerInfo.playerIndex;
       currentPlayerInfo.player.isTurn = true;
       
-      console.log(`👉 [${this.room.id}] Turn set to ${currentPlayerInfo.player.id} (index ${currentPlayerInfo.playerIndex})`);
     } else {
       this.room.currentTurnIndex = -1;
     }

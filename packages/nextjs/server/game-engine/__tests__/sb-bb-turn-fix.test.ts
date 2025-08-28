@@ -1,10 +1,10 @@
-import { GameRoom, PlayerSession } from "../types";
+import { GameRoom, PlayerSession } from "../core/types";
 // Legacy imports removed - these classes are now in GameController
 // import { BettingRuleEngine } from "../legacy/BettingRuleEngine";
 // import { TurnOrderManager } from "../legacy/TurnOrderManager";
 
 // TODO: Update tests to use GameController instead of legacy classes
-import { handleAction } from "../room";
+// import { handleAction } from "../core/room"; // Function removed - use GameController
 
 /**
  * Test to verify the SB→BB turn advancement fix

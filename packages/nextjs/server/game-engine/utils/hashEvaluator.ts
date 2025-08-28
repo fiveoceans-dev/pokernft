@@ -1,4 +1,4 @@
-import type { Card, Rank, Suit } from "./types";
+import type { Card, Rank, Suit } from "../core/types";
 import {
   BINARIES_BY_ID,
   SUITBIT_BY_ID,
@@ -8,7 +8,7 @@ import {
   NO_FLUSH_5,
   NO_FLUSH_6,
   NO_FLUSH_7,
-} from "./hashTables";
+} from "../hashTables";
 
 const NO_FLUSHES: Record<number, number[]> = {
   5: NO_FLUSH_5,

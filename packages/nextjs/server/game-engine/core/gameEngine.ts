@@ -1,17 +1,17 @@
 import { EventEmitter } from "events";
-import { GameRoom, PlayerSession, Stage } from "./types";
+import { GameRoom, PlayerSession, Stage, RoomActionType } from "./types";
 import {
   createRoom as createRoomImpl,
   addPlayer as addPlayerImpl,
   startRoomHand as startHandImpl,
-  handleAction as handleActionImpl,
+  // handleAction as handleActionImpl, // Function removed
   progressStage as progressStageImpl,
   determineWinners as determineWinnersImpl,
   isRoomRoundComplete as isRoundCompleteImpl,
   payout as payoutImpl,
 } from "./room";
-import { PokerStateMachine, GameState } from "./stateMachine";
-import { GameController } from "./data-structures/GameController";
+import { PokerStateMachine, GameState } from "../state/stateMachine";
+import { GameController } from "../data-structures/GameController";
 
 /**
  * Central game engine orchestrating table workflow.  It wraps the low level
@@ -27,17 +27,18 @@ export class GameEngine extends EventEmitter {
 
   constructor(id: string, minBet = 10, actionTimeoutSeconds = 10) {
     super();
-    console.log(`🎮 [GameEngine] Creating new game engine for table ${id} with minBet $${minBet}, actionTimeout: ${actionTimeoutSeconds}s`);
+    // console.log(`🎮 [GameEngine] Creating new game engine for table ${id} with minBet $${minBet}, actionTimeout: ${actionTimeoutSeconds}s`);
     this.room = createRoomImpl(id, minBet);
     this.machine = new PokerStateMachine();
     this.actionTimeoutMs = actionTimeoutSeconds * 1000;
     
     // Initialize GameController with timer system
     this.gameController = new GameController(this.room);
+    this.gameController.setActionTimeout(this.actionTimeoutMs);
     this.setupTimerCallbacks();
     this.setupTimerEvents();
     
-    console.log(`✅ [GameEngine] Game engine created successfully for table ${id}`);
+    // console.log(`✅ [GameEngine] Game engine created successfully for table ${id}`);
   }
 
   /** Load an existing room snapshot */
@@ -147,7 +148,7 @@ export class GameEngine extends EventEmitter {
 
   /** Start a fresh hand */
   startHand() {
-    console.log(`🎯 [GameEngine] Starting new hand for table ${this.room.id} with ${this.room.players.length} players`);
+    // console.log(`🎯 [GameEngine] Starting new hand for table ${this.room.id} with ${this.room.players.length} players`);
     
     // Clear any existing showdown timer when starting a new hand
     if (this.showdownTimer) {
@@ -207,7 +208,6 @@ export class GameEngine extends EventEmitter {
     }
     
     // Use GameController for action processing
-    console.log(`🎮 [GameEngine] Using GameController for action processing`);
     const result = this.gameController!.processAction(playerId, action.type as any, action.amount);
     
     if (!result.success) {
@@ -233,9 +233,8 @@ export class GameEngine extends EventEmitter {
       return; // Game ended with winner, no further processing needed
     }
     
-    // Round completion is handled by GameController above
-    
-    // Emit turn changed event for the next player to act
+    // Always emit turnChanged event when there's a next player (even if roundComplete is false)
+    // This ensures the UI updates properly when the turn advances
     const currentPlayer = this.room.players[this.room.currentTurnIndex];
     const roomStage = this.room.stage as Stage;
     if (currentPlayer && currentPlayer.isTurn && roomStage !== "waiting" && roomStage !== "showdown") {
@@ -257,7 +256,10 @@ export class GameEngine extends EventEmitter {
   progressStage() {
     const prevStage = this.room.stage;
     console.log(`⏭️ [GameEngine] Manually advancing stage from ${prevStage} for table ${this.room.id}`);
-    progressStageImpl(this.room);
+    
+    // Use GameController for stage progression
+    this.gameController!.progressStage();
+    
     this.machine.dispatch({ type: "DEAL_COMPLETE" });
     console.log(`✅ [GameEngine] Stage advanced from ${prevStage} to ${this.room.stage}`);
     this.emit("phaseChanged", this.machine.state);
@@ -394,7 +396,7 @@ export class GameEngine extends EventEmitter {
     }
 
     if (this.room.stage === "river") {
-      progressStageImpl(this.room); // advance to showdown
+      this.gameController!.progressStage(); // advance to showdown
       const winners = determineWinnersImpl(this.room);
       const potAmount = this.room.pot;
       
@@ -420,14 +422,13 @@ export class GameEngine extends EventEmitter {
       return;
     }
 
-    progressStageImpl(this.room);
+    // Use GameController for stage progression
+    this.gameController!.progressStage();
+    
     this.machine.dispatch({ type: "DEAL_COMPLETE" });
     this.emit("phaseChanged", this.machine.state);
     this.emit("stageChanged", this.room.stage);
     this.emit("stateChanged", this.room);
-    
-    // Initialize proper turn order for new betting round using GameController turn management
-    this.gameController!.progressStage();
     
     // Emit turn changed event for first player to act in new betting round
     const currentPlayer = this.room.players[this.room.currentTurnIndex];
@@ -565,6 +566,63 @@ export class GameEngine extends EventEmitter {
       onShowdownComplete: () => {
         console.log(`⏰ [GameEngine] Showdown timer complete - starting new hand`);
         this.startHand();
+      },
+      onActionTimeout: (playerId: string, action: RoomActionType) => {
+        console.log(`⏰ [GameEngine] Timer expired for ${playerId}, executing auto-action: ${action}`);
+        console.log(`🎲 [GameEngine] Game state before timer action:`, {
+          currentTurnIndex: this.room.currentTurnIndex,
+          currentPlayer: this.room.players[this.room.currentTurnIndex]?.id,
+          stage: this.room.stage,
+          playersCount: this.room.players.length,
+          activePlayers: this.room.players.filter(p => !p.hasFolded && p.chips > 0).length
+        });
+        
+        try {
+          // Process the auto-action through the normal flow
+          console.log(`🎮 [GameEngine] Processing timer auto-action for ${playerId}: ${action}`);
+          const result = this.handleAction(playerId, { type: action as "fold" | "call" | "raise" | "check" });
+          console.log(`✅ [GameEngine] Timer auto-action completed successfully for ${playerId}:`, result);
+          
+          // Verify game state after action
+          console.log(`🎲 [GameEngine] Game state after timer action:`, {
+            currentTurnIndex: this.room.currentTurnIndex,
+            currentPlayer: this.room.players[this.room.currentTurnIndex]?.id,
+            stage: this.room.stage,
+            activePlayers: this.room.players.filter(p => !p.hasFolded && p.chips > 0).length
+          });
+          
+        } catch (error) {
+          console.error(`❌ [GameEngine] Failed to process timer auto-action for ${playerId}:`, {
+            playerId,
+            action,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            timestamp: new Date().toISOString()
+          });
+          
+          // If auto-action fails, try to fold the player as fallback
+          console.log(`🔧 [GameEngine] Attempting fallback auto-fold for ${playerId}`);
+          try {
+            const foldResult = this.handleAction(playerId, { type: "fold" });
+            console.log(`✅ [GameEngine] Fallback auto-fold successful for ${playerId}:`, foldResult);
+          } catch (foldError) {
+            console.error(`❌ [GameEngine] CRITICAL: Failed to auto-fold ${playerId}:`, {
+              playerId,
+              originalAction: action,
+              foldError: foldError instanceof Error ? foldError.message : String(foldError),
+              foldStack: foldError instanceof Error ? foldError.stack : undefined,
+              timestamp: new Date().toISOString()
+            });
+            
+            // Last resort: try to emit state change to keep UI responsive
+            try {
+              console.log(`🚨 [GameEngine] Last resort: forcing state change after failed timer callback`);
+              this.emit("stateChanged", this.room);
+            } catch (emitError) {
+              console.error(`💀 [GameEngine] FATAL: Unable to recover from timer callback failure:`, emitError);
+            }
+          }
+        }
       }
     });
   }

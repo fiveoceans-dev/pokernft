@@ -1,4 +1,4 @@
-import { GameRoom, PlayerSession } from "./types";
+import { GameRoom, PlayerSession } from "./core/types";
 
 /**
  * Comprehensive game state validation engine

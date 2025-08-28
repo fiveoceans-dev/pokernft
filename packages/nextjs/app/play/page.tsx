@@ -103,7 +103,7 @@ export default function PlayPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <header className="relative w-full flex items-center justify-center mt-6 mb-4 px-4">
+      <header className="relative w-full flex items-start justify-start mt-6 mb-4 px-4 pl-8">
         <AnimatedTitle text="Poker Night on Starknet" />
       </header>
       {/* Player Control Buttons - positioned in top right */}

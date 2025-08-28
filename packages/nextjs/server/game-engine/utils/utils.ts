@@ -1,5 +1,5 @@
-import { RANKS, SUITS } from "./constants";
-import type { Card } from "./types";
+import { RANKS, SUITS } from "../core/constants";
+import type { Card } from "../core/types";
 import { randomInt, seededRNG } from "./rng";
 
 /* ─────── Random + Deck helpers ─────── */

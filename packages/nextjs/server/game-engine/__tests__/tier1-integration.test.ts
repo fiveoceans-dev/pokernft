@@ -1,4 +1,4 @@
-import { GameRoom, PlayerSession } from "../types";
+import { GameRoom, PlayerSession } from "../core/types";
 import { GameController } from "../data-structures/GameController";
 import { BettingState } from "../data-structures/BettingRoundState";
 

@@ -1,10 +1,10 @@
-import { GameRoom, PlayerSession, ActionHistoryEntry, RoomActionType } from "../types";
+import { GameRoom, PlayerSession, ActionHistoryEntry, RoomActionType } from "../core/types";
 // Legacy imports removed - these classes are now in GameController
 // import { BettingRuleEngine } from "../legacy/BettingRuleEngine";
 // import { TurnOrderManager } from "../legacy/TurnOrderManager";
 
 // TODO: Update tests to use GameController instead of legacy classes
-import { startRoomHand, handleAction, isRoomRoundComplete } from "../room";
+// import { startRoomHand, handleAction, isRoomRoundComplete } from "../core/room"; // Functions removed - use GameController
 
 /**
  * Comprehensive tests for BB last action scenarios

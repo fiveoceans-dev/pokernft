@@ -1,4 +1,4 @@
-import { Table, PlayerState } from "./types";
+import { Table, PlayerState } from "./core/types";
 
 /** Count active players at the table */
 export function countActivePlayers(table: Table): number {

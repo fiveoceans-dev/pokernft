@@ -1,5 +1,5 @@
-import { Table, PlayerState, Round } from "./types";
-import { draw } from "./utils";
+import { Table, PlayerState, Round } from "../core/types";
+import { draw } from "../utils/utils";
 
 /** Deal two hole cards to each active seat starting from the small blind */
 export function dealHole(table: Table) {
