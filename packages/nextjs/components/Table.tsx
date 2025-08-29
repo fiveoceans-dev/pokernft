@@ -291,7 +291,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       </div>
 
       {/* Smart Action Buttons */}
-      <ActionButtons />
+      <ActionButtons scale={tableScale} />
       
       {/* Card Reveal Button - Show during showdown if player hasn't revealed cards */}
       {street === 4 && walletSeatIdx !== null && walletSeatIdx >= 0 && 

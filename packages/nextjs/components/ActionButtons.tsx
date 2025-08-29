@@ -3,7 +3,11 @@ import { usePokerActions, PokerAction } from "../hooks/usePokerActions";
 import { useGameStore } from "../hooks/useGameStore";
 import { withErrorBoundary } from "./ErrorBoundary";
 
-function ActionButtons() {
+interface Props {
+  scale?: number;
+}
+
+function ActionButtons({ scale = 1 }: Props) {
   const actions = usePokerActions();
   const { playerAction, bigBlind, chips, playerIds, currentWalletId, playerBets } = useGameStore();
   
@@ -35,6 +39,13 @@ function ActionButtons() {
   const hasExistingBets = maxCurrentBet > (isPreflop ? safeBigBlind : 0);
   
   const [betAmount, setBetAmount] = useState(safeBigBlind);
+
+  // Calculate minimum re-raise amount (double the previous raise)
+  const sortedBets = [...safePlayerBets].sort((a, b) => b - a);
+  const highestBet = sortedBets[0] || 0;
+  const secondHighestBet = sortedBets[1] || 0;
+  const lastRaise = Math.max(highestBet - secondHighestBet, safeBigBlind);
+  const minReRaise = highestBet + lastRaise;
 
   // Update bet amount if big blind changes
   React.useEffect(() => {
@@ -107,7 +118,10 @@ function ActionButtons() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-3 mt-4">
+    <div
+      className="flex flex-col items-center gap-3 mt-4"
+      style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
+    >
       {/* Action Buttons - hide disabled buttons but maintain layout spacing */}
       <div className="flex gap-2 flex-wrap justify-center min-h-[40px]">
         {actions.map((action) => (
@@ -195,6 +209,18 @@ function ActionButtons() {
       {/* Quick Bet Buttons */}
       {actions.some(a => a && (a.type === "bet" || a.type === "raise")) && maxBet > safeBigBlind && (
         <div className="flex gap-2">
+          {hasExistingBets && (
+            <button
+              onClick={() => {
+                const newAmount = Math.min(minReRaise, maxBet);
+                setBetAmount(newAmount);
+              }}
+              className="px-3 py-1 bg-black/60 text-white rounded hover:bg-black/80 transition-colors"
+              disabled={minReRaise > maxBet}
+            >
+              Re-raise
+            </button>
+          )}
           <button
             onClick={() => {
               const newAmount = Math.min(safeBigBlind * 2, maxBet);
