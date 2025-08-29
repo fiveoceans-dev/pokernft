@@ -21,11 +21,7 @@ import {
 import { reduce } from "./reducer";
 import { validateAction, getAvailableActions } from "../logic/validation";
 import { getBettingRoundState } from "../utils/ringOrder";
-import {
-  collectIntoPots,
-  calculatePayouts,
-  handleUncalledBet,
-} from "../logic/potManager";
+import { calculatePayouts, handleUncalledBet } from "../logic/potManager";
 import { getNextStreet } from "../logic/betting";
 import {
   generateHoleCards,
