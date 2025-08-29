@@ -85,10 +85,16 @@ export function getBlindPositions(seats: Seat[], button: number): BlindPositions
 export function getFirstActor(table: Table, isPreflop: boolean): ActionOrderResult {
   const { seats, button } = table;
   const activeCount = countActivePlayers(seats);
-  const isHeadsUp = activeCount === 2;
+  const inHandCount = countPlayersInHand(seats);
+  const isHeadsUp = inHandCount === 2; // heads-up if exactly two players remain in hand
   
-  if (activeCount < 2) {
-    return { actor: -1, isHeadsUp: false, activeCount };
+  // If fewer than 2 players in hand, no betting actor
+  if (inHandCount < 2) {
+    return { actor: -1, isHeadsUp, activeCount };
+  }
+  // If no actionable players (everyone all-in), no actor
+  if (activeCount === 0) {
+    return { actor: -1, isHeadsUp, activeCount };
   }
   
   if (isPreflop) {
@@ -98,12 +104,11 @@ export function getFirstActor(table: Table, isPreflop: boolean): ActionOrderResu
       if (!blindPositions) {
         return { actor: -1, isHeadsUp, activeCount };
       }
-      
-      return { 
-        actor: blindPositions.sb, 
-        isHeadsUp, 
-        activeCount 
-      };
+      // If SB not actionable (e.g., posted all-in), choose next actionable clockwise
+      const candidate = isActionable(seats[blindPositions.sb])
+        ? blindPositions.sb
+        : getNextActionableIndex(seats, blindPositions.sb);
+      return { actor: candidate, isHeadsUp, activeCount };
     } else {
       // Multi-way preflop: Left of Big Blind (UTG) acts first
       const blindPositions = getBlindPositions(seats, button);
@@ -111,12 +116,10 @@ export function getFirstActor(table: Table, isPreflop: boolean): ActionOrderResu
         return { actor: -1, isHeadsUp, activeCount };
       }
       
+      // Start from UTG and find first actionable
       const utg = getNextActionableIndex(seats, blindPositions.bb);
-      return { 
-        actor: utg, 
-        isHeadsUp, 
-        activeCount 
-      };
+      const actor = utg;
+      return { actor, isHeadsUp, activeCount };
     }
   } else {
     // Postflop
@@ -126,20 +129,15 @@ export function getFirstActor(table: Table, isPreflop: boolean): ActionOrderResu
       if (!blindPositions) {
         return { actor: -1, isHeadsUp, activeCount };
       }
-      
-      return { 
-        actor: blindPositions.bb, 
-        isHeadsUp, 
-        activeCount 
-      };
+      // If BB not actionable (all-in), choose next actionable clockwise
+      const candidate = isActionable(seats[blindPositions.bb])
+        ? blindPositions.bb
+        : getNextActionableIndex(seats, blindPositions.bb);
+      return { actor: candidate, isHeadsUp, activeCount };
     } else {
       // Multi-way postflop: Left of Button acts first
       const firstActor = getNextActionableIndex(seats, button);
-      return { 
-        actor: firstActor, 
-        isHeadsUp, 
-        activeCount 
-      };
+      return { actor: firstActor, isHeadsUp, activeCount };
     }
   }
 }

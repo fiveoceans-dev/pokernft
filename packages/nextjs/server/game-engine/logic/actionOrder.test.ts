@@ -148,3 +148,39 @@ describe("bet/raise ordering and completion", () => {
     expect(n3.isComplete).toBe(true);
   });
 });
+
+describe("edge cases with all-in blinds", () => {
+  it("HU preflop: SB all-in -> BB is first actor with option", () => {
+    // Seats: A (button/SB) has only 5 chips, B (BB) has 100
+    const seats = makeSeats(["A", "B"], 100);
+    seats[0].chips = 5;
+    const table = baseTable(seats, 0, 5, 10);
+
+    // Post blinds: SB posts 5 and is all-in, BB posts 10
+    const after = { ...table, phase: "preflop" as const } as Table;
+    after.seats = after.seats.map((s) => ({ ...s }));
+    // SB
+    after.seats[0].chips = 0;
+    after.seats[0].committed = 5;
+    after.seats[0].streetCommitted = 5;
+    after.seats[0].status = "allin";
+    // BB
+    after.seats[1].chips -= 10;
+    after.seats[1].committed = 10;
+    after.seats[1].streetCommitted = 10;
+    after.currentBet = 10;
+    after.lastRaiseSize = 10;
+    after.bbSeat = 1;
+    after.bbHasActed = false;
+
+    // First actor should be BB (only actionable player)
+    const first = getFirstActor(after as any, true);
+    expect(first.actor).toBe(1);
+
+    // And next-actor computation should keep action on BB (option to raise)
+    after.actor = 1;
+    const n = getNextActor(after);
+    expect(n.isComplete).toBe(false);
+    expect(n.actor).toBe(1);
+  });
+});
