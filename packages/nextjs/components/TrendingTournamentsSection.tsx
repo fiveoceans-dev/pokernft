@@ -6,9 +6,9 @@ import { buyNft } from "~~/services/nft";
 import { PopularNftCard, type PopularNftCardProps } from "./ui/PopularNftCard";
 
 // Trending items used both for display and as NFT images for tournaments
-const trendingItems: PopularNftCardProps[] = Array.from({ length: 8 }).map((_, i) => ({
+const trendingItems: PopularNftCardProps[] = Array.from({ length: 7 }).map((_, i) => ({
   id: i,
-  title: `FIVE`,
+  title: `PokerNFTs #${i}`,
   image: `/nfts/nft${i}.png`,
   buyIn: `$${20 + i}`,
   status: "Minting",
@@ -123,20 +123,6 @@ const baseTournaments: Omit<Tournament, "nft">[] = [
   },
   {
     id: 7,
-    name: "Weekend Warriors",
-    game: "Hold'em",
-    date: "2024-09-02",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "Squiggles",
-    prize: 80,
-    creatorShare: 10,
-    protocolFee: 10,
-    sold: 350,
-    supply: 600,
-    buyIn: 150,
-  },
-  {
-    id: 8,
     name: "Grand Finale",
     date: "2025-12-30",
     game: "Hold'em",
@@ -191,7 +177,7 @@ export default function TrendingTournamentsSection() {
     <section id="trending-tournaments" className="py-24 text-gray-900 dark:text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-10">
-          <span className="text-accent">Trending & Upcoming Tournaments</span>
+          <span className="text-accent">Upcoming Tournaments</span>
         </h2>
 
         <div className="overflow-x-auto pb-2 mb-8">

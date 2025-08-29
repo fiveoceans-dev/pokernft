@@ -34,12 +34,12 @@ const steps = [
     icon: FaTable,
   },
   {
-    title: "Prizes Distribution",
+    title: "Fair Prize Distribution",
     description: "Bank split: 80% prizes, 10% creator, 10% protocol.",
     icon: FaCoins,
   },
   {
-    title: "Get $POKER Airdrop",
+    title: "Get $POKER Airdrops",
     description:
       "Top 15% win prize money and get a bonus airdrop of $POKER tokens.",
     icon: FaGift,
