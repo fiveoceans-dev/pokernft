@@ -7,15 +7,7 @@
  * - Betting round invariants and completion detection
  */
 
-import {
-  Table,
-  Seat,
-  Street,
-  ActionType,
-  SeatStatus,
-  ActionValidation,
-  BettingRoundState,
-} from "../core/types";
+import { Table, Street, ActionType, SeatStatus } from "../core/types";
 
 import {
   getFirstActor,
@@ -23,9 +15,9 @@ import {
   getBettingRoundState,
   getToCallAmount,
   canCheck,
-  countActivePlayers,
-  countPlayersInHand,
 } from "../utils/ringOrder";
+
+import { validateAction } from "./validation";
 
 /**
  * Enter new betting street with proper initialization
@@ -167,148 +159,6 @@ export function applyAction(
   };
 }
 
-/**
- * Validate player action with detailed error reporting
- */
-export function validateAction(
-  table: Table,
-  seatId: number,
-  action: ActionType,
-  amount: number = 0,
-): ActionValidation {
-  // Basic seat validation
-  if (seatId < 0 || seatId >= table.seats.length) {
-    return { valid: false, error: "Invalid seat index" };
-  }
-
-  const seat = table.seats[seatId];
-
-  if (!seat.pid) {
-    return { valid: false, error: "Seat is empty" };
-  }
-
-  if (seat.status !== "active") {
-    return { valid: false, error: "Player is not active" };
-  }
-
-  if (table.actor !== seatId) {
-    return { valid: false, error: "Not player's turn" };
-  }
-
-  const toCall = getToCallAmount(seat, table.currentBet);
-
-  // Action-specific validation
-  switch (action) {
-    case "fold":
-      return { valid: true };
-
-    case "check":
-      if (toCall > 0) {
-        return { valid: false, error: "Cannot check with bet to call" };
-      }
-      return { valid: true };
-
-    case "call":
-      if (toCall === 0) {
-        return { valid: false, error: "No bet to call" };
-      }
-      const callAmount = Math.min(toCall, seat.chips);
-      const isAllIn = seat.chips <= toCall;
-      return { valid: true, normalizedAmount: callAmount, isAllIn };
-
-    case "bet":
-      if (table.currentBet > 0) {
-        return {
-          valid: false,
-          error: "Cannot bet when there's already a bet (must raise)",
-        };
-      }
-      return validateBetAmount(seat, amount, table.bigBlind);
-
-    case "raise":
-      if (table.currentBet === 0) {
-        return { valid: false, error: "Cannot raise without a bet (must bet)" };
-      }
-      return validateRaiseAmount(table, seat, amount, toCall);
-
-    case "allin":
-      if (seat.chips === 0) {
-        return { valid: false, error: "No chips to go all-in" };
-      }
-      return { valid: true };
-
-    default:
-      return { valid: false, error: "Unknown action type" };
-  }
-}
-
-/**
- * Validate bet amount according to poker rules
- */
-function validateBetAmount(
-  seat: Seat,
-  amount: number,
-  bigBlind: number,
-): ActionValidation {
-  if (amount <= 0) {
-    return { valid: false, error: "Bet amount must be positive" };
-  }
-
-  if (amount > seat.chips) {
-    return { valid: false, error: "Bet amount exceeds available chips" };
-  }
-
-  // Minimum bet is big blind
-  const minBet = bigBlind;
-  if (amount < minBet && amount < seat.chips) {
-    return {
-      valid: false,
-      error: `Minimum bet is ${minBet} (or all-in)`,
-    };
-  }
-
-  return { valid: true, normalizedAmount: amount };
-}
-
-/**
- * Validate raise amount with min-raise rules
- */
-function validateRaiseAmount(
-  table: Table,
-  seat: Seat,
-  amount: number,
-  toCall: number,
-): ActionValidation {
-  if (amount <= 0) {
-    return { valid: false, error: "Raise amount must be positive" };
-  }
-
-  const totalRequired = toCall + amount;
-
-  if (totalRequired > seat.chips) {
-    return { valid: false, error: "Raise amount exceeds available chips" };
-  }
-
-  // Calculate minimum raise based on last bet/raise size
-  const lastBetSize = calculateLastBetSize(table);
-  const minRaise = lastBetSize;
-
-  if (amount < minRaise && totalRequired < seat.chips) {
-    return {
-      valid: false,
-      error: `Minimum raise is ${minRaise} (or all-in)`,
-    };
-  }
-
-  return { valid: true, normalizedAmount: amount };
-}
-
-/**
- * Calculate the size of the last bet or raise for min-raise calculation
- */
-function calculateLastBetSize(table: Table): number {
-  return table.lastRaiseSize || table.bigBlind;
-}
 
 /**
  * Check if betting round is complete
@@ -369,7 +219,7 @@ export function getBettingStats(table: Table, seatId: number): BettingStats {
   }
 
   const minBet = table.bigBlind;
-  const minRaise = calculateLastBetSize(table);
+  const minRaise = table.lastRaiseSize || table.bigBlind;
   const maxBet = seat.chips;
 
   return {
