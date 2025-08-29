@@ -401,6 +401,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   break;
               }
               if (text) get().addLog(text);
+              // Record action in local action history for consumers (UI, analytics)
+              set(s => ({
+                actionHistory: [
+                  ...s.actionHistory,
+                  { playerId: msg.playerId, action: msg.action, amount: (msg as any).amount }
+                ]
+              }));
               break;
             }
             case "DEAL_FLOP":
@@ -428,6 +435,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               get().addLog("Dealer: Hand started");
               get().resetCardReveals(); // Reset card reveals for new hand
               get().clearWinners(); // Clear previous winners for new hand
+              // Reset action history at the beginning of each hand
+              set({ actionHistory: [] });
               break;
             case "HAND_END":
               get().addLog("Dealer: Hand complete");

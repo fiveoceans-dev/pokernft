@@ -9,6 +9,7 @@
  */
 
 import { EventEmitter } from "events";
+import { logger } from "../utils/logger";
 import { TimerEvent } from '../core/types';
 import { ACTION_TIMEOUT_MS } from '../core/constants';
 
@@ -42,13 +43,16 @@ export class TimerEventManager extends EventEmitter {
   private defaultTimeoutMs: number;
   private warningThresholdMs: number;
   private currentActorPid: string | null = null; // Track current actor to prevent unnecessary clears
+  // Metrics
+  private totalTimersCreated = 0;
+  private totalTimeoutMs = 0; // Sum of timeouts for average calculation
 
   constructor(defaultTimeoutMs = ACTION_TIMEOUT_MS, warningThresholdMs = 5000) {
     super();
     this.defaultTimeoutMs = defaultTimeoutMs;
     this.warningThresholdMs = warningThresholdMs;
     
-    console.log(`⏰ [TimerEventManager] Initialized with ${defaultTimeoutMs}ms timeout (from env)`);
+    logger.info(`⏰ [TimerEventManager] Initialized with ${defaultTimeoutMs}ms timeout (from env)`);
   }
 
   /**
@@ -62,13 +66,13 @@ export class TimerEventManager extends EventEmitter {
     
     // Clear ONLY the previous actor's timer (if different) to avoid race conditions
     if (this.currentActorPid && this.currentActorPid !== pid) {
-      console.log(`⏰ [TimerEventManager] Clearing previous actor's timer: ${this.currentActorPid}`);
+      logger.debug(`⏰ [TimerEventManager] Clearing previous actor's timer: ${this.currentActorPid}`);
       this.clearTimer(this.currentActorPid, "new-actor-turn");
     }
     
     // Update current actor tracking
     this.currentActorPid = pid;
-    console.log(`⏰ [TimerEventManager] Starting timer for ${pid} at seat ${seat} (${timeoutMs}ms)`);
+    logger.debug(`⏰ [TimerEventManager] Starting timer for ${pid} at seat ${seat} (${timeoutMs}ms)`);
     
     // Create timeout handler
     const nodeTimer = setTimeout(() => {
@@ -84,8 +88,12 @@ export class TimerEventManager extends EventEmitter {
       timeoutMs,
       nodeTimer
     });
+
+    // Update metrics
+    this.totalTimersCreated += 1;
+    this.totalTimeoutMs += timeoutMs;
     
-    console.log(`⏰ [TimerEventManager] Timer stored for ${pid}, active timers: ${this.activeTimers.size}`);
+    logger.debug(`⏰ [TimerEventManager] Timer stored for ${pid}, active timers: ${this.activeTimers.size}`);
     
     // Emit turn started event
     this.emit('timerEvent', {
@@ -105,7 +113,7 @@ export class TimerEventManager extends EventEmitter {
       }, warningDelay);
     }
     
-    console.log(`⏰ [TimerEventManager] Started ${timeoutMs}ms timer for ${pid} at seat ${seat}`);
+    logger.debug(`⏰ [TimerEventManager] Started ${timeoutMs}ms timer for ${pid} at seat ${seat}`);
   }
 
   /**
@@ -115,11 +123,11 @@ export class TimerEventManager extends EventEmitter {
     const timer = this.activeTimers.get(pid);
     
     if (!timer) {
-      console.log(`⏰ [TimerEventManager] No active timer to clear for ${pid} (${reason})`);
+      logger.debug(`⏰ [TimerEventManager] No active timer to clear for ${pid} (${reason})`);
       return false; // No active timer
     }
     
-    console.log(`⏰ [TimerEventManager] Clearing timer for ${pid} at seat ${timer.seat} (${reason})`);
+    logger.debug(`⏰ [TimerEventManager] Clearing timer for ${pid} at seat ${timer.seat} (${reason})`);
     
     // Clear Node.js timeout
     clearTimeout(timer.nodeTimer);
@@ -130,7 +138,7 @@ export class TimerEventManager extends EventEmitter {
     // Reset current actor tracking if this was the current actor
     if (this.currentActorPid === pid) {
       this.currentActorPid = null;
-      console.log(`⏰ [TimerEventManager] Reset current actor tracking after clearing ${pid}`);
+      logger.debug(`⏰ [TimerEventManager] Reset current actor tracking after clearing ${pid}`);
     }
     
     // Emit timer cleared event
@@ -141,7 +149,7 @@ export class TimerEventManager extends EventEmitter {
       reason
     } as TimerEventType);
     
-    console.log(`⏰ [TimerEventManager] Cleared timer for ${pid}: ${reason}`);
+    logger.debug(`⏰ [TimerEventManager] Cleared timer for ${pid}: ${reason}`);
     return true;
   }
 
@@ -158,7 +166,7 @@ export class TimerEventManager extends EventEmitter {
     // Reset current actor tracking when all timers cleared
     this.currentActorPid = null;
     
-    console.log(`⏰ [TimerEventManager] Cleared ${clearedCount} timers: ${reason}`);
+    logger.info(`⏰ [TimerEventManager] Cleared ${clearedCount} timers: ${reason}`);
     return clearedCount;
   }
 
@@ -209,25 +217,25 @@ export class TimerEventManager extends EventEmitter {
     const timer = this.activeTimers.get(pid);
     
     if (!timer) {
-      console.log(`⏰ [TimerEventManager] Timer for ${pid} was already cleared - ignoring timeout`);
+      logger.debug(`⏰ [TimerEventManager] Timer for ${pid} was already cleared - ignoring timeout`);
       return; // Timer was already cleared
     }
     
     // Double-check the timer is for the right seat (paranoid validation)
     if (timer.seat !== seat) {
-      console.warn(`⏰ [TimerEventManager] Timer seat mismatch for ${pid}: expected ${seat}, got ${timer.seat}`);
+      logger.warn(`⏰ [TimerEventManager] Timer seat mismatch for ${pid}: expected ${seat}, got ${timer.seat}`);
       this.activeTimers.delete(pid);
       return;
     }
     
     // Check if this player is still the current actor (prevents race conditions)
     if (this.currentActorPid !== pid) {
-      console.log(`⏰ [TimerEventManager] Timer expired for ${pid} but they're no longer current actor (now ${this.currentActorPid})`);
+      logger.debug(`⏰ [TimerEventManager] Timer expired for ${pid} but they're no longer current actor (now ${this.currentActorPid})`);
       this.activeTimers.delete(pid);
       return;
     }
     
-    console.log(`⏰ [TimerEventManager] Timer expired for ${pid} at seat ${seat} after ${Date.now() - timer.startTime}ms`);
+    logger.info(`⏰ [TimerEventManager] Timer expired for ${pid} at seat ${seat} after ${Date.now() - timer.startTime}ms`);
     
     // Remove from active timers
     this.activeTimers.delete(pid);
@@ -239,7 +247,7 @@ export class TimerEventManager extends EventEmitter {
       seat
     } as TimerEventType);
     
-    console.log(`⏰ [TimerEventManager] Timer expired for ${pid} at seat ${seat}`);
+    logger.debug(`⏰ [TimerEventManager] Timer expired for ${pid} at seat ${seat}`);
   }
 
   /**
@@ -256,7 +264,7 @@ export class TimerEventManager extends EventEmitter {
         remainingMs
       } as TimerEventType);
       
-      console.log(`⚠️ [TimerEventManager] Warning for ${pid}: ${remainingMs}ms remaining`);
+      logger.debug(`⚠️ [TimerEventManager] Warning for ${pid}: ${remainingMs}ms remaining`);
     }
   }
 
@@ -265,7 +273,7 @@ export class TimerEventManager extends EventEmitter {
    */
   setDefaultTimeout(timeoutMs: number): void {
     this.defaultTimeoutMs = timeoutMs;
-    console.log(`⏰ [TimerEventManager] Default timeout set to ${timeoutMs}ms`);
+    logger.info(`⏰ [TimerEventManager] Default timeout set to ${timeoutMs}ms`);
   }
 
   /**
@@ -273,7 +281,7 @@ export class TimerEventManager extends EventEmitter {
    */
   setWarningThreshold(thresholdMs: number): void {
     this.warningThresholdMs = thresholdMs;
-    console.log(`⏰ [TimerEventManager] Warning threshold set to ${thresholdMs}ms`);
+    logger.info(`⏰ [TimerEventManager] Warning threshold set to ${thresholdMs}ms`);
   }
 
   /**
@@ -284,11 +292,13 @@ export class TimerEventManager extends EventEmitter {
     totalTimersCreated: number;
     averageTimeoutMs: number;
   } {
-    // In a full implementation, track these metrics
+    const avg = this.totalTimersCreated > 0
+      ? Math.round(this.totalTimeoutMs / this.totalTimersCreated)
+      : this.defaultTimeoutMs;
     return {
       activeTimerCount: this.activeTimers.size,
-      totalTimersCreated: 0, // TODO: implement counter
-      averageTimeoutMs: this.defaultTimeoutMs
+      totalTimersCreated: this.totalTimersCreated,
+      averageTimeoutMs: avg
     };
   }
 
@@ -298,7 +308,7 @@ export class TimerEventManager extends EventEmitter {
   shutdown(): void {
     const clearedCount = this.clearAllTimers("shutdown");
     this.removeAllListeners();
-    console.log(`⏰ [TimerEventManager] Shutdown complete, cleared ${clearedCount} timers`);
+    logger.info(`⏰ [TimerEventManager] Shutdown complete, cleared ${clearedCount} timers`);
   }
 }
 
@@ -316,7 +326,7 @@ export class TimerIntegration {
     // Connect timer events to event engine
     this.setupEventHandlers();
     
-    console.log(`🔗 [TimerIntegration] Connected timer manager to event engine`);
+    logger.info(`🔗 [TimerIntegration] Connected timer manager to event engine`);
   }
 
   /**
@@ -326,7 +336,7 @@ export class TimerIntegration {
     this.timerManager.on('timerEvent', (timerEvent: TimerEventType) => {
       // Handle async timer events - don't block the timer manager
       this.handleTimerEvent(timerEvent).catch(error => {
-        console.error(`❌ [TimerIntegration] Error handling timer event ${timerEvent.type}:`, error);
+        logger.error(`❌ [TimerIntegration] Error handling timer event ${timerEvent.type}: ${error instanceof Error ? error.message : String(error)}`);
       });
     });
   }
@@ -404,6 +414,6 @@ export class TimerIntegration {
    */
   shutdown(): void {
     this.timerManager.shutdown();
-    console.log(`🔗 [TimerIntegration] Shutdown complete`);
+    logger.info(`🔗 [TimerIntegration] Shutdown complete`);
   }
 }
