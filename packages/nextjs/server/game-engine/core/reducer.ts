@@ -21,14 +21,13 @@ import {
   StateTransition,
   SideEffect 
 } from './types';
-import { getNextActor } from '../utils/ringOrder';
-import { 
+import { getNextActor, countActivePlayers } from '../utils/ringOrder';
+import {
   getBlindPositions,
   getFirstActor,
   calculateNextButton,
   validateAndFixButton,
-  shouldGiveBBOption,
-  countActivePlayers
+  shouldGiveBBOption
 } from '../logic/gameRules';
 
 /**
