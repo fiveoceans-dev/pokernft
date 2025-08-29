@@ -27,6 +27,9 @@ let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 let reconnectTimeout: NodeJS.Timeout | null = null;
 
+const DEFAULT_SMALL_BLIND = 25;
+const DEFAULT_BIG_BLIND = DEFAULT_SMALL_BLIND * 2;
+
 interface GameStoreState {
   players: (string | null)[];
   /** wallet addresses for each seated player */
@@ -660,15 +663,20 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     addLog: (msg) => set((s) => ({ logs: [...s.logs, msg] })),
     cardsRevealed: Array(9).fill(false),
     recentWinners: new Set<number>(),
-    smallBlind: 25,
-    bigBlind: 50,
-    minRaise: 50,
+    smallBlind: DEFAULT_SMALL_BLIND,
+    bigBlind: DEFAULT_BIG_BLIND,
+    minRaise: DEFAULT_BIG_BLIND,
     startBlindTimer: () => {
       const increase = () =>
-        set((s) => ({
-          smallBlind: s.smallBlind * 2,
-          bigBlind: s.bigBlind * 2,
-        }));
+        set((s) => {
+          const newSmall = s.smallBlind * 2;
+          const newBig = s.bigBlind * 2;
+          return {
+            smallBlind: newSmall,
+            bigBlind: newBig,
+            minRaise: newBig,
+          };
+        });
       setTimeout(
         function tick() {
           increase();
