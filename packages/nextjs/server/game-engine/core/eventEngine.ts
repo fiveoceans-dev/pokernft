@@ -33,7 +33,7 @@ import {
   evaluateHand,
   determineWinners,
   type PlayerHand
-} from "../logic/handEvaluation";
+} from "../logic/handEvaluationAdapter";
 import {
   STREET_DEAL_DELAY_MS,
   NEW_HAND_DELAY_MS,

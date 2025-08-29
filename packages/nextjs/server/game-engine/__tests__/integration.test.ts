@@ -13,7 +13,7 @@
 
 import { EventEngine } from "../core/eventEngine";
 import { ActionType, Table, PokerEvent } from "../core/types";
-import { evaluateHand, compareHands } from "../logic/handEvaluation";
+import { evaluateHand, compareHands } from "../logic/handEvaluationAdapter";
 
 // Mock timer manager for tests
 class MockTimerManager {
@@ -65,6 +65,10 @@ class MockTimerManager {
 
   clearTimer(timerId: string): void {
     this.cancel(timerId);
+  }
+
+  clearAllTimers(): void {
+    this.cancelAll();
   }
 }
 
@@ -515,15 +519,15 @@ describe("Event Engine Integration Tests", () => {
   describe("Hand Evaluation Algorithm", () => {
     it("should correctly evaluate poker hands", () => {
       // Test basic hand evaluation - just verify it returns valid results
-      const hand1 = evaluateHand([0, 1], [4, 8, 12, 16, 20]); // 2 different cards
+      const hand1 = evaluateHand([0, 1], [4, 8, 12]); // 2 hole cards + 3 board cards = 5 total
       expect(hand1.rank).toBeGreaterThanOrEqual(1); // At least HIGH_CARD
       expect(hand1.rank).toBeLessThanOrEqual(9); // At most STRAIGHT_FLUSH
       expect(hand1.description).toBeTruthy();
       expect(hand1.value).toBeGreaterThan(0);
-      expect(hand1.cards).toHaveLength(5);
+      expect(hand1.cards).toHaveLength(5); // 2 hole + 3 board
 
       // Test different hand
-      const hand2 = evaluateHand([24, 25], [28, 32, 36, 40, 44]); // Different cards
+      const hand2 = evaluateHand([24, 25], [28, 32, 36]); // Different cards
       expect(hand2.rank).toBeGreaterThanOrEqual(1);
       expect(hand2.rank).toBeLessThanOrEqual(9);
       expect(hand2.description).toBeTruthy();
@@ -531,8 +535,8 @@ describe("Event Engine Integration Tests", () => {
 
     it("should correctly compare hands", () => {
       // Create two clearly different hands
-      const hand1 = evaluateHand([0, 1], [8, 12, 16, 20, 24]); // 2♠ 2♥ vs random cards
-      const hand2 = evaluateHand([4, 9], [13, 17, 21, 25, 29]); // 3♠ 3♥ vs random cards
+      const hand1 = evaluateHand([0, 1], [8, 12, 16]); // 2 hole + 3 board = 5 cards
+      const hand2 = evaluateHand([4, 9], [13, 17, 21]); // Different cards
 
       // compareHands should return consistent results
       const comparison1 = compareHands(hand1, hand2);
