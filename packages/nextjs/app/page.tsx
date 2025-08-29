@@ -2,9 +2,8 @@
 import React from "react";
 import HeroSection from "../components/HeroSection";
 import HowItWorksSection from "../components/HowItWorksSection";
-import TrendingSection from "../components/TrendingSection";
-import TournamentsTableSection from "../components/TournamentsTableSection";
-import MarketplaceSection from "../components/MarketplaceSection";
+import TrendingTournamentsSection from "../components/TrendingTournamentsSection";
+import GamesTableSection from "../components/GamesTableSection";
 import StayTunedSection from "../components/StayTunedSection";
 import MissionStatementSection from "../components/MissionStatementSection";
 
@@ -14,8 +13,8 @@ export default function HomePage() {
       <HeroSection />
       <MissionStatementSection />
       <HowItWorksSection />
-      <TrendingSection />
-      <TournamentsTableSection />
+      <TrendingTournamentsSection />
+      <GamesTableSection />
       <StayTunedSection />
     </main>
   );
