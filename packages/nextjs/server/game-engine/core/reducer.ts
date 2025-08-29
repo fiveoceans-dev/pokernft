@@ -29,6 +29,7 @@ import {
   validateAndFixButton,
   shouldGiveBBOption,
 } from "../logic/gameRules";
+import { collectIntoPots } from "../logic/potManager";
 
 /**
  * Main reducer function - pure and deterministic
@@ -515,7 +516,7 @@ function applyAction(
  */
 function closeStreet(table: Table): StateTransition {
   // Collect committed chips into pots
-  const pots = collectIntoPots(table.seats);
+  const { pots } = collectIntoPots(table.seats);
 
   const nextState = {
     ...table,
@@ -729,47 +730,6 @@ function removePlayer(
 
   return { nextState, sideEffects };
 }
-
-// Helper functions
-
-// Helper functions removed - now using centralized gameRules module
-
-function collectIntoPots(seats: Seat[]): Pot[] {
-  // Collect committed amounts by commitment level (side pot algorithm)
-  const commitments = seats
-    .filter((seat) => seat.committed > 0)
-    .map((seat) => ({ pid: seat.pid!, committed: seat.committed }));
-
-  if (commitments.length === 0) {
-    return [];
-  }
-
-  // Sort by commitment level
-  const levels = Array.from(new Set(commitments.map((c) => c.committed))).sort(
-    (a, b) => a - b,
-  );
-  const pots: Pot[] = [];
-  let prevLevel = 0;
-
-  for (const level of levels) {
-    const layerWidth = level - prevLevel;
-    const contributors = commitments.filter((c) => c.committed >= level);
-    const potAmount = layerWidth * contributors.length;
-
-    if (potAmount > 0) {
-      pots.push({
-        amount: potAmount,
-        eligiblePids: contributors.map((c) => c.pid),
-        cap: level,
-      });
-    }
-
-    prevLevel = level;
-  }
-
-  return pots;
-}
-
 /**
  * Handle timeout auto-fold with proper validation
  * Gracefully handles race conditions where player already acted
