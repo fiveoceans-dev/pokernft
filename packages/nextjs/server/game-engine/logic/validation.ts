@@ -1,23 +1,23 @@
 /**
  * Action Validation Functions
- * 
+ *
  * Pure validation functions that return results instead of throwing exceptions.
  * Comprehensive validation for all poker actions with detailed error messages.
  */
 
-import { 
-  Table, 
-  Seat, 
-  ActionType, 
+import {
+  Table,
+  Seat,
+  ActionType,
   ActionValidation,
-  Street 
-} from '../core/types';
+  Street,
+} from "../core/types";
 
-import { 
-  getToCallAmount, 
-  canCheck, 
-  countActivePlayers 
-} from '../utils/ringOrder';
+import {
+  getToCallAmount,
+  canCheck,
+  countActivePlayers,
+} from "../utils/ringOrder";
 
 /**
  * Comprehensive action validation with detailed error reporting
@@ -26,7 +26,7 @@ export function validateAction(
   table: Table,
   seatId: number,
   action: ActionType,
-  amount: number = 0
+  amount: number = 0,
 ): ActionValidation {
   // Basic precondition checks
   const basicValidation = validateBasicPreconditions(table, seatId);
@@ -35,27 +35,27 @@ export function validateAction(
   }
 
   const seat = table.seats[seatId];
-  
+
   // Action-specific validation
   switch (action) {
     case "fold":
       return validateFold(table, seat);
-      
+
     case "check":
       return validateCheck(table, seat);
-      
+
     case "call":
       return validateCall(table, seat);
-      
+
     case "bet":
       return validateBet(table, seat, amount);
-      
+
     case "raise":
       return validateRaise(table, seat, amount);
-      
+
     case "allin":
       return validateAllIn(table, seat);
-      
+
     default:
       return { valid: false, error: "Unknown action type" };
   }
@@ -64,7 +64,10 @@ export function validateAction(
 /**
  * Validate basic preconditions for any action
  */
-function validateBasicPreconditions(table: Table, seatId: number): ActionValidation {
+function validateBasicPreconditions(
+  table: Table,
+  seatId: number,
+): ActionValidation {
   // Seat bounds check
   if (seatId < 0 || seatId >= table.seats.length) {
     return { valid: false, error: "Invalid seat index" };
@@ -108,11 +111,11 @@ function validateFold(table: Table, seat: Seat): ActionValidation {
  */
 function validateCheck(table: Table, seat: Seat): ActionValidation {
   const toCall = getToCallAmount(seat, table.currentBet);
-  
+
   if (toCall > 0) {
-    return { 
-      valid: false, 
-      error: `Cannot check with $${toCall} to call` 
+    return {
+      valid: false,
+      error: `Cannot check with $${toCall} to call`,
     };
   }
 
@@ -124,18 +127,18 @@ function validateCheck(table: Table, seat: Seat): ActionValidation {
  */
 function validateCall(table: Table, seat: Seat): ActionValidation {
   const toCall = getToCallAmount(seat, table.currentBet);
-  
+
   if (toCall === 0) {
-    return { 
-      valid: false, 
-      error: "No bet to call (use check instead)" 
+    return {
+      valid: false,
+      error: "No bet to call (use check instead)",
     };
   }
 
   if (seat.chips < toCall) {
-    return { 
-      valid: false, 
-      error: `Insufficient chips to call $${toCall} (have $${seat.chips})` 
+    return {
+      valid: false,
+      error: `Insufficient chips to call $${toCall} (have $${seat.chips})`,
     };
   }
 
@@ -145,12 +148,16 @@ function validateCall(table: Table, seat: Seat): ActionValidation {
 /**
  * Validate bet action
  */
-function validateBet(table: Table, seat: Seat, amount: number): ActionValidation {
+function validateBet(
+  table: Table,
+  seat: Seat,
+  amount: number,
+): ActionValidation {
   // Check if betting is allowed (no existing bet)
   if (table.currentBet > 0) {
-    return { 
-      valid: false, 
-      error: "Cannot bet when there's already a bet (use raise instead)" 
+    return {
+      valid: false,
+      error: "Cannot bet when there's already a bet (use raise instead)",
     };
   }
 
@@ -158,14 +165,18 @@ function validateBet(table: Table, seat: Seat, amount: number): ActionValidation
 }
 
 /**
- * Validate raise action  
+ * Validate raise action
  */
-function validateRaise(table: Table, seat: Seat, amount: number): ActionValidation {
+function validateRaise(
+  table: Table,
+  seat: Seat,
+  amount: number,
+): ActionValidation {
   // Check if raising is allowed (existing bet required)
   if (table.currentBet === 0) {
-    return { 
-      valid: false, 
-      error: "Cannot raise without an existing bet (use bet instead)" 
+    return {
+      valid: false,
+      error: "Cannot raise without an existing bet (use bet instead)",
     };
   }
 
@@ -178,9 +189,9 @@ function validateRaise(table: Table, seat: Seat, amount: number): ActionValidati
  */
 function validateAllIn(table: Table, seat: Seat): ActionValidation {
   if (seat.chips === 0) {
-    return { 
-      valid: false, 
-      error: "No chips available for all-in" 
+    return {
+      valid: false,
+      error: "No chips available for all-in",
     };
   }
 
@@ -190,25 +201,29 @@ function validateAllIn(table: Table, seat: Seat): ActionValidation {
 /**
  * Validate bet amount according to poker rules
  */
-function validateBetAmount(table: Table, seat: Seat, amount: number): ActionValidation {
+function validateBetAmount(
+  table: Table,
+  seat: Seat,
+  amount: number,
+): ActionValidation {
   if (!isValidAmount(amount)) {
     return { valid: false, error: "Invalid bet amount" };
   }
 
   if (amount > seat.chips) {
-    return { 
-      valid: false, 
-      error: `Bet amount $${amount} exceeds available chips $${seat.chips}` 
+    return {
+      valid: false,
+      error: `Bet amount $${amount} exceeds available chips $${seat.chips}`,
     };
   }
 
   // Check minimum bet (typically big blind)
   const minBet = getMinimumBet(table);
-  
+
   if (amount < minBet && amount < seat.chips) {
-    return { 
-      valid: false, 
-      error: `Minimum bet is $${minBet} (or go all-in with $${seat.chips})` 
+    return {
+      valid: false,
+      error: `Minimum bet is $${minBet} (or go all-in with $${seat.chips})`,
     };
   }
 
@@ -219,31 +234,31 @@ function validateBetAmount(table: Table, seat: Seat, amount: number): ActionVali
  * Validate raise amount with min-raise calculation
  */
 function validateRaiseAmount(
-  table: Table, 
-  seat: Seat, 
-  amount: number, 
-  toCall: number
+  table: Table,
+  seat: Seat,
+  amount: number,
+  toCall: number,
 ): ActionValidation {
   if (!isValidAmount(amount)) {
     return { valid: false, error: "Invalid raise amount" };
   }
 
   const totalRequired = toCall + amount;
-  
+
   if (totalRequired > seat.chips) {
-    return { 
-      valid: false, 
-      error: `Raise total $${totalRequired} exceeds available chips $${seat.chips}` 
+    return {
+      valid: false,
+      error: `Raise total $${totalRequired} exceeds available chips $${seat.chips}`,
     };
   }
 
   // Calculate minimum raise
   const minRaise = calculateMinimumRaise(table);
-  
+
   if (amount < minRaise && totalRequired < seat.chips) {
-    return { 
-      valid: false, 
-      error: `Minimum raise is $${minRaise} (or go all-in with remaining $${seat.chips - toCall})` 
+    return {
+      valid: false,
+      error: `Minimum raise is $${minRaise} (or go all-in with remaining $${seat.chips - toCall})`,
     };
   }
 
@@ -262,10 +277,8 @@ function getMinimumBet(table: Table): number {
  * Calculate minimum raise amount (last bet/raise size)
  */
 function calculateMinimumRaise(table: Table): number {
-  // In a full implementation, track the last bet/raise size
-  // For now, use big blind as minimum raise
-  // TODO: Implement proper bet sizing history
-  return Math.max(table.bigBlind, table.currentBet);
+  // Minimum raise equals the size of the last bet or raise
+  return table.lastRaiseSize || table.bigBlind;
 }
 
 /**
@@ -279,10 +292,12 @@ function isValidBettingPhase(phase: string): boolean {
  * Validate numeric amount
  */
 function isValidAmount(amount: number): boolean {
-  return typeof amount === 'number' && 
-         amount >= 0 && 
-         Number.isFinite(amount) &&
-         Number.isInteger(amount);
+  return (
+    typeof amount === "number" &&
+    amount >= 0 &&
+    Number.isFinite(amount) &&
+    Number.isInteger(amount)
+  );
 }
 
 /**
@@ -292,7 +307,7 @@ export function validateTournamentAction(
   table: Table,
   seatId: number,
   action: ActionType,
-  amount: number = 0
+  amount: number = 0,
 ): ActionValidation {
   // First run standard validation
   const standardValidation = validateAction(table, seatId, action, amount);
@@ -302,12 +317,12 @@ export function validateTournamentAction(
 
   // Additional tournament-specific rules
   const seat = table.seats[seatId];
-  
+
   // Example: No betting allowed if ante not posted
   if (table.blinds.ante && seat.committed === 0) {
-    return { 
-      valid: false, 
-      error: "Must post ante before acting" 
+    return {
+      valid: false,
+      error: "Must post ante before acting",
     };
   }
 
@@ -321,11 +336,11 @@ export function validateActionFromString(
   table: Table,
   seatId: number,
   actionStr: string,
-  amountStr: string = "0"
+  amountStr: string = "0",
 ): ActionValidation {
   // Normalize action string
   const action = actionStr.toLowerCase().trim() as ActionType;
-  
+
   if (!["fold", "check", "call", "bet", "raise", "allin"].includes(action)) {
     return { valid: false, error: `Invalid action: ${actionStr}` };
   }
@@ -342,7 +357,10 @@ export function validateActionFromString(
 /**
  * Get available actions for a seat (for UI)
  */
-export function getAvailableActions(table: Table, seatId: number): ActionType[] {
+export function getAvailableActions(
+  table: Table,
+  seatId: number,
+): ActionType[] {
   const validation = validateBasicPreconditions(table, seatId);
   if (!validation.valid) {
     return [];
@@ -396,7 +414,7 @@ export interface BettingLimits {
 
 export function getBettingLimits(table: Table, seatId: number): BettingLimits {
   const seat = table.seats[seatId];
-  
+
   if (!seat || seat.status !== "active") {
     return { minBet: 0, maxBet: 0, minRaise: 0, maxRaise: 0, toCall: 0 };
   }
@@ -404,12 +422,12 @@ export function getBettingLimits(table: Table, seatId: number): BettingLimits {
   const toCall = getToCallAmount(seat, table.currentBet);
   const minBet = getMinimumBet(table);
   const minRaise = calculateMinimumRaise(table);
-  
+
   return {
     minBet,
     maxBet: seat.chips,
     minRaise,
     maxRaise: Math.max(0, seat.chips - toCall),
-    toCall
+    toCall,
   };
 }
