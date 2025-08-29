@@ -9,6 +9,7 @@
  */
 
 import { Table, Seat, SeatStatus, NextActorResult, BettingRoundState } from '../core/types';
+import { getFirstActor as rulesGetFirstActor, shouldGiveBBOption } from '../logic/gameRules';
 
 /**
  * Check if a seat can take actions
@@ -74,27 +75,9 @@ export function countPlayersInHand(seats: Seat[]): number {
  * Handles preflop vs postflop differences and heads-up exception
  */
 export function getFirstActor(table: Table, isPreflop: boolean): number {
-  const { seats, button } = table;
-  const activeCount = countActivePlayers(seats);
-  
-  if (activeCount < 2) {
-    return -1; // Need at least 2 active players
-  }
-  
-  if (isPreflop) {
-    if (activeCount === 2) {
-      // Heads-up preflop: button acts first
-      return isActionable(seats[button]) ? button : -1;
-    } else {
-      // Multi-way preflop: left of big blind acts first
-      const sbIndex = getNextActionableIndex(seats, button);
-      const bbIndex = getNextActionableIndex(seats, sbIndex);
-      return getNextActionableIndex(seats, bbIndex);
-    }
-  } else {
-    // Postflop: left of button acts first
-    return getNextActionableIndex(seats, button);
-  }
+  // Delegate to canonical rules to avoid divergence
+  const result = rulesGetFirstActor(table, isPreflop);
+  return result.actor;
 }
 
 /**
@@ -143,17 +126,10 @@ export function getNextActor(table: Table): NextActorResult {
 function isBettingRoundComplete(table: Table, nextActorIndex: number): boolean {
   const { seats, lastAggressor, currentBet } = table;
   
-  // BB OPTION: Special preflop logic
-  if (table.phase === "preflop" && 
-      table.bbSeat !== undefined && 
-      !table.bbHasActed &&
-      currentBet === table.bigBlind) {
-    
-    // If action returns to BB with no raises, give BB option
-    if (nextActorIndex === table.bbSeat) {
-      console.log(`💺 [RingOrder] BB gets option to raise`);
-      return false; // Round not complete - BB can act
-    }
+  // BB OPTION: Special preflop logic via canonical rules
+  if (shouldGiveBBOption(table, nextActorIndex)) {
+    console.log(`💺 [RingOrder] BB gets option to raise`);
+    return false; // Round not complete - BB can act
   }
   
   // If everyone has matching streetCommitted amounts or is all-in/folded
