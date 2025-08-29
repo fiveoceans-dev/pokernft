@@ -355,8 +355,8 @@ export class EventEngine extends EventEmitter {
       // Note: State transitions are now handled by the reducer through side effects
     }
 
-    // Start action timer if we're in a betting phase and have an active player
-    this.startActionTimerIfNeeded();
+    // Reducer-driven side effects start/stop timers explicitly.
+    // Avoid starting duplicate timers here to prevent race conditions.
 
     // Emit state change for external listeners AFTER state is fully consistent
     this.emit("stateChanged", this.table);

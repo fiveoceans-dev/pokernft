@@ -70,6 +70,11 @@ export class TimerEventManager extends EventEmitter {
       this.clearTimer(this.currentActorPid, "new-actor-turn");
     }
     
+    // If this player already has a timer, clear it to avoid multiple timeouts
+    if (this.activeTimers.has(pid)) {
+      this.clearTimer(pid, 'restart');
+    }
+
     // Update current actor tracking
     this.currentActorPid = pid;
     logger.debug(`⏰ [TimerEventManager] Starting timer for ${pid} at seat ${seat} (${timeoutMs}ms)`);
