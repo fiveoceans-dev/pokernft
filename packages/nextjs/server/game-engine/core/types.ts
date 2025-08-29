@@ -147,6 +147,7 @@ export interface ActionValidation {
   valid: boolean;
   error?: string;
   normalizedAmount?: number; // for bet/raise normalization
+  isAllIn?: boolean;
 }
 
 /**

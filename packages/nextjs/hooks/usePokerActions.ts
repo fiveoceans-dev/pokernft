@@ -129,9 +129,9 @@ export function usePokerActions() {
       },
       {
         type: "call",
-        label: `Call $${betToCall}`,
-        enabled: isMyTurn && canTakeActions && betToCall > 0 && myChips >= betToCall,
-        amount: betToCall,
+        label: `Call $${Math.min(betToCall, myChips)}${myChips < betToCall ? " (All-in)" : ""}`,
+        enabled: isMyTurn && canTakeActions && betToCall > 0 && myChips > 0,
+        amount: Math.min(betToCall, myChips),
       },
       {
         type: "bet",
@@ -158,7 +158,7 @@ export function usePokerActions() {
         canTakeActions,
         canFold: betToCall > 0,
         canCheck: canCheck,
-        canCall: betToCall > 0 && myChips >= betToCall,
+        canCall: betToCall > 0 && myChips > 0,
         canBet: canBet && myChips >= 50,
         canRaise: (betToCall > 0 && myChips >= minRaise) || (isBBWithOption && myChips >= 50),
         isBBWithOption,
