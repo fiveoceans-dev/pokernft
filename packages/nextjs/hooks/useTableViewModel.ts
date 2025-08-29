@@ -52,6 +52,7 @@ export function useTableViewModel(_timer?: number | null) {
     community,
     joinSeat,
     bigBlind,
+    minRaise,
     chips,
     currentTurn,
     playerBets,
@@ -66,13 +67,12 @@ export function useTableViewModel(_timer?: number | null) {
 
   const isMobile = useIsMobile();
   const [tableScale, setTableScale] = useState(1);
-  const [bet, setBet] = useState(bigBlind);
-  // TODO: use minRaise from engine instead of bigBlind (Action Plan 1.2)
+  const [bet, setBet] = useState(minRaise);
 
   useEffect(() => {
-    const stack = chips[currentTurn ?? 0] ?? bigBlind;
-    setBet(Math.min(bigBlind, stack));
-  }, [bigBlind, currentTurn, chips]);
+    const stack = chips[currentTurn ?? 0] ?? minRaise;
+    setBet(Math.min(minRaise, stack));
+  }, [minRaise, currentTurn, chips]);
 
   useEffect(() => {
     const handle = () => {
@@ -185,6 +185,7 @@ export function useTableViewModel(_timer?: number | null) {
     community,
     joinSeat,
     bigBlind,
+    minRaise,
     chips,
     currentTurn,
     playerBets,

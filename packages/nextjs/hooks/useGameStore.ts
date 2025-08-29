@@ -47,6 +47,8 @@ interface GameStoreState {
   addLog: (msg: string) => void;
   smallBlind: number;
   bigBlind: number;
+  /** minimum raise amount required to reopen betting */
+  minRaise: number;
   startBlindTimer: () => void;
   socket: WebSocket | null;
   /** current connected wallet address - single source of truth */
@@ -227,6 +229,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       error: null,
       smallBlind: room.smallBlindAmount ?? get().smallBlind,
       bigBlind: room.bigBlindAmount ?? get().bigBlind,
+      // default to big blind if minRaise not provided (e.g. pre-action snapshot)
+      minRaise: room.minRaise ?? room.bigBlindAmount ?? get().minRaise,
     });
   }
 
@@ -370,7 +374,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               get().addLog(`${shortAddress(msg.playerId)} rejoined`);
               break;
             case "ACTION_PROMPT":
-              set({ currentTurn: msg.actingIndex });
+              set({ currentTurn: msg.actingIndex, minRaise: msg.minRaise });
               break;
             case "PLAYER_ACTION_APPLIED": {
               const name = shortAddress(msg.playerId);
@@ -658,6 +662,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     recentWinners: new Set<number>(),
     smallBlind: 25,
     bigBlind: 50,
+    minRaise: 50,
     startBlindTimer: () => {
       const increase = () =>
         set((s) => ({

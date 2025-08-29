@@ -19,6 +19,7 @@ export function usePokerActions() {
     playerStates,
     dealerIndex,
     bigBlind,
+    minRaise,
     street,
     actionHistory
   } = useGameStore();
@@ -91,7 +92,8 @@ export function usePokerActions() {
     }
     const canCheck = betToCall === 0;
     const canBet = maxBet === 0; // No one has bet yet in this round
-    const minRaise = Math.max(maxBet + 50, 50); // Min raise is previous bet + big blind, minimum 50
+    // Use minRaise from game state; fall back to big blind if undefined
+    const minRaiseAmount = minRaise || bigBlind;
     
     // Check if this is BB with option (preflop, I'm BB, everyone called)
     const totalPlayers = safePlayerIds.length;
@@ -141,7 +143,9 @@ export function usePokerActions() {
       {
         type: "raise",
         label: "Raise",
-        enabled: isMyTurn && canTakeActions && ((betToCall > 0 && myChips >= minRaise) || (isBBWithOption && myChips >= 50)),
+        enabled: isMyTurn && canTakeActions &&
+          ((betToCall > 0 && myChips >= betToCall + minRaiseAmount) ||
+           (isBBWithOption && myChips >= bigBlind)),
       }
     ];
 
@@ -159,8 +163,8 @@ export function usePokerActions() {
         canFold: betToCall > 0,
         canCheck: canCheck,
         canCall: betToCall > 0 && myChips > 0,
-        canBet: canBet && myChips >= 50,
-        canRaise: (betToCall > 0 && myChips >= minRaise) || (isBBWithOption && myChips >= 50),
+        canBet: canBet && myChips >= bigBlind,
+        canRaise: (betToCall > 0 && myChips >= betToCall + minRaiseAmount) || (isBBWithOption && myChips >= bigBlind),
         isBBWithOption,
         actions: actions.map(a => ({ type: a.type, enabled: a.enabled }))
       });

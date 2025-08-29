@@ -33,7 +33,7 @@ export default function PlayPage() {
     currentTurn,
     chips,
     playerBets,
-    bigBlind
+    minRaise
   } = useGameStore();
   const { isConnected, address } = useWalletGameSync();
   const { walletSeatIdx } = useTableViewModel();
@@ -49,8 +49,6 @@ export default function PlayPage() {
   const myChips = mySeatIndex >= 0 ? chips[mySeatIndex] : 0;
   const myCommitted = mySeatIndex >= 0 ? playerBets[mySeatIndex] : 0;
   const currentBet = Math.max(...playerBets.filter(bet => bet !== null));
-  const minRaise = bigBlind || 10;
-  
   // Debug logging for action button visibility
   console.log(`🎮 [PlayPage] Action button calculation:`, {
     currentTurn,
