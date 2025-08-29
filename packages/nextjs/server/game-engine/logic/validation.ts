@@ -135,14 +135,10 @@ function validateCall(table: Table, seat: Seat): ActionValidation {
     };
   }
 
-  if (seat.chips < toCall) {
-    return {
-      valid: false,
-      error: `Insufficient chips to call $${toCall} (have $${seat.chips})`,
-    };
-  }
+  const callAmount = Math.min(toCall, seat.chips);
+  const isAllIn = seat.chips <= toCall;
 
-  return { valid: true };
+  return { valid: true, normalizedAmount: callAmount, isAllIn };
 }
 
 /**
@@ -376,7 +372,7 @@ export function getAvailableActions(
   }
 
   // Call
-  if (toCall > 0 && seat.chips >= toCall) {
+  if (toCall > 0 && seat.chips > 0) {
     actions.push("call");
   }
 

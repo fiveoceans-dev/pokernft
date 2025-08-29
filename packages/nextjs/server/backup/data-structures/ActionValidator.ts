@@ -8,6 +8,8 @@ interface ValidationResult {
   isValid: boolean;
   reason?: string;
   validActions?: RoomActionType[];
+  normalizedAmount?: number;
+  isAllIn?: boolean;
 }
 
 /**
@@ -176,8 +178,8 @@ export class ActionValidator {
     // Player can check if they don't owe money
     const canCheck = betToCall === 0;
     
-    // Player can call if they owe money and have chips
-    const canCall = betToCall > 0 && player.chips >= betToCall;
+    // Player can call if they owe money and have any chips
+    const canCall = betToCall > 0 && player.chips > 0;
     
     // Player can raise if they have enough chips for min raise
     // Special case: BB with option can raise with just minRaiseAmount (no need to call first)
@@ -189,7 +191,7 @@ export class ActionValidator {
 
     return {
       minRaise: minRaiseAmount,
-      maxRaise: player.chips - betToCall, // All remaining chips after calling
+      maxRaise: Math.max(0, player.chips - betToCall), // All remaining chips after calling
       betToCall,
       canCheck,
       canFold,
@@ -227,17 +229,14 @@ export class ActionValidator {
    * Validate call action
    */
   private validateCall(player: PlayerSession, requirements: ActionRequirements): ValidationResult {
-    if (!requirements.canCall) {
-      if (requirements.betToCall === 0) {
-        return { isValid: false, reason: "Cannot call - no bet to call (use check instead)" };
-      }
-      
-      if (player.chips < requirements.betToCall) {
-        return { isValid: false, reason: "Not enough chips to call" };
-      }
+    if (requirements.betToCall === 0) {
+      return { isValid: false, reason: "Cannot call - no bet to call (use check instead)" };
     }
 
-    return { isValid: true };
+    const callAmount = Math.min(requirements.betToCall, player.chips);
+    const isAllIn = player.chips <= requirements.betToCall;
+
+    return { isValid: true, normalizedAmount: callAmount, isAllIn };
   }
 
   /**

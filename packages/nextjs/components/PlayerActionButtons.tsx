@@ -31,9 +31,9 @@ export default function PlayerActionButtons({
   // Always render container to preserve space - content visibility controlled below
   const toCall = Math.max(0, currentBet - playerCommitted);
   const canCheck = toCall === 0;
-  const canCall = toCall > 0 && toCall <= playerChips;
+  const canCall = toCall > 0 && playerChips > 0;
   const canRaise = playerChips > toCall + minRaise;
-  const maxRaise = playerChips - toCall;
+  const maxRaise = Math.max(0, playerChips - toCall);
 
   const handleAction = async (action: string, amount?: number) => {
     if (isActionPending) return;
@@ -110,7 +110,7 @@ export default function PlayerActionButtons({
                   : 'bg-green-600 hover:bg-green-700'
               }`}
             >
-              Call {toCall}
+              Call {playerChips < toCall ? `${playerChips} (All-in)` : toCall}
             </button>
           ) : (
             <div className="min-w-[70px] px-3 py-1.5 opacity-0 pointer-events-none">Call</div>

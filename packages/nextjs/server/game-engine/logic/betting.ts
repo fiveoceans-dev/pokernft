@@ -96,8 +96,7 @@ export function applyAction(
       break;
 
     case "call": {
-      const toCall = getToCallAmount(seat, table.currentBet);
-      const callAmount = Math.min(toCall, seat.chips);
+      const callAmount = finalAmount;
 
       newSeats[seatId] = {
         ...seat,
@@ -213,14 +212,9 @@ export function validateAction(
       if (toCall === 0) {
         return { valid: false, error: "No bet to call" };
       }
-      if (seat.chips < toCall) {
-        // Must go all-in to call
-        return {
-          valid: false,
-          error: "Insufficient chips to call (must go all-in)",
-        };
-      }
-      return { valid: true };
+      const callAmount = Math.min(toCall, seat.chips);
+      const isAllIn = seat.chips <= toCall;
+      return { valid: true, normalizedAmount: callAmount, isAllIn };
 
     case "bet":
       if (table.currentBet > 0) {
@@ -385,7 +379,7 @@ export function getBettingStats(table: Table, seatId: number): BettingStats {
     minRaise,
     maxBet,
     canCheck: canCheck(seat, table.currentBet),
-    canCall: toCall > 0 && toCall <= seat.chips,
+    canCall: toCall > 0 && seat.chips > 0,
     canBet: table.currentBet === 0 && seat.chips >= minBet,
     canRaise: table.currentBet > 0 && seat.chips >= toCall + minRaise,
   };
