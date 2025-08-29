@@ -71,59 +71,64 @@ const WhitelistPage: React.FC = () => {
         "Skip the event? Claim a 90% refund within 25 days—10% protocol fee is non‑refundable.",
     },
     {
-      title: "Prize Distribution",
+      title: "Prize Distribution (BUYIN $100)",
       content: (
-        <table className="w-full text-xs">
-          <thead>
-            <tr>
-              <th className="text-left">Place</th>
-              <th className="text-right">% Pool</th>
-              <th className="text-right">$100 Example</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>1st</td>
-              <td className="text-right">31%</td>
-              <td className="text-right">$31</td>
-            </tr>
-            <tr>
-              <td>2nd</td>
-              <td className="text-right">19%</td>
-              <td className="text-right">$19</td>
-            </tr>
-            <tr>
-              <td>3rd</td>
-              <td className="text-right">14%</td>
-              <td className="text-right">$14</td>
-            </tr>
-            <tr>
-              <td>4–9th</td>
-              <td className="text-right">3% each</td>
-              <td className="text-right">$3</td>
-            </tr>
-            <tr>
-              <td>10–27th</td>
-              <td className="text-right">1% each</td>
-              <td className="text-right">$1</td>
-            </tr>
-            <tr>
-              <td>28–100th</td>
-              <td className="text-right">0.2% each</td>
-              <td className="text-right">$0.20</td>
-            </tr>
-            <tr>
-              <td>101–500th</td>
-              <td className="text-right">0.05% each</td>
-              <td className="text-right">$0.05</td>
-            </tr>
-            <tr>
-              <td>501–10,000th</td>
-              <td className="text-right">0.01% each</td>
-              <td className="text-right">$0.01</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="space-y-3">
+          <div className="text-xs text-gray-300 mb-2">
+            Total Prize Pool: $800,000 (10,000 × $100 × 80%)
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr>
+                <th className="text-left">Place</th>
+                <th className="text-right">% Pool</th>
+                <th className="text-right">Prize</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1st</td>
+                <td className="text-right">31%</td>
+                <td className="text-right">$248,000</td>
+              </tr>
+              <tr>
+                <td>2nd</td>
+                <td className="text-right">19%</td>
+                <td className="text-right">$152,000</td>
+              </tr>
+              <tr>
+                <td>3rd</td>
+                <td className="text-right">14%</td>
+                <td className="text-right">$112,000</td>
+              </tr>
+              <tr>
+                <td>4–9th</td>
+                <td className="text-right">3% each</td>
+                <td className="text-right">$24,000</td>
+              </tr>
+              <tr>
+                <td>10–27th</td>
+                <td className="text-right">1% each</td>
+                <td className="text-right">$8,000</td>
+              </tr>
+              <tr>
+                <td>28–100th</td>
+                <td className="text-right">0.2% each</td>
+                <td className="text-right">$1,600</td>
+              </tr>
+              <tr>
+                <td>101–500th</td>
+                <td className="text-right">0.05% each</td>
+                <td className="text-right">$400</td>
+              </tr>
+              <tr>
+                <td>501–10,000th</td>
+                <td className="text-right">0.01% each</td>
+                <td className="text-right">$80</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       ),
     },
     {

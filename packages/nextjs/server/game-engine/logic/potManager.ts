@@ -9,7 +9,7 @@
  * This handles complex all-in scenarios automatically and correctly.
  */
 
-import { Table, Seat, Pot, PotCalculation, PayoutDistribution } from '../core/newTypes';
+import { Table, Seat, Pot, PotCalculation, PayoutDistribution } from '../core/types';
 
 /**
  * Player commitment data for pot calculations
@@ -49,7 +49,7 @@ export function collectIntoPots(seats: Seat[]): PotCalculation {
   }
 
   // Sort unique commitment levels ascending
-  const levels = [...new Set(commitments.map(c => c.committed))]
+  const levels = Array.from(new Set(commitments.map(c => c.committed)))
     .sort((a, b) => a - b);
 
   const pots: Pot[] = [];

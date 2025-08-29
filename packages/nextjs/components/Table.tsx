@@ -300,7 +300,7 @@ export default function Table({ timer }: { timer?: number | null }) {
             onClick={() => revealCards(walletSeatIdx)}
             className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-lg font-bold transition-colors shadow-lg border-2 border-yellow-400 animate-bounce"
           >
-            🃏 Show Your Cards
+            Show Your Cards
           </button>
         </div>
       )}

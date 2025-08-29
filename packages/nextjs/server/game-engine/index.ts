@@ -1,14 +1,36 @@
 /**
- * Main Game Engine Exports - New Event-Driven Architecture
+ * Main Game Engine Exports - Event-Driven Poker Architecture
  * 
- * This is the single entry point for the poker game engine.
- * All old legacy exports have been replaced with the new event-driven system.
+ * Single entry point for the poker game engine featuring:
+ * - Event-sourced state management
+ * - WebSocket integration adapter
+ * - Pure functional game logic
  */
 
-// Re-export everything from newIndex.ts which contains the new architecture
-export * from "./newIndex";
+// Core event-driven architecture
+export { EventEngine } from './core/eventEngine';
+export { reduce } from './core/reducer';
+export * from './core/types';
 
-// Keep legacy types for backward compatibility where needed
+// Game logic modules
+export * from './logic/betting';
+export * from './logic/potManager';
+export { validateAction as validatePokerAction, getAvailableActions, getBettingLimits } from './logic/validation';
+
+// Utility functions
+export * from './utils/ringOrder';
+export { indexToCard, cardToIndex } from "./utils/utils";
+export * from "./utils/hashEvaluator";
+export * from "./utils/rng";
+
+// Timer system
+export * from './managers/timerEvents';
+
+// WebSocket integration adapter
+export { WebSocketAdapter, createGameEngine } from './integration/webSocketAdapter';
+import { WebSocketAdapter } from './integration/webSocketAdapter';
+
+// Legacy types for backward compatibility
 export { PlayerState, TableState, Round } from "./core/types";
 export type {
   Suit,
@@ -22,9 +44,9 @@ export type {
   CardShape,
   PlayerAction,
   Player,
-  Pot,
+  LegacyPot as Pot,
   RakeConfig,
-  Table,
+  LegacyTable as Table,
   HandAction,
   HandLog,
 } from "./core/types";
@@ -32,12 +54,19 @@ export type {
 // Export networking types
 export type { ServerEvent, ClientCommand, LobbyTable } from "./network/networking";
 
-// Export utility functions
-export { indexToCard, cardToIndex } from "./utils/utils";
-export * from "./utils/hashEvaluator";
-export * from "./utils/rng";
-
 // Export hash tables for hand evaluation
 export * from "./hashTables";
 
-console.log('🎮 [GameEngine] New event-driven poker engine loaded successfully');
+/**
+ * Factory function to create the event-driven game engine
+ */
+export function createEventDrivenEngine(
+  tableId: string,
+  smallBlind = 5,
+  bigBlind = 10,
+  actionTimeoutSeconds = 30
+) {
+  return new WebSocketAdapter(tableId, bigBlind, actionTimeoutSeconds);
+}
+
+console.log('🎮 [GameEngine] Event-driven poker engine loaded successfully');

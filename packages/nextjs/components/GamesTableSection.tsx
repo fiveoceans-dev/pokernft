@@ -57,7 +57,7 @@ export default function GamesTableSection() {
                   <td className="px-2 py-1 text-center">
                     <Link
                       href={`/play?table=${t.id}`}
-                      className="px-2 py-1 bg-purple-600 text-white rounded text-xs sm:text-sm hover:bg-purple-700"
+                      className="px-2 py-1 bg-accent text-black font-semibold rounded transition-all duration-200 hover:scale-105 hover:shadow-neon text-xs"
                     >
                       Join
                     </Link>

@@ -10,8 +10,7 @@
  * - apply*() functions: Update game state (in reducer.ts)
  */
 
-import { Table, Seat, Street } from './newTypes';
-import { Card } from './types';
+import { Table, Seat, Street, Card } from './types';
 import { freshDeck, draw, cardToIndex } from '../utils/utils';
 
 /**

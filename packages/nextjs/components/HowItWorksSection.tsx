@@ -41,7 +41,7 @@ const steps = [
   {
     title: "Get $POKER Airdrops",
     description:
-      "Top 15% win prize money and get a bonus airdrop of $POKER tokens.",
+      "Top 50% win prize money and get a bonus airdrop of $POKER tokens. The winner takes 25%",
     icon: FaGift,
   },
 ];

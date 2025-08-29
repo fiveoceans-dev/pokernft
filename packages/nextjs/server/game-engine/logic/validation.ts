@@ -11,7 +11,7 @@ import {
   ActionType, 
   ActionValidation,
   Street 
-} from '../core/newTypes';
+} from '../core/types';
 
 import { 
   getToCallAmount, 

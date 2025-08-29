@@ -47,8 +47,8 @@ export const PopularNftCard: FC<PopularNftCardProps> = ({
     </div>
     <div className="px-2 flex justify-between text-xs text-gray-600 font-medium">
       <div className="flex flex-col">
-        <span className="text-green-600 flex items-center gap-1">
-          <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
+        <span className="text-gray-600 flex items-center gap-1">
+          <span className="w-2 h-2 bg-gray-500 rounded-full inline-block" />
           {status}
         </span>
         <div className="flex items-center text-xs text-gray-500 font-medium">
@@ -77,7 +77,12 @@ export const PopularNftCard: FC<PopularNftCardProps> = ({
       </div>
     </div>
     <div className="px-2 flex justify-between items-center text-xs text-gray-600 font-medium pb-4">
-      <Button onClick={() => buyNft(id)}>Buy</Button>
+      <button
+        disabled
+        className="px-4 py-2 bg-gray-400 text-gray-600 font-semibold rounded transition-all duration-200 cursor-not-allowed"
+      >
+        Coming Soon
+      </button>
       <span className="text-gray-400">Rules</span>
     </div>
   </div>

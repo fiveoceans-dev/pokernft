@@ -8,7 +8,7 @@
  * - Determine betting round completion
  */
 
-import { Table, Seat, SeatStatus, NextActorResult, BettingRoundState } from '../core/newTypes';
+import { Table, Seat, SeatStatus, NextActorResult, BettingRoundState } from '../core/types';
 
 /**
  * Check if a seat can take actions
@@ -142,6 +142,19 @@ export function getNextActor(table: Table): NextActorResult {
  */
 function isBettingRoundComplete(table: Table, nextActorIndex: number): boolean {
   const { seats, lastAggressor, currentBet } = table;
+  
+  // BB OPTION: Special preflop logic
+  if (table.phase === "preflop" && 
+      table.bbSeat !== undefined && 
+      !table.bbHasActed &&
+      currentBet === table.bigBlind) {
+    
+    // If action returns to BB with no raises, give BB option
+    if (nextActorIndex === table.bbSeat) {
+      console.log(`💺 [RingOrder] BB gets option to raise`);
+      return false; // Round not complete - BB can act
+    }
+  }
   
   // If everyone has matching streetCommitted amounts or is all-in/folded
   const activePlayers = seats.filter(isActionable);

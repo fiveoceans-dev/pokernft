@@ -17,14 +17,25 @@ import {
   ActionType,
   SeatStatus,
   Pot,
-  PayoutDistribution 
-} from './newTypes';
+  PayoutDistribution,
+  StateTransition,
+  SideEffect 
+} from './types';
+import { getNextActor } from '../utils/ringOrder';
+import { 
+  getBlindPositions,
+  getFirstActor,
+  calculateNextButton,
+  validateAndFixButton,
+  shouldGiveBBOption,
+  countActivePlayers
+} from '../logic/gameRules';
 
 /**
  * Main reducer function - pure and deterministic
- * Processes events and returns new table state
+ * Processes events and returns new table state with side effects
  */
-export function reduce(table: Table, event: PokerEvent): Table {
+export function reduce(table: Table, event: PokerEvent): StateTransition {
   switch (event.t) {
     case "StartHand":
       return startHand(table, event.handNumber, event.timestamp);
@@ -36,13 +47,13 @@ export function reduce(table: Table, event: PokerEvent): Table {
       return applyHoleCards(table, event.cards);
     
     case "EnterStreet":
-      return enterStreet(table, event.street, event.cards);
+      return enterStreet(table, event.street, event.cards, event.isAutoDealt);
     
     case "Action":
       return applyAction(table, event.seat, event.action, event.amount);
     
     case "TimeoutAutoFold":
-      return applyAction(table, event.seat, "fold");
+      return handleTimeoutAutoFold(table, event.seat);
     
     case "CloseStreet":
       return closeStreet(table);
@@ -64,17 +75,17 @@ export function reduce(table: Table, event: PokerEvent): Table {
     
     default:
       // TypeScript ensures all cases are handled
-      return table;
+      return { nextState: table, sideEffects: [] };
   }
 }
 
 /**
  * Initialize new hand
  */
-function startHand(table: Table, handNumber: number, timestamp: number): Table {
-  return {
+function startHand(table: Table, handNumber: number, timestamp: number): StateTransition {
+  const nextState = {
     ...table,
-    phase: "deal",
+    phase: "deal" as Phase,
     handNumber,
     timestamp,
     street: undefined,
@@ -88,26 +99,51 @@ function startHand(table: Table, handNumber: number, timestamp: number): Table {
       ...seat,
       committed: 0,
       streetCommitted: 0,
-      status: seat.pid ? "active" : "empty",
+      status: (seat.pid ? "active" : "empty") as SeatStatus,
       holeCards: undefined
     }))
   };
+
+  // Side effects: automatically post blinds and deal hole cards
+  const sideEffects: SideEffect[] = [
+    { type: 'DISPATCH_EVENT', payload: { 
+      event: { t: "PostBlinds", sb: table.smallBlind, bb: table.bigBlind } 
+    }},
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'hand_started' }}
+  ];
+
+  return { nextState, sideEffects };
 }
 
 /**
  * Post blinds and set initial betting state
  */
-function postBlinds(table: Table, sb: number, bb: number, ante?: number): Table {
+function postBlinds(table: Table, sb: number, bb: number, ante?: number): StateTransition {
   const newSeats = [...table.seats];
   const activePlayers = newSeats.filter(seat => seat.status === "active");
   
   if (activePlayers.length < 2) {
-    return table; // Need at least 2 players
+    return { nextState: table, sideEffects: [] }; // Need at least 2 players
   }
   
-  // Find SB and BB positions
-  const sbIndex = getNextActiveIndex(newSeats, table.button);
-  const bbIndex = getNextActiveIndex(newSeats, sbIndex);
+  // Validate and fix button position using game rules
+  const validButton = validateAndFixButton(newSeats, table.button);
+  
+  // Get correct blind positions according to poker rules
+  const blindPositions = getBlindPositions(newSeats, validButton);
+  
+  if (!blindPositions) {
+    console.error(`❌ [Reducer] Could not determine blind positions`);
+    return { nextState: table, sideEffects: [] };
+  }
+  
+  const { sb: sbIndex, bb: bbIndex } = blindPositions;
+  const activeCount = countActivePlayers(newSeats);
+  const isHeadsUp = activeCount === 2;
+  
+  console.log(`🃏 [Reducer] Posting blinds - ${isHeadsUp ? 'Heads-up' : 'Multi-way'} (${activeCount} players)`);
+  console.log(`   SB: seat ${sbIndex} (${newSeats[sbIndex]?.pid})`);
+  console.log(`   BB: seat ${bbIndex} (${newSeats[bbIndex]?.pid})`);
   
   // Post small blind
   if (sbIndex !== -1) {
@@ -150,22 +186,65 @@ function postBlinds(table: Table, sb: number, bb: number, ante?: number): Table 
       }
     }
   }
+
+  // Calculate first actor using game rules
+  const tableWithSeats = { ...table, seats: newSeats, button: validButton };
+  const actionOrder = getFirstActor(tableWithSeats, true);
   
-  return {
+  const nextState = {
     ...table,
-    phase: "preflop",
-    street: "preflop",
+    button: validButton,   // Use corrected button position
+    phase: "preflop" as Phase,
+    street: "preflop" as Street,
     seats: newSeats,
     currentBet: bb,
-    actor: getFirstActor(newSeats, table.button, true), // preflop = true
-    blinds: { sb, bb, ante }
+    actor: actionOrder.actor,
+    blinds: { sb, bb, ante },
+    bbSeat: bbIndex,       // Track BB position for option logic
+    bbHasActed: false      // BB hasn't acted yet
   };
+  
+  console.log(`🎯 [Reducer] First actor: seat ${actionOrder.actor} (${newSeats[actionOrder.actor]?.pid})`);
+
+  // Side effects: deal hole cards, emit state changes, start timers
+  const sideEffects: SideEffect[] = [
+    { type: 'DISPATCH_EVENT', payload: { 
+      event: { t: "DealHole", cards: {} } // Cards will be generated by engine
+    }},
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'blinds_posted' }}
+  ];
+
+  // Emit heads-up detection for UI/logging
+  if (isHeadsUp) {
+    sideEffects.push({ 
+      type: 'EMIT_STATE_CHANGE', 
+      payload: { reason: 'heads_up_detected' }
+    });
+  }
+
+  // Start action timer if we have a valid first actor
+  if (actionOrder.actor !== -1 && actionOrder.actor < newSeats.length) {
+    const actorSeat = newSeats[actionOrder.actor];
+    if (actorSeat.pid && actorSeat.status === "active") {
+      sideEffects.push({
+        type: 'START_TIMER',
+        payload: { 
+          playerId: actorSeat.pid, 
+          seatId: actionOrder.actor, 
+          timeoutMs: 30000
+        }
+      });
+      console.log(`⏰ [Reducer] Started timer for ${actorSeat.pid} (${30000}ms)`);
+    }
+  }
+
+  return { nextState, sideEffects };
 }
 
 /**
  * Apply hole cards to active players (pure state update)
  */
-function applyHoleCards(table: Table, cards: Record<string, [number, number]>): Table {
+function applyHoleCards(table: Table, cards: Record<string, [number, number]>): StateTransition {
   const newSeats = table.seats.map(seat => {
     if (seat.pid && cards[seat.pid]) {
       return {
@@ -176,16 +255,23 @@ function applyHoleCards(table: Table, cards: Record<string, [number, number]>): 
     return seat;
   });
   
-  return {
+  const nextState = {
     ...table,
     seats: newSeats
   };
+
+  // Side effect: emit that cards were dealt
+  const sideEffects: SideEffect[] = [
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'cards_dealt' }}
+  ];
+
+  return { nextState, sideEffects };
 }
 
 /**
  * Enter new betting street
  */
-function enterStreet(table: Table, street: Street, cards?: number[]): Table {
+function enterStreet(table: Table, street: Street, cards?: number[], isAutoDealt?: boolean): StateTransition {
   const newSeats = table.seats.map(seat => ({
     ...seat,
     streetCommitted: 0 // Reset street commitments
@@ -193,25 +279,62 @@ function enterStreet(table: Table, street: Street, cards?: number[]): Table {
   
   const communityCards = cards ? [...table.communityCards, ...cards] : table.communityCards;
   
-  return {
+  // If auto-dealt (all-in scenario), don't set an actor - no betting occurs
+  let actor: number | undefined = undefined;
+  if (!isAutoDealt) {
+    const tableWithSeats = { ...table, seats: newSeats };
+    const actionOrder = getFirstActor(tableWithSeats, false);
+    actor = actionOrder.actor === -1 ? undefined : actionOrder.actor;
+    
+    console.log(`🎯 [Reducer] ${street} first actor: seat ${actor} (${actor !== undefined ? newSeats[actor]?.pid : 'none'})`);
+  }
+  
+  const nextState = {
     ...table,
     phase: street,
     street,
     seats: newSeats,
     currentBet: 0,
     lastAggressor: undefined,
-    actor: getFirstActor(newSeats, table.button, false), // postflop = false
+    actor, // Will be undefined for all-in scenarios
     communityCards
   };
+
+  const sideEffects: SideEffect[] = [
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'street_changed' }}
+  ];
+
+  // Start timer for first actor if not auto-dealt (all-in scenario)
+  if (!isAutoDealt && actor !== undefined && actor >= 0 && actor < newSeats.length) {
+    const actorSeat = newSeats[actor];
+    if (actorSeat.pid && actorSeat.status === "active") {
+      sideEffects.push({
+        type: 'START_TIMER',
+        payload: { 
+          playerId: actorSeat.pid, 
+          seatId: actor, 
+          timeoutMs: 30000
+        }
+      });
+    }
+  }
+
+  return { nextState, sideEffects };
 }
 
 /**
  * Apply player action with immutable updates
  */
-function applyAction(table: Table, seatId: number, action: ActionType, amount: number = 0): Table {
+function applyAction(table: Table, seatId: number, action: ActionType, amount: number = 0): StateTransition {
   const seat = table.seats[seatId];
   if (!seat || seat.status !== "active") {
-    return table; // Invalid action
+    return { nextState: table, sideEffects: [] }; // Invalid action
+  }
+  
+  // VALIDATE: Is it this player's turn?
+  if (table.actor !== seatId) {
+    console.warn(`❌ [Reducer] Seat ${seatId} acted out of turn (current actor: ${table.actor})`);
+    return { nextState: table, sideEffects: [] }; // State unchanged - invalid action
   }
   
   const newSeats = [...table.seats];
@@ -226,7 +349,7 @@ function applyAction(table: Table, seatId: number, action: ActionType, amount: n
     case "check":
       // Check only valid if no bet to call
       if (table.currentBet > seat.streetCommitted) {
-        return table; // Invalid check
+        return { nextState: table, sideEffects: [] }; // Invalid check
       }
       break;
       
@@ -274,46 +397,98 @@ function applyAction(table: Table, seatId: number, action: ActionType, amount: n
       break;
   }
   
-  // Find next actor
-  const nextActor = getNextActiveIndex(newSeats, seatId);
+  // Track BB action in preflop using game rules
+  let bbHasActed = table.bbHasActed;
+  if (table.phase === "preflop" && seatId === table.bbSeat) {
+    bbHasActed = true;
+    console.log(`💰 [Reducer] BB (seat ${seatId}) has now acted`);
+  }
   
-  return {
+  // Create intermediate table state to check betting round completion
+  const updatedTable = {
     ...table,
     seats: newSeats,
     currentBet: newCurrentBet,
     lastAggressor: newLastAggressor,
-    actor: nextActor
+    bbHasActed
   };
+  
+  // Use proper state machine logic for next actor
+  const nextActorResult = getNextActor(updatedTable);
+  
+  const nextState = {
+    ...updatedTable,
+    actor: nextActorResult.actor
+  };
+
+  const sideEffects: SideEffect[] = [
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'action_applied' }}
+  ];
+
+  // STOP timer for current player who just acted
+  if (seat.pid) {
+    sideEffects.push({
+      type: 'STOP_TIMER',
+      payload: { playerId: seat.pid }
+    });
+    console.log(`⏰ [Reducer] Stopping timer for ${seat.pid} who just acted`);
+  }
+
+  // Start timer for next actor if needed
+  if (nextActorResult.actor !== undefined && nextActorResult.actor >= 0) {
+    const nextSeat = nextState.seats[nextActorResult.actor];
+    if (nextSeat.pid && nextSeat.status === "active") {
+      sideEffects.push({
+        type: 'START_TIMER',
+        payload: { 
+          playerId: nextSeat.pid, 
+          seatId: nextActorResult.actor, 
+          timeoutMs: 30000
+        }
+      });
+    }
+  }
+
+  return { nextState, sideEffects };
 }
 
 /**
  * Close current betting street
  */
-function closeStreet(table: Table): Table {
+function closeStreet(table: Table): StateTransition {
   // Collect committed chips into pots
   const pots = collectIntoPots(table.seats);
   
-  return {
+  const nextState = {
     ...table,
     pots,
     actor: undefined
   };
+
+  const sideEffects: SideEffect[] = [
+    { type: 'CLEAR_TIMERS', payload: {} },
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'street_closed' }}
+  ];
+
+  return { nextState, sideEffects };
 }
 
 /**
  * Process showdown results
  */
-function processShowdown(table: Table, results: any[]): Table {
-  return {
+function processShowdown(table: Table, results: any[]): StateTransition {
+  const nextState = {
     ...table,
-    phase: "showdown"
+    phase: "showdown" as Phase
   };
+
+  return { nextState, sideEffects: [{ type: 'EMIT_STATE_CHANGE', payload: { reason: 'showdown_started' }}] };
 }
 
 /**
  * Process payout distributions
  */
-function processPayout(table: Table, distributions: PayoutDistribution[]): Table {
+function processPayout(table: Table, distributions: PayoutDistribution[]): StateTransition {
   const newSeats = [...table.seats];
   
   // Distribute winnings
@@ -327,58 +502,91 @@ function processPayout(table: Table, distributions: PayoutDistribution[]): Table
     }
   });
   
-  return {
+  // Immediately transition to handEnd phase to prevent infinite loops
+  const nextState = {
     ...table,
-    phase: "payout",
+    phase: "handEnd" as Phase,
     seats: newSeats,
-    pots: [] // Clear pots after payout
+    pots: [], // Clear pots after payout
+    actor: undefined,
+    lastAggressor: undefined,
+    currentBet: 0
   };
+
+  // Side effect: schedule next hand after delay
+  const sideEffects: SideEffect[] = [
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'payout_complete' }},
+    { type: 'SCHEDULE_TRANSITION', payload: { toPhase: "waiting", delayMs: 5000 }}
+  ];
+
+  return { nextState, sideEffects };
 }
 
 /**
  * End hand and prepare for next
  */
-function endHand(table: Table): Table {
-  return {
+function endHand(table: Table): StateTransition {
+  // Calculate next button using game rules
+  const nextButton = calculateNextButton(table.seats, table.button);
+  const buttonMoved = nextButton !== table.button;
+  
+  console.log(`🔄 [Reducer] Button ${buttonMoved ? 'advanced' : 'stayed'}: ${table.button} → ${nextButton}`);
+  
+  const nextState = {
     ...table,
-    phase: "waiting",
+    phase: "waiting" as Phase,
     street: undefined,
     actor: undefined,
     lastAggressor: undefined,
     currentBet: 0,
     communityCards: [],
-    // Advance button
-    button: getNextActiveIndex(table.seats, table.button)
+    button: nextButton,
+    bbSeat: undefined,     // Reset BB tracking
+    bbHasActed: false     // Reset BB action tracking
   };
+
+  const sideEffects: SideEffect[] = [
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'hand_ended' }}
+  ];
+  
+  // Emit button movement notification
+  if (buttonMoved) {
+    sideEffects.push({
+      type: 'EMIT_STATE_CHANGE', 
+      payload: { reason: 'button_moved' }
+    });
+  }
+
+  return { nextState, sideEffects };
 }
 
 /**
  * Add player to table with proper validation
  */
-function addPlayer(table: Table, seatId: number, pid: string, chips: number, nickname?: string): Table {
+function addPlayer(table: Table, seatId: number, pid: string, chips: number, nickname?: string): StateTransition {
   // Validate seat index
   if (seatId < 0 || seatId >= table.seats.length) {
     console.error(`❌ [Reducer] Invalid seat index: ${seatId}`);
-    return table; // Invalid seat
+    return { nextState: table, sideEffects: [] }; // Invalid seat
   }
   
   // Check if seat is already occupied
   if (table.seats[seatId].pid) {
     console.error(`❌ [Reducer] Seat ${seatId} is already occupied by ${table.seats[seatId].pid}`);
-    return table; // Seat taken
+    return { nextState: table, sideEffects: [] }; // Seat taken
   }
   
   // Check if player is already seated elsewhere
   const existingSeat = table.seats.find(seat => seat.pid === pid);
   if (existingSeat) {
     console.error(`❌ [Reducer] Player ${pid} is already seated at seat ${existingSeat.id}`);
-    return table; // Player already seated
+    return { nextState: table, sideEffects: [] }; // Player already seated
   }
   
   // Validate chips amount
   if (chips <= 0) {
     console.error(`❌ [Reducer] Invalid chips amount: ${chips}`);
-    return table; // Invalid chips
+    return { nextState: table, sideEffects: [] }; // Invalid chips
   }
   
   const newSeats = [...table.seats];
@@ -394,16 +602,22 @@ function addPlayer(table: Table, seatId: number, pid: string, chips: number, nic
   
   console.log(`✅ [Reducer] Added player ${pid} to seat ${seatId} with ${chips} chips`);
   
-  return {
+  const nextState = {
     ...table,
     seats: newSeats
   };
+
+  const sideEffects: SideEffect[] = [
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'player_joined' }}
+  ];
+
+  return { nextState, sideEffects };
 }
 
 /**
  * Remove player from table
  */
-function removePlayer(table: Table, seatId: number, pid: string): Table {
+function removePlayer(table: Table, seatId: number, pid: string): StateTransition {
   const newSeats = [...table.seats];
   if (newSeats[seatId]?.pid === pid) {
     newSeats[seatId] = {
@@ -415,43 +629,21 @@ function removePlayer(table: Table, seatId: number, pid: string): Table {
     };
   }
   
-  return {
+  const nextState = {
     ...table,
     seats: newSeats
   };
+
+  const sideEffects: SideEffect[] = [
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'player_left' }}
+  ];
+
+  return { nextState, sideEffects };
 }
 
 // Helper functions
 
-function getNextActiveIndex(seats: Seat[], startIndex: number): number {
-  const seatCount = seats.length;
-  for (let i = 1; i <= seatCount; i++) {
-    const index = (startIndex + i) % seatCount;
-    const seat = seats[index];
-    if (seat.status === "active") {
-      return index;
-    }
-  }
-  return -1; // No active seats found
-}
-
-function getFirstActor(seats: Seat[], buttonIndex: number, isPreflop: boolean): number {
-  if (isPreflop) {
-    // Preflop: first actor is left of BB (or button in heads-up)
-    const activePlayers = seats.filter(seat => seat.status === "active");
-    if (activePlayers.length === 2) {
-      return buttonIndex; // Heads-up exception
-    }
-    
-    // Multi-way: left of BB
-    const sbIndex = getNextActiveIndex(seats, buttonIndex);
-    const bbIndex = getNextActiveIndex(seats, sbIndex);
-    return getNextActiveIndex(seats, bbIndex);
-  } else {
-    // Postflop: first actor is left of button
-    return getNextActiveIndex(seats, buttonIndex);
-  }
-}
+// Helper functions removed - now using centralized gameRules module
 
 function collectIntoPots(seats: Seat[]): Pot[] {
   // Collect committed amounts by commitment level (side pot algorithm)
@@ -464,7 +656,7 @@ function collectIntoPots(seats: Seat[]): Pot[] {
   }
   
   // Sort by commitment level
-  const levels = [...new Set(commitments.map(c => c.committed))].sort((a, b) => a - b);
+  const levels = Array.from(new Set(commitments.map(c => c.committed))).sort((a, b) => a - b);
   const pots: Pot[] = [];
   let prevLevel = 0;
   
@@ -485,4 +677,54 @@ function collectIntoPots(seats: Seat[]): Pot[] {
   }
   
   return pots;
+}
+
+/**
+ * Handle timeout auto-fold with proper validation
+ * Gracefully handles race conditions where player already acted
+ */
+function handleTimeoutAutoFold(table: Table, seatId: number): StateTransition {
+  console.log(`⏰ [Reducer] Processing timeout auto-fold for seat ${seatId}`);
+  
+  // Check if seat is still the current actor
+  if (table.actor !== seatId) {
+    console.log(`⏰ [Reducer] Ignoring timeout for seat ${seatId} - no longer actor (current: ${table.actor})`);
+    
+    // Return unchanged state with notification side effect
+    return { 
+      nextState: table, 
+      sideEffects: [
+        { type: 'EMIT_STATE_CHANGE', payload: { reason: 'timeout_ignored' }}
+      ] 
+    };
+  }
+  
+  // Validate seat exists and is actionable
+  const seat = table.seats[seatId];
+  if (!seat || seat.status !== "active" || !seat.pid) {
+    console.warn(`⏰ [Reducer] Cannot timeout seat ${seatId} - invalid state: ${seat?.status}`);
+    
+    return { 
+      nextState: table, 
+      sideEffects: [
+        { type: 'EMIT_STATE_CHANGE', payload: { reason: 'timeout_invalid_seat' }}
+      ] 
+    };
+  }
+  
+  console.log(`⏰ [Reducer] Auto-folding ${seat.pid} at seat ${seatId}`);
+  
+  // Apply fold for current actor - this will handle timer cleanup
+  const foldResult = applyAction(table, seatId, "fold");
+  
+  // Add timeout-specific side effects
+  const timeoutSideEffects: SideEffect[] = [
+    ...foldResult.sideEffects,
+    { type: 'EMIT_STATE_CHANGE', payload: { reason: 'player_timeout_folded' }}
+  ];
+  
+  return {
+    nextState: foldResult.nextState,
+    sideEffects: timeoutSideEffects
+  };
 }

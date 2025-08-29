@@ -1,7 +1,8 @@
+import 'dotenv/config';
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { createGameEngine, LegacyGameEngineAdapter } from "../game-engine/newIndex";
-import type { LegacyGameEngineAdapter as GameEngine } from "../game-engine/newIndex";
+import { createGameEngine, WebSocketAdapter } from "../game-engine";
+import type { WebSocketAdapter as GameEngine } from "../game-engine";
 import type {
   GameRoom,
   ServerEvent,
@@ -896,7 +897,7 @@ wss.on("connection", (ws) => {
             console.log(`🎮 [WebSocket] Processing action from ${playerId}: ${action}${msg.amount ? ` (${msg.amount})` : ''}`);
             
             // Action timer is now managed by GameController/TimerManager
-            const actionResult = engine.handleAction(playerId, {
+            const actionResult = await engine.handleAction(playerId, {
               type: action.toLowerCase() as any,
               amount: msg.amount,
             });

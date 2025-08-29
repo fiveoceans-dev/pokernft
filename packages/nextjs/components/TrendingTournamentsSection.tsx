@@ -3,144 +3,14 @@
 import { useState } from "react";
 import Image from "next/image";
 import { buyNft } from "~~/services/nft";
-import { PopularNftCard, type PopularNftCardProps } from "./ui/PopularNftCard";
-
-// Trending items used both for display and as NFT images for tournaments
-const trendingItems: PopularNftCardProps[] = Array.from({ length: 7 }).map((_, i) => ({
-  id: i,
-  title: `PokerNFTs #${i}`,
-  image: `/nfts/nft${i}.png`,
-  buyIn: `$${20 + i}`,
-  status: "Minting",
-  gameType: "No-Limit Texas Hold'em",
-  dateTime: `[2025.08.${12 + i} 21:00 GMT]`,
-  tournamentType: "Tournament",
-  registered: 9999 - i,
-  maxRegistered: 10000,
-  prize: "$200,000",
-}));
-
-type Tournament = {
-  id: number;
-  name: string;
-  creator: string;
-  creatorAvatar: string;
-  game: string;
-  buyIn: number;
-  sold: number;
-  prize: number;
-  creatorShare: number;
-  protocolFee: number;
-  date: string;
-  supply: number;
-  nft: string;
-};
-
-const baseTournaments: Omit<Tournament, "nft">[] = [
-  {
-    id: 1,
-    name: "Saturday $200,000",
-    game: "NLH",
-    date: "2024-10-01",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "Satoshi",
-    prize: 80,
-    creatorShare: 10,
-    protocolFee: 10,
-    sold: 450,
-    supply: 1000,
-    buyIn: 100,
-  },
-  {
-    id: 2,
-    name: "Saturday Million",
-    game: "NLH",
-    date: "2025-10-07",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "Stark Foundation",
-    prize: 80,
-    creatorShare: 10,
-    protocolFee: 10,
-    sold: 300,
-    supply: 750,
-    buyIn: 250,
-  },
-  {
-    id: 3,
-    name: "Sunday Showdown",
-    game: "NLH",
-    date: "2025-10-14",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "PokerNFTs",
-    prize: 80,
-    creatorShare: 10,
-    protocolFee: 10,
-    sold: 600,
-    supply: 1200,
-    buyIn: 50,
-  },
-  {
-    id: 4,
-    name: "Nightly Brawl",
-    game: "NLH",
-    date: "2025-10-21",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "NFTMillionaires",
-    prize: 80,
-    creatorShare: 10,
-    protocolFee: 10,
-    sold: 500,
-    supply: 900,
-    buyIn: 75,
-  },
-  {
-    id: 5,
-    name: "High Roller",
-    game: "Hold'em",
-    date: "2025-10-28",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "Cryptopunks",
-    prize: 80,
-    creatorShare: 10,
-    protocolFee: 10,
-    sold: 120,
-    supply: 400,
-    buyIn: 500,
-  },
-  {
-    id: 6,
-    name: "Daily Spin",
-    game: "Hold'em",
-    date: "2025-09-20",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "Bored",
-    prize: 80,
-    creatorShare: 10,
-    protocolFee: 10,
-    sold: 800,
-    supply: 1500,
-    buyIn: 25,
-  },
-  {
-    id: 7,
-    name: "Grand Finale",
-    date: "2025-12-30",
-    game: "Hold'em",
-    creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
-    creator: "LastSurvivors",
-    prize: 80,
-    creatorShare: 10,
-    protocolFee: 10,
-    sold: 80,
-    supply: 200,
-    buyIn: 1000,
-  },
-];
-
-const tournaments: Tournament[] = baseTournaments.map((t, i) => ({
-  ...t,
-  nft: trendingItems[i % trendingItems.length].image,
-}));
+import { PopularNftCard } from "./ui/PopularNftCard";
+import {
+  trendingItems,
+  tournaments,
+  formatCurrency,
+  formatPokerBonus,
+  type Tournament,
+} from "~~/data/tournaments";
 
 type SortKey = keyof Tournament;
 
@@ -197,9 +67,10 @@ export default function TrendingTournamentsSection() {
                 <th className="px-2 py-1 cursor-pointer" onClick={() => applySort("game")}>Game</th>
                 <th className="px-2 py-1 cursor-pointer" onClick={() => applySort("date")}>Date</th>
                 <th className="px-2 py-1 cursor-pointer" onClick={() => applySort("creator")}>Creator</th>
-                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("prize")}>Prize 80%</th>
-                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("creatorShare")}>Creator 10%</th>
-                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("protocolFee")}>Protocol 10%</th>
+                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("prize")}>PRIZES</th>
+                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("creatorShare")}>CREATOR</th>
+                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("protocolFee")}>PROTOCOL</th>
+                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("bonus")}>BONUS $POKER</th>
                 <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("sold")}>Sold</th>
                 <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("buyIn")}>Buy-In</th>
                 <th className="px-2 py-1 text-center">Buy</th>
@@ -221,28 +92,35 @@ export default function TrendingTournamentsSection() {
                   <td className="px-2 py-1">{t.name}</td>
                   <td className="px-2 py-1">{t.game}</td>
                   <td className="px-2 py-1">{t.date}</td>
-                  <td className="px-2 py-1 flex items-center gap-2">
-                    <Image
-                      src={t.creatorAvatar}
-                      alt={t.creator}
-                      width={40}
-                      height={40}
-                      className="w-10 h-10 rounded-full object-cover"
-                      unoptimized
-                    />
+                  <td className="px-2 py-1">
                     <span>{t.creator}</span>
                   </td>
-                  <td className="px-2 py-1 text-center text-accent">{t.prize}%</td>
-                  <td className="px-2 py-1 text-center text-blue-400">{t.creatorShare}%</td>
-                  <td className="px-2 py-1 text-center text-red-400">{t.protocolFee}%</td>
-                  <td className="px-2 py-1 text-orange-500 text-center">{t.sold}/{t.supply}</td>
-                  <td className="px-2 py-1 text-green-500 text-center">${t.buyIn}</td>
+                  <td className="px-2 py-1 text-center text-accent">
+                    <div>{t.prize}%</div>
+                    <div className="text-xs opacity-75">{formatCurrency((t.supply * t.buyIn * t.prize) / 100)}</div>
+                  </td>
+                  <td className="px-2 py-1 text-center text-blue-400">
+                    <div>{t.creatorShare}%</div>
+                    <div className="text-xs opacity-75">{formatCurrency((t.supply * t.buyIn * t.creatorShare) / 100)}</div>
+                  </td>
+                  <td className="px-2 py-1 text-center text-red-400">
+                    <div>{t.protocolFee}%</div>
+                    <div className="text-xs opacity-75">{formatCurrency((t.supply * t.buyIn * t.protocolFee) / 100)}</div>
+                  </td>
+                  <td className="px-2 py-1 text-center text-accent">
+                    <div className="font-bold">{formatPokerBonus(t.bonus)}</div>
+                    <div className="text-xs opacity-75">$POKER</div>
+                  </td>
+                  <td className="px-2 py-1 text-orange-500 text-center">0/{t.supply}</td>
+                  <td className="px-2 py-1 text-green-500 text-center">
+                    <div><span className="text-xs opacity-75">$</span>{t.buyIn}</div>
+                  </td>
                   <td className="px-2 py-1 text-center">
                     <button
-                      onClick={() => buyNft(t.id)}
-                      className="px-2 py-1 bg-purple-600 text-white rounded text-xs sm:text-sm hover:bg-purple-700"
+                      disabled
+                      className="px-2 py-1 bg-gray-400 text-gray-600 font-semibold rounded transition-all duration-200 cursor-not-allowed text-xs"
                     >
-                      Buy
+                      Coming Soon
                     </button>
                   </td>
                 </tr>

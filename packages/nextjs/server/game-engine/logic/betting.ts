@@ -15,7 +15,7 @@ import {
   SeatStatus,
   ActionValidation,
   BettingRoundState
-} from '../core/newTypes';
+} from '../core/types';
 
 import { 
   getFirstActor,

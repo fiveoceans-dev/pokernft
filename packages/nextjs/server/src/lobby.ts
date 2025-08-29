@@ -1,4 +1,4 @@
-import type { LegacyGameEngineAdapter as GameEngine } from "../game-engine/newIndex";
+import type { WebSocketAdapter as GameEngine } from "../game-engine";
 import type { LobbyTable } from "../game-engine";
 
 interface RegistryEntry extends LobbyTable {

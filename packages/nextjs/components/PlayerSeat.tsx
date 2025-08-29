@@ -83,7 +83,7 @@ export default function PlayerSeat({
                 : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
             )}
           >
-            <span className="text-[var(--color-highlight)] truncate w-full">
+            <span className="text-[var(--color-highlight)] truncate w-full text-xs">
               {displayName}
             </span>
           </div>

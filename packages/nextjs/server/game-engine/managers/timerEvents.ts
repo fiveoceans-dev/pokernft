@@ -9,7 +9,7 @@
  */
 
 import { EventEmitter } from "events";
-import { TimerEvent } from '../core/newTypes';
+import { TimerEvent } from '../core/types';
 import { ACTION_TIMEOUT_MS } from '../core/constants';
 
 /**
@@ -59,15 +59,17 @@ export class TimerEventManager extends EventEmitter {
     const timeoutMs = actionTimeoutMs || this.defaultTimeoutMs;
     const deadline = Date.now() + timeoutMs;
     
-    // Clear any existing timer for this player
-    this.clearTimer(pid, "new-timer-started");
+    // Clear any existing timer for this player AND any other active timers
+    // This ensures only one timer is active at a time
+    this.clearAllTimers("new-timer-starting");
+    console.log(`⏰ [TimerEventManager] Starting timer for ${pid} at seat ${seat} (${timeoutMs}ms)`);
     
     // Create timeout handler
     const nodeTimer = setTimeout(() => {
       this.handleTimeout(pid, seat);
     }, timeoutMs);
     
-    // Store active timer
+    // Store active timer with metadata
     this.activeTimers.set(pid, {
       pid,
       seat,
@@ -76,6 +78,8 @@ export class TimerEventManager extends EventEmitter {
       timeoutMs,
       nodeTimer
     });
+    
+    console.log(`⏰ [TimerEventManager] Timer stored for ${pid}, active timers: ${this.activeTimers.size}`);
     
     // Emit turn started event
     this.emit('timerEvent', {
@@ -105,8 +109,11 @@ export class TimerEventManager extends EventEmitter {
     const timer = this.activeTimers.get(pid);
     
     if (!timer) {
+      console.log(`⏰ [TimerEventManager] No active timer to clear for ${pid} (${reason})`);
       return false; // No active timer
     }
+    
+    console.log(`⏰ [TimerEventManager] Clearing timer for ${pid} at seat ${timer.seat} (${reason})`);
     
     // Clear Node.js timeout
     clearTimeout(timer.nodeTimer);
@@ -187,8 +194,18 @@ export class TimerEventManager extends EventEmitter {
     const timer = this.activeTimers.get(pid);
     
     if (!timer) {
+      console.log(`⏰ [TimerEventManager] Timer for ${pid} was already cleared - ignoring timeout`);
       return; // Timer was already cleared
     }
+    
+    // Double-check the timer is for the right seat (paranoid validation)
+    if (timer.seat !== seat) {
+      console.warn(`⏰ [TimerEventManager] Timer seat mismatch for ${pid}: expected ${seat}, got ${timer.seat}`);
+      this.activeTimers.delete(pid);
+      return;
+    }
+    
+    console.log(`⏰ [TimerEventManager] Timer expired for ${pid} at seat ${seat} after ${Date.now() - timer.startTime}ms`);
     
     // Remove from active timers
     this.activeTimers.delete(pid);
@@ -285,14 +302,17 @@ export class TimerIntegration {
    */
   private setupEventHandlers(): void {
     this.timerManager.on('timerEvent', (timerEvent: TimerEventType) => {
-      this.handleTimerEvent(timerEvent);
+      // Handle async timer events - don't block the timer manager
+      this.handleTimerEvent(timerEvent).catch(error => {
+        console.error(`❌ [TimerIntegration] Error handling timer event ${timerEvent.type}:`, error);
+      });
     });
   }
 
   /**
    * Handle timer events and dispatch to event engine
    */
-  private handleTimerEvent(timerEvent: TimerEventType): void {
+  private async handleTimerEvent(timerEvent: TimerEventType): Promise<void> {
     switch (timerEvent.type) {
       case "TurnStarted":
         // Notify external systems (WebSocket, UI)
@@ -312,8 +332,8 @@ export class TimerIntegration {
         break;
         
       case "TimeoutAutoFold":
-        // Dispatch auto-fold event to game engine
-        this.eventEngine.dispatch({
+        // Dispatch auto-fold event to game engine with proper async handling
+        await this.eventEngine.dispatch({
           t: "TimeoutAutoFold",
           seat: timerEvent.seat
         });

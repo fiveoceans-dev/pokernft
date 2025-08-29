@@ -48,12 +48,11 @@ export {
 // Export address utilities for client use
 export { shortAddress, randomAddress } from "./utils/address";
 
-// Export only safe utility modules (no archived modules)
-export * from "./server/game-engine/utils/utils";
+// Export only safe utility modules (no archived modules) - specific exports to avoid conflicts
 export * from "./server/game-engine/utils/hashEvaluator";
 export * from "./server/game-engine/utils/rng";
 
-// Export hash tables for hand evaluation (only existing constants)
-export * from "./server/game-engine/hashTables";
+// Hash tables commented out due to SUITS conflict with constants
+// export * from "./server/game-engine/hashTables";
 
 console.log('🎮 [ClientGameEngine] New state machine architecture loaded for UI');

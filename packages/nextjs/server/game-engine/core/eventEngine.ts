@@ -1,7 +1,7 @@
 /**
- * Event Engine - Replacement for GameEngine
+ * Event-Driven Poker Engine
  * 
- * Event-driven architecture with:
+ * Core engine with event-sourced architecture featuring:
  * - Pure reducer functions for state updates
  * - Event queue for deterministic processing
  * - Complete event sourcing for auditability
@@ -9,7 +9,7 @@
  */
 
 import { EventEmitter } from "events";
-import { Table, PokerEvent, GameSnapshot, ActionType, TimerEvent } from './newTypes';
+import { Table, PokerEvent, GameSnapshot, ActionType, TimerEvent, StateTransition, SideEffect } from './types';
 import { reduce } from './reducer';
 import { validateAction, getAvailableActions } from '../logic/validation';
 import { getBettingRoundState } from '../utils/ringOrder';
@@ -57,6 +57,7 @@ export class EventEngine extends EventEmitter {
   private timerManager?: any; // Will be injected
   private currentDeck?: any[]; // Current shuffled deck
   private deckSeed?: string; // Seed for current deck
+  // Note: Transition logic now handled by reducer through side effects
 
   constructor(tableId: string, smallBlind: number, bigBlind: number) {
     super();
@@ -137,6 +138,18 @@ export class EventEngine extends EventEmitter {
   async dispatch(event: PokerEvent): Promise<void> {
     console.log(`🚀 [EventEngine] Dispatching event: ${event.t} (queue length: ${this.eventQueue.length}, processing: ${this.processing})`);
     
+    // Check for excessive queueing (indicates logic error)
+    if (this.eventQueue.length > 50) {
+      console.error(`❌ Event queue overflow! ${this.eventQueue.length} events queued`);
+      console.error(`Queue contents:`, this.eventQueue.map(e => e.event.t));
+      
+      // Clear queue and reset state machine
+      this.eventQueue = [];
+      this.processing = false;
+      
+      throw new Error(`Event queue overflow - possible infinite loop detected`);
+    }
+    
     const queuedEvent: QueuedEvent = {
       event,
       timestamp: Date.now(),
@@ -203,13 +216,34 @@ export class EventEngine extends EventEmitter {
   private async processEvent(queuedEvent: QueuedEvent): Promise<void> {
     const { event, timestamp } = queuedEvent;
     
+    // Clear event processing state on new hand
+    if (event.t === "StartHand") {
+      console.log(`🧹 [EventEngine] Starting new hand ${event.handNumber}`);
+    }
+    
+    // Enhanced logging for player events
+    if (event.t === "PlayerJoin") {
+      console.log(`👤 [EventEngine] Processing PlayerJoin for ${event.pid} at seat ${event.seat}`);
+    }
+    
+    // Add phase-specific validation to prevent wrong-phase events
+    if (event.t === "Payout" && this.table.phase !== "showdown") {
+      console.warn(`⚠️ [EventEngine] Ignoring Payout event in wrong phase: ${this.table.phase}`);
+      return;
+    }
+    
+    if (event.t === "HandEnd" && this.table.phase === "waiting") {
+      console.warn(`⚠️ [EventEngine] Ignoring HandEnd - already in waiting phase`);
+      return;
+    }
+    
     console.log(`📨 [EventEngine] Processing event: ${event.t}`, event);
     
     // Apply event through pure reducer
-    const newTable = reduce(this.table, event);
+    const transition = reduce(this.table, event);
     
     // Check if state actually changed - if not, validation failed
-    if (newTable === this.table) {
+    if (transition.nextState === this.table) {
       console.log(`⚠️ [EventEngine] Event ${event.t} produced no state change - validation failed`);
       
       // For PlayerJoin events, determine specific error type
@@ -230,20 +264,36 @@ export class EventEngine extends EventEmitter {
         }
       }
       
+      // Special handling for TimeoutAutoFold - race conditions are expected
+      if (event.t === "TimeoutAutoFold") {
+        console.warn(`⏰ [EventEngine] TimeoutAutoFold for seat ${event.seat} had no effect - player likely already acted or not current actor`);
+        // Don't throw error - this is expected behavior when timers race
+        // Just execute any side effects (like notifications) and continue
+        await this.executeSideEffects(transition.sideEffects);
+        this.emit('eventProcessed', event, this.table);
+        return;
+      }
+      
       // For other events, throw generic validation error
       throw new Error(`Event validation failed: ${event.t}`);
     }
     
     // Update state and log event
-    this.table = newTable;
+    this.table = transition.nextState;
     this.eventLog.push(event);
     
-    // Check for automatic transitions FIRST (before emitting)
-    await this.checkAutomaticTransitions();
+    // Execute side effects returned by the reducer
+    await this.executeSideEffects(transition.sideEffects);
     
     // Check if game should start after player join/leave events
     if (event.t === "PlayerJoin" || event.t === "PlayerLeave") {
       await this.checkGameStart();
+    }
+    
+    // Log actor state for debugging (transitions now handled by reducer)
+    if (this.table.actor === undefined || this.table.actor === -1) {
+      console.warn(`⚠️ [EventEngine] Invalid actor after state update: ${this.table.actor} in phase: ${this.table.phase}`);
+      // Note: State transitions are now handled by the reducer through side effects
     }
     
     // Start action timer if we're in a betting phase and have an active player
@@ -256,76 +306,7 @@ export class EventEngine extends EventEmitter {
     console.log(`✅ [EventEngine] Event ${event.t} processed successfully`);
   }
 
-  /**
-   * Check for automatic state transitions after event processing
-   */
-  private async checkAutomaticTransitions(): Promise<void> {
-    const { phase, street } = this.table;
-    
-    switch (phase) {
-      case "preflop":
-      case "flop":
-      case "turn":
-      case "river":
-        await this.checkBettingRoundComplete();
-        break;
-        
-      case "deal":
-        await this.startBettingRounds();
-        break;
-        
-      case "showdown":
-        await this.processShowdown();
-        break;
-        
-      case "payout":
-        await this.processPayout();
-        break;
-        
-      case "handEnd":
-        // Hand complete - ready for next hand
-        break;
-    }
-  }
-
-  /**
-   * Check if current betting round is complete and advance
-   */
-  private async checkBettingRoundComplete(): Promise<void> {
-    const bettingState = getBettingRoundState(this.table);
-    
-    if (!bettingState.isComplete) {
-      return; // Betting continues
-    }
-    
-    console.log(`🔄 [EventEngine] Betting round complete: ${bettingState.reason}`);
-    
-    // Collect chips into pots
-    await this.dispatch({ t: "CloseStreet" });
-    
-    // Determine next phase
-    if (bettingState.reason === "fold-to-one") {
-      // Skip to payout immediately - only one player left
-      const distributions = handleUncalledBet(this.table);
-      await this.dispatch({ t: "Payout", distributions });
-      
-    } else if (this.table.street === "river") {
-      // River complete - go to showdown
-      await this.dispatch({ t: "Showdown", results: [] });
-      
-    } else if (bettingState.reason === "all-players-allin") {
-      // ALL players are all-in - schedule remaining streets with delays
-      await this.scheduleAllInShowdown();
-      
-    } else {
-      // Normal street advancement
-      const nextStreet = getNextStreet(this.table.street!);
-      if (nextStreet) {
-        const cards = this.getCommunityCards(nextStreet);
-        await this.dispatch({ t: "EnterStreet", street: nextStreet, cards });
-      }
-    }
-  }
+  // Note: Automatic transitions now handled by reducer through side effects
 
   /**
    * Start betting rounds after deal phase
@@ -371,28 +352,27 @@ export class EventEngine extends EventEmitter {
    */
   private async scheduleAllInShowdown(): Promise<void> {
     const remainingStreets = this.getRemainingStreets();
-    let delay = 0;
     
     console.log(`🎯 [EventEngine] Scheduling all-in showdown for streets: ${remainingStreets.join(', ')}`);
     
+    // Schedule streets with proper async delays
     for (const street of remainingStreets) {
-      delay += STREET_DEAL_DELAY_MS;
+      console.log(`   ⏱️ Waiting ${STREET_DEAL_DELAY_MS}ms before dealing ${street}...`);
+      await this.delay(STREET_DEAL_DELAY_MS);
       
-      setTimeout(() => {
-        const cards = this.getCommunityCards(street);
-        this.dispatch({ 
-          t: "EnterStreet", 
-          street: street as any, 
-          cards, 
-          isAutoDealt: true 
-        });
-      }, delay);
+      const cards = this.getCommunityCards(street);
+      await this.dispatch({ 
+        t: "EnterStreet", 
+        street: street as any, 
+        cards, 
+        isAutoDealt: true 
+      });
     }
     
-    // Schedule showdown after all streets
-    setTimeout(() => {
-      this.dispatch({ t: "Showdown", results: [] });
-    }, delay + STREET_DEAL_DELAY_MS);
+    // Schedule showdown after all streets with final delay
+    console.log(`   ⏱️ Waiting ${STREET_DEAL_DELAY_MS}ms before showdown...`);
+    await this.delay(STREET_DEAL_DELAY_MS);
+    await this.dispatch({ t: "Showdown", results: [] });
   }
 
   /**
@@ -410,16 +390,21 @@ export class EventEngine extends EventEmitter {
 
   /**
    * Process payout phase with delay before next hand
+   * NOTE: This method should NOT be called from checkAutomaticTransitions to prevent loops
    */
   private async processPayout(): Promise<void> {
-    console.log(`💰 [EventEngine] Processing payout, scheduling next hand in ${NEW_HAND_DELAY_MS}ms`);
+    console.log(`💰 [EventEngine] Payout complete, waiting ${NEW_HAND_DELAY_MS}ms before signaling ready`);
     
-    // Schedule next hand with delay
-    setTimeout(() => {
-      this.dispatch({ t: "HandEnd" });
-      // Reset deck for next hand
-      this.resetDeck();
-    }, NEW_HAND_DELAY_MS);
+    // Just wait for the delay - don't dispatch HandEnd here
+    // HandEnd will be dispatched by the reducer when processing the Payout event
+    await this.delay(NEW_HAND_DELAY_MS);
+    
+    // Reset deck for next hand
+    this.resetDeck();
+    
+    // Emit ready for new hand instead of dispatching events
+    this.emit('readyForNewHand');
+    console.log(`🔄 [EventEngine] Ready for new hand after payout delay`);
   }
 
   /**
@@ -488,20 +473,36 @@ export class EventEngine extends EventEmitter {
         playerCount 
       });
       
-      setTimeout(() => {
-        const currentPlayerCount = this.table.seats.filter(s => s.pid).length;
-        if (currentPlayerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
-          console.log(`✅ [EventEngine] Countdown complete, starting hand with ${currentPlayerCount} players`);
-          this.dispatch({ 
-            t: "StartHand", 
-            handNumber: this.table.handNumber + 1, 
-            timestamp: Date.now() 
-          });
-        } else {
-          console.log(`❌ [EventEngine] Countdown cancelled - insufficient players or game already started`);
-        }
-      }, GAME_START_COUNTDOWN_MS);
+      // Use async countdown - don't block other operations
+      this.scheduleGameStart();
     }
+  }
+
+  /**
+   * Schedule game start with countdown (runs in background)
+   */
+  private async scheduleGameStart(): Promise<void> {
+    console.log(`⏰ [EventEngine] Waiting ${GAME_START_COUNTDOWN_MS}ms before starting game...`);
+    await this.delay(GAME_START_COUNTDOWN_MS);
+    
+    const currentPlayerCount = this.table.seats.filter(s => s.pid).length;
+    if (currentPlayerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
+      console.log(`✅ [EventEngine] Countdown complete, starting hand with ${currentPlayerCount} players`);
+      await this.dispatch({ 
+        t: "StartHand", 
+        handNumber: this.table.handNumber + 1, 
+        timestamp: Date.now() 
+      });
+    } else {
+      console.log(`❌ [EventEngine] Countdown cancelled - insufficient players or game already started`);
+    }
+  }
+
+  /**
+   * Promise-based delay utility for timing
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -535,16 +536,11 @@ export class EventEngine extends EventEmitter {
   /**
    * Set timer manager for automated actions
    */
-  setTimerManager(timerManager: any): void {
-    this.timerManager = timerManager;
+  setTimerManager(timerIntegration: any): void {
+    this.timerManager = timerIntegration; // Store integration, not just manager
+    console.log(`⏰ [EventEngine] Timer connected to state machine`);
     
-    // Listen for timer events
-    this.timerManager?.on('timeout', (data: TimerEvent) => {
-      this.dispatch({
-        t: "TimeoutAutoFold",
-        seat: data.seat
-      });
-    });
+    // Timer events are handled through TimerIntegration, not directly here
   }
 
   /**
@@ -552,22 +548,18 @@ export class EventEngine extends EventEmitter {
    */
   private startActionTimer(): void {
     if (!this.timerManager || this.table.actor === undefined) {
+      console.error(`❌ [EventEngine] Timer not initialized or no actor: timer=${!!this.timerManager}, actor=${this.table.actor}`);
       return;
     }
     
     const seat = this.table.seats[this.table.actor];
-    if (!seat.pid) {
+    if (!seat?.pid) {
       return;
     }
     
-    const timerData: TimerEvent = {
-      pid: seat.pid,
-      seat: this.table.actor,
-      deadline: Date.now() + 30000, // 30 second timer
-      actionTimeoutMs: 30000
-    };
-    
-    this.timerManager.startTimer(timerData);
+    // Call correct method on TimerIntegration
+    this.timerManager.startActionTimer(seat.pid, this.table.actor);
+    console.log(`⏰ [EventEngine] Started timer for ${seat.pid} at seat ${this.table.actor}`);
   }
 
   /**
@@ -670,5 +662,75 @@ export class EventEngine extends EventEmitter {
       handNumber: this.table.handNumber + 1,
       timestamp: Date.now()
     });
+  }
+
+  /**
+   * Execute side effects returned by the reducer
+   */
+  private async executeSideEffects(sideEffects: SideEffect[]): Promise<void> {
+    for (const effect of sideEffects) {
+      await this.executeSideEffect(effect);
+    }
+  }
+
+  /**
+   * Execute individual side effect
+   */
+  private async executeSideEffect(effect: SideEffect): Promise<void> {
+    console.log(`🔄 [EventEngine] Executing side effect: ${effect.type}`, effect.payload);
+
+    switch (effect.type) {
+      case 'START_TIMER':
+        if (this.timerManager) {
+          const { playerId, seatId, timeoutMs } = effect.payload;
+          this.timerManager.startActionTimer(playerId, seatId, timeoutMs);
+        }
+        break;
+
+      case 'STOP_TIMER':
+        if (this.timerManager) {
+          const { playerId } = effect.payload;
+          if (playerId) {
+            this.timerManager.clearTimer(playerId);
+          } else {
+            this.timerManager.clearAllTimers();
+          }
+        }
+        break;
+
+      case 'DISPATCH_EVENT':
+        const { event, delayMs } = effect.payload;
+        if (delayMs) {
+          await this.delay(delayMs);
+        }
+        await this.dispatch(event);
+        break;
+
+      case 'EMIT_STATE_CHANGE':
+        const { reason } = effect.payload;
+        console.log(`📡 [EventEngine] Emitting state change: ${reason}`);
+        this.emit('stateChanged', this.table);
+        this.emit('eventProcessed', reason, this.table);
+        break;
+
+      case 'SCHEDULE_TRANSITION':
+        const { toPhase, delayMs: transitionDelay } = effect.payload;
+        console.log(`⏰ [EventEngine] Scheduling transition to ${toPhase} in ${transitionDelay}ms`);
+        setTimeout(() => {
+          this.table = { ...this.table, phase: toPhase };
+          this.emit('stateChanged', this.table);
+        }, transitionDelay);
+        break;
+
+      case 'CLEAR_TIMERS':
+        if (this.timerManager) {
+          this.timerManager.clearAllTimers();
+        }
+        break;
+
+      default:
+        console.warn(`⚠️ [EventEngine] Unknown side effect type:`, effect);
+        break;
+    }
   }
 }

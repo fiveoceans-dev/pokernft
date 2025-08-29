@@ -1,27 +1,26 @@
 /**
- * Legacy Adapter for WebSocket Server Integration
+ * WebSocket Adapter for Event-Driven Poker Engine
  * 
- * Provides backward compatibility with existing WebSocket server code
- * while using the new event-driven poker engine underneath.
+ * Bridges the WebSocket server with the state machine-based poker engine.
  * 
  * This adapter:
- * - Implements the same interface as the old GameEngine
- * - Translates between old and new data structures  
- * - Maintains event emissions for WebSocket clients
- * - Provides smooth migration path
+ * - Translates between WebSocket API and internal event-driven architecture
+ * - Converts internal Table state to WebSocket-friendly GameRoom format
+ * - Manages timer integration for player actions
+ * - Emits events that WebSocket clients can consume
  */
 
 import { EventEmitter } from "events";
 import { EventEngine } from '../core/eventEngine';
 import { TimerIntegration } from '../managers/timerEvents';
-import { Table, Seat } from '../core/newTypes';
-import { GameRoom, PlayerSession } from '../core/types'; // Legacy types
+import { Table, Seat } from '../core/types';
+import { GameRoom, PlayerSession } from '../core/types';
+import { indexToCard } from '../utils/utils';
 
 /**
- * Legacy GameEngine adapter that wraps the new EventEngine
- * Maintains compatibility with existing WebSocket server code
+ * WebSocket adapter that wraps the EventEngine for server integration
  */
-export class LegacyGameEngineAdapter extends EventEmitter {
+export class WebSocketAdapter extends EventEmitter {
   private eventEngine: EventEngine;
   private timerIntegration: TimerIntegration;
   private tableId: string;
@@ -33,34 +32,37 @@ export class LegacyGameEngineAdapter extends EventEmitter {
     const smallBlind = Math.floor(minBet / 2);
     const bigBlind = minBet;
     
-    // Create new event engine
+    // Create event-driven poker engine
     this.eventEngine = new EventEngine(tableId, smallBlind, bigBlind);
     
     // Setup timer integration
     this.timerIntegration = new TimerIntegration(this.eventEngine, actionTimeoutSeconds * 1000);
     
-    // Forward events from new engine to legacy listeners
+    // Connect timer to state machine
+    this.eventEngine.setTimerManager(this.timerIntegration);
+    
+    // Forward events to WebSocket clients
     this.setupEventForwarding();
     
-    console.log(`🔗 [LegacyAdapter] Created for table ${tableId}`);
+    console.log(`🔗 [WebSocketAdapter] Created for table ${tableId}`);
   }
 
   /**
-   * Setup event forwarding from new engine to legacy WebSocket format
+   * Setup event forwarding from engine to WebSocket format
    */
   private setupEventForwarding(): void {
-    // Forward state changes as legacy events
+    // Forward state changes to WebSocket clients
     this.eventEngine.on('stateChanged', (table: Table) => {
-      const legacyRoom = this.convertTableToRoom(table);
+      const webSocketRoom = this.toWebSocketFormat(table);
       
       // Debug logging for state changes
-      console.log(`🔄 [LegacyAdapter] State change: phase=${table.phase}, actor=${table.actor}, players=${table.seats.filter(s => s.pid).length}`);
+      console.log(`🔄 [WebSocketAdapter] State change: phase=${table.phase}, actor=${table.actor}, players=${table.seats.filter(s => s.pid).length}`);
       if (table.actor !== undefined) {
         const actorSeat = table.seats[table.actor];
         console.log(`   👤 Actor: ${actorSeat?.pid} (seat ${table.actor}), chips=${actorSeat?.chips}`);
       }
       
-      this.emit('stateChanged', legacyRoom);
+      this.emit('stateChanged', webSocketRoom);
     });
 
     // Forward timer events
@@ -90,7 +92,7 @@ export class LegacyGameEngineAdapter extends EventEmitter {
   }
 
   /**
-   * Handle specific event forwarding to maintain legacy behavior
+   * Handle specific event forwarding for WebSocket clients
    */
   private handleEventForwarding(event: any, table: Table): void {
     switch (event.t) {
@@ -117,9 +119,9 @@ export class LegacyGameEngineAdapter extends EventEmitter {
   }
 
   /**
-   * Convert new Table structure to legacy GameRoom structure
+   * Convert internal Table structure to WebSocket GameRoom format
    */
-  private convertTableToRoom(table: Table): GameRoom {
+  private toWebSocketFormat(table: Table): GameRoom {
     const players: PlayerSession[] = table.seats
       .filter(seat => seat.pid)
       .map(seat => ({
@@ -132,9 +134,9 @@ export class LegacyGameEngineAdapter extends EventEmitter {
         currentBet: seat.streetCommitted,
         hasFolded: seat.status === "folded",
         isTurn: table.actor !== undefined && table.actor === seat.id,
-        hand: seat.holeCards as any[], // Will need proper Card conversion
-        // Additional legacy fields
-        stack: seat.chips, // Legacy alias
+        hand: seat.holeCards ? seat.holeCards.map(index => indexToCard(index)) : [],
+        // Additional fields for compatibility
+        stack: seat.chips, // Alias for chips
         betThisRound: seat.streetCommitted,
         committed: seat.committed,
         isAllIn: seat.status === "allin",
@@ -150,27 +152,27 @@ export class LegacyGameEngineAdapter extends EventEmitter {
       lastAggressorIndex: table.lastAggressor ?? -1,
       stage: table.phase as any,
       pot: table.pots.reduce((sum, pot) => sum + pot.amount, 0),
-      communityCards: table.communityCards as any[], // Will need proper Card conversion
+      communityCards: table.communityCards.map(index => indexToCard(index)),
       minBet: table.bigBlind,
       smallBlindAmount: table.smallBlind,
       bigBlindAmount: table.bigBlind,
-      deck: [], // Legacy field - not used in new architecture
-      actionHistory: [], // Legacy field - can be added later if needed
-      // Additional fields for compatibility but not in legacy interface
-      ...({
-        board: table.communityCards as any[], // Legacy alias
+      deck: [], // Not used in event-driven architecture
+      actionHistory: [], // Can be added later if needed
+      // Additional fields for internal use
+      ...(({
+        board: table.communityCards.map(index => indexToCard(index)), // Alias for communityCards
         handNumber: table.handNumber,
         timestamp: table.timestamp,
         pots: table.pots // Additional field for internal use
-      })
+      }))
     } as GameRoom;
   }
 
   /**
-   * Convert new seat status to legacy player state
+   * Convert internal seat status to WebSocket player state
    */
   private convertSeatStatusToPlayerState(status: string): any {
-    // This would map to the legacy PlayerState enum
+    // Map to the WebSocket PlayerState format
     switch (status) {
       case "active": return "ACTIVE";
       case "folded": return "FOLDED";
@@ -181,26 +183,25 @@ export class LegacyGameEngineAdapter extends EventEmitter {
   }
 
   // ============================================================================
-  // LEGACY INTERFACE METHODS (maintain existing API)
+  // WEBSOCKET API METHODS
   // ============================================================================
 
   /**
-   * Get current game state (legacy format)
+   * Get current game state in WebSocket format
    */
   getState(): GameRoom {
     const table = this.eventEngine.getState();
-    return this.convertTableToRoom(table);
+    return this.toWebSocketFormat(table);
   }
 
   /**
-   * Load game state from snapshot (legacy format)
+   * Load game state from WebSocket format
    */
   loadState(room: GameRoom): void {
-    // Convert legacy room to new table format and load
-    // This is a simplified conversion - full implementation would be more comprehensive
-    console.log(`📂 [LegacyAdapter] Loading legacy room state for ${room.id}`);
+    // Convert WebSocket room to internal table format and load
+    console.log(`📂 [WebSocketAdapter] Loading room state for ${room.id}`);
     
-    // For now, just add players from the room
+    // Add players from the room
     room.players.forEach(player => {
       this.eventEngine.addPlayer({
         id: player.id,
@@ -239,7 +240,7 @@ export class LegacyGameEngineAdapter extends EventEmitter {
       throw new Error("Invalid chips amount");
     }
     
-    // Process the command - this will also validate through the EventEngine
+    // Process the command through the event engine
     const success = this.eventEngine.processCommand({
       type: "join",
       playerId: playerData.id,
@@ -248,9 +249,7 @@ export class LegacyGameEngineAdapter extends EventEmitter {
       nickname: playerData.nickname
     });
     
-    // Note: processCommand is async but we need to maintain sync interface
-    // The validation above should catch most issues immediately
-    console.log(`🔗 [LegacyAdapter] Dispatched join command for player ${playerData.id}`);
+    console.log(`🔗 [WebSocketAdapter] Dispatched join command for player ${playerData.id}`);
   }
 
   /**
@@ -275,7 +274,7 @@ export class LegacyGameEngineAdapter extends EventEmitter {
   /**
    * Handle player action
    */
-  handleAction(playerId: string, action: { type: string; amount?: number }): any {
+  async handleAction(playerId: string, action: { type: string; amount?: number }): Promise<any> {
     const table = this.eventEngine.getState();
     const seat = table.seats.find(s => s.pid === playerId);
     
@@ -283,14 +282,14 @@ export class LegacyGameEngineAdapter extends EventEmitter {
       throw new Error("Player not found at table");
     }
 
-    this.eventEngine.processCommand({
+    await this.eventEngine.processCommand({
       type: "action",
       seatId: seat.id,
       action: action.type.toLowerCase() as any,
       amount: action.amount
     });
 
-    return { success: true }; // Legacy return format
+    return { success: true }; // WebSocket return format
   }
 
   /**
@@ -299,9 +298,9 @@ export class LegacyGameEngineAdapter extends EventEmitter {
   async startHand(): Promise<void> {
     try {
       await this.eventEngine.processCommand({ type: "start_hand" });
-      console.log(`🎯 [LegacyAdapter] Hand start completed successfully`);
+      console.log(`🎯 [WebSocketAdapter] Hand start completed successfully`);
     } catch (error) {
-      console.error(`❌ [LegacyAdapter] Hand start failed:`, error);
+      console.error(`❌ [WebSocketAdapter] Hand start failed:`, error);
       throw error;
     }
   }
@@ -318,23 +317,23 @@ export class LegacyGameEngineAdapter extends EventEmitter {
   // ============================================================================
 
   /**
-   * Setup timer callbacks (legacy interface)
+   * Setup timer callbacks
    */
   setupTimerCallbacks(): void {
-    // Timer callbacks are now handled through events
-    console.log(`⏰ [LegacyAdapter] Timer callbacks setup through event system`);
+    // Timer callbacks are handled through events
+    console.log(`⏰ [WebSocketAdapter] Timer callbacks setup through event system`);
   }
 
   /**
-   * Setup timer events (legacy interface)
+   * Setup timer events
    */
   setupTimerEvents(): void {
     // Timer events are automatically setup in constructor
-    console.log(`⏰ [LegacyAdapter] Timer events setup through integration layer`);
+    console.log(`⏰ [WebSocketAdapter] Timer events setup through integration layer`);
   }
 
   // ============================================================================
-  // EVENT EMISSIONS (maintain legacy behavior)
+  // EVENT EMISSIONS (maintain WebSocket behavior)
   // ============================================================================
 
   /**
@@ -386,48 +385,18 @@ export class LegacyGameEngineAdapter extends EventEmitter {
   shutdown(): void {
     this.timerIntegration.shutdown();
     this.removeAllListeners();
-    console.log(`🔗 [LegacyAdapter] Shutdown complete for table ${this.tableId}`);
+    console.log(`🔗 [WebSocketAdapter] Shutdown complete for table ${this.tableId}`);
   }
 }
 
 /**
- * Factory function to create legacy-compatible game engine
- * Drop-in replacement for the old GameEngine constructor
+ * Factory function to create WebSocket-compatible game engine
+ * Drop-in replacement for creating poker engines
  */
 export function createGameEngine(
   tableId: string, 
   minBet = 10, 
   actionTimeoutSeconds = 10
-): LegacyGameEngineAdapter {
-  return new LegacyGameEngineAdapter(tableId, minBet, actionTimeoutSeconds);
-}
-
-/**
- * Migration utilities
- */
-export class MigrationUtils {
-  /**
-   * Validate that new engine produces same results as old engine
-   */
-  static validateMigration(
-    legacyResult: any, 
-    newResult: any, 
-    testName: string
-  ): boolean {
-    // Implementation would compare key fields between old and new results
-    console.log(`🔍 [Migration] Validating ${testName}:`, {
-      legacy: legacyResult,
-      new: newResult
-    });
-    
-    return true; // Simplified validation
-  }
-
-  /**
-   * Convert legacy room to new table format
-   */
-  static convertRoomToTable(room: GameRoom): Table {
-    // Full conversion implementation would go here
-    throw new Error("Not implemented - use LegacyAdapter.convertTableToRoom for now");
-  }
+): WebSocketAdapter {
+  return new WebSocketAdapter(tableId, minBet, actionTimeoutSeconds);
 }
