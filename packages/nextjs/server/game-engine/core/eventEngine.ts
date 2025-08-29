@@ -780,10 +780,7 @@ export class EventEngine extends EventEmitter {
    * Execute individual side effect
    */
   private async executeSideEffect(effect: SideEffect): Promise<void> {
-    console.log(
-      `🔄 [EventEngine] Executing side effect: ${effect.type}`,
-      effect.payload,
-    );
+    logger.debug(`🔄 [EventEngine] Executing side effect: ${effect.type} ${JSON.stringify(effect.payload)}`);
 
     switch (effect.type) {
       case "START_TIMER":
@@ -804,13 +801,27 @@ export class EventEngine extends EventEmitter {
         }
         break;
 
-      case "DISPATCH_EVENT":
-        const { event, delayMs } = effect.payload;
+      case "DISPATCH_EVENT": {
+        let { event, delayMs } = effect.payload as any;
         if (delayMs) {
           await this.delay(delayMs);
         }
+        // Auto-deal if cards are missing
+        if (event.t === 'DealHole' && (!event.cards || Object.keys(event.cards).length === 0)) {
+          const cards = generateHoleCards(this.table, this.getDeckSeed());
+          event = { ...event, cards };
+        }
+        if (event.t === 'EnterStreet' && (!event.cards || event.cards.length === 0)) {
+          const cards = this.getCommunityCards(event.street);
+          event = { ...event, cards, isAutoDealt: event.isAutoDealt ?? true };
+        }
+        if (event.t === 'Showdown' && (!event.results || event.results.length === 0)) {
+          await this.processShowdown();
+          return;
+        }
         await this.dispatch(event);
         break;
+      }
 
       case "EMIT_STATE_CHANGE":
         const { reason } = effect.payload;

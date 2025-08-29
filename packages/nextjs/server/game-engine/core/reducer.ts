@@ -21,7 +21,7 @@ import {
   StateTransition,
   SideEffect,
 } from "./types";
-import { getNextActor, countActivePlayers } from "../utils/ringOrder";
+import { getNextActor, countActivePlayers, getBettingRoundState } from "../utils/ringOrder";
 import {
   getBlindPositions,
   getFirstActor,
@@ -30,6 +30,9 @@ import {
   shouldGiveBBOption,
 } from "../logic/gameRules";
 import { collectIntoPots } from "../logic/potManager";
+import { getNextStreet } from "../logic/betting";
+import { validateAction as validatePokerAction } from "../logic/validation";
+import { ACTION_TIMEOUT_MS } from "./constants";
 
 /**
  * Main reducer function - pure and deterministic
@@ -258,12 +261,10 @@ function postBlinds(
         payload: {
           playerId: actorSeat.pid,
           seatId: actionOrder.actor,
-          timeoutMs: 30000,
+          timeoutMs: ACTION_TIMEOUT_MS,
         },
       });
-      console.log(
-        `⏰ [Reducer] Started timer for ${actorSeat.pid} (${30000}ms)`,
-      );
+      console.log(`⏰ [Reducer] Started timer for ${actorSeat.pid} (${ACTION_TIMEOUT_MS}ms)`);
     }
   }
 
@@ -360,7 +361,7 @@ function enterStreet(
         payload: {
           playerId: actorSeat.pid,
           seatId: actor,
-          timeoutMs: 30000,
+          timeoutMs: ACTION_TIMEOUT_MS,
         },
       });
     }
@@ -391,10 +392,18 @@ function applyAction(
     return { nextState: table, sideEffects: [] }; // State unchanged - invalid action
   }
 
+  // Enforce action validity (min bet/raise, to-call, phase)
+  const validation = validatePokerAction(table, seatId, action, amount);
+  if (!validation.valid) {
+    console.warn(`❌ [Reducer] Action validation failed: ${validation.error}`);
+    return { nextState: table, sideEffects: [] };
+  }
+
   const newSeats = [...table.seats];
   let newCurrentBet = table.currentBet;
   let newLastAggressor = table.lastAggressor;
   let newLastRaiseSize = table.lastRaiseSize;
+  const finalAmount = validation.normalizedAmount ?? amount;
 
   switch (action) {
     case "fold":
@@ -422,7 +431,7 @@ function applyAction(
 
     case "bet":
     case "raise":
-      const betAmount = Math.min(amount, seat.chips);
+      const betAmount = Math.min(finalAmount, seat.chips);
       const newStreetCommitted = seat.streetCommitted + betAmount;
       newSeats[seatId] = {
         ...seat,
@@ -502,9 +511,27 @@ function applyAction(
         payload: {
           playerId: nextSeat.pid,
           seatId: nextActorResult.actor,
-          timeoutMs: 30000,
+          timeoutMs: ACTION_TIMEOUT_MS,
         },
       });
+    }
+  }
+
+  // If betting round is complete, schedule next transition events
+  const roundState = getBettingRoundState(nextState);
+  if (roundState.isComplete) {
+    // Collect into pots
+    sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'CloseStreet' } } });
+
+    const currentStreet = nextState.street;
+    const nextStreet = currentStreet ? getNextStreet(currentStreet as Street) : null;
+    const atRiver = !nextStreet;
+    const allInOrFold = roundState.reason === 'all-players-allin' || roundState.reason === 'fold-to-one';
+
+    if (atRiver || allInOrFold) {
+      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
+    } else if (nextStreet) {
+      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet } } });
     }
   }
 
