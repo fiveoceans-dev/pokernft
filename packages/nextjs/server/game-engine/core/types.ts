@@ -441,10 +441,6 @@ export type SideEffect =
   | { type: "STOP_TIMER"; payload: { playerId?: string } }
   | { type: "DISPATCH_EVENT"; payload: { event: PokerEvent; delayMs?: number } }
   | { type: "EMIT_STATE_CHANGE"; payload: { reason: string } }
-  | {
-      type: "SCHEDULE_TRANSITION";
-      payload: { toPhase: Phase; delayMs: number };
-    }
   | { type: "CLEAR_TIMERS"; payload: {} };
 
 /**

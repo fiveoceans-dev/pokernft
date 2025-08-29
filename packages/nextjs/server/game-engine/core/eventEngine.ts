@@ -824,17 +824,6 @@ export class EventEngine extends EventEmitter {
         this.emit("eventProcessed", reason, this.table);
         break;
 
-      case "SCHEDULE_TRANSITION":
-        const { toPhase, delayMs: transitionDelay } = effect.payload;
-        console.log(
-          `⏰ [EventEngine] Scheduling transition to ${toPhase} in ${transitionDelay}ms`,
-        );
-        setTimeout(() => {
-          this.table = { ...this.table, phase: toPhase };
-          this.emit("stateChanged", this.table);
-        }, transitionDelay);
-        break;
-
       case "CLEAR_TIMERS":
         if (this.timerManager) {
           this.timerManager.clearAllTimers();
