@@ -585,8 +585,8 @@ function processPayout(
   const sideEffects: SideEffect[] = [
     { type: "EMIT_STATE_CHANGE", payload: { reason: "payout_complete" } },
     {
-      type: "SCHEDULE_TRANSITION",
-      payload: { toPhase: "waiting", delayMs: 5000 },
+      type: "DISPATCH_EVENT",
+      payload: { event: { t: "HandEnd" }, delayMs: 5000 },
     },
   ];
 
