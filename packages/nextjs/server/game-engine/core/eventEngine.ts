@@ -813,7 +813,8 @@ export class EventEngine extends EventEmitter {
         }
         if (event.t === 'EnterStreet' && (!event.cards || event.cards.length === 0)) {
           const cards = this.getCommunityCards(event.street);
-          event = { ...event, cards, isAutoDealt: event.isAutoDealt ?? true };
+          // Only engine-supply cards; do not alter isAutoDealt unless reducer requested it
+          event = { ...event, cards };
         }
         if (event.t === 'Showdown' && (!event.results || event.results.length === 0)) {
           await this.processShowdown();
