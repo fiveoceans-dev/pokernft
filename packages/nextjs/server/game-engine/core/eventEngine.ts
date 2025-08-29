@@ -47,6 +47,7 @@ export class EventEngine extends EventEmitter {
   private eventLog: PokerEvent[] = [];
   private eventQueue: QueuedEvent[] = [];
   private processing = false;
+  private processingPromise?: Promise<void>;
   private timerManager?: any; // Will be injected
   private currentDeck?: any[]; // Current shuffled deck
   private deckSeed?: string; // Seed for current deck
@@ -128,6 +129,8 @@ export class EventEngine extends EventEmitter {
    * Dispatch event for processing
    */
   async dispatch(event: PokerEvent): Promise<void> {
+    console.log(`🚀 [EventEngine] Dispatching event: ${event.t} (queue length: ${this.eventQueue.length}, processing: ${this.processing})`);
+    
     const queuedEvent: QueuedEvent = {
       event,
       timestamp: Date.now(),
@@ -135,12 +138,25 @@ export class EventEngine extends EventEmitter {
     };
     
     this.eventQueue.push(queuedEvent);
+    console.log(`   📥 Added to queue: ${event.t} (new queue length: ${this.eventQueue.length})`);
     
-    // If we're not currently processing, start processing
-    // If we are processing, the current loop will pick up the new event
-    if (!this.processing) {
-      await this.processEventQueue();
+    // If we're already processing, just add to queue and return immediately
+    // The current processing session will handle it in the while loop
+    if (this.processing) {
+      console.log(`   🔄 Already processing - event added to queue, will be processed in current session`);
+      return;
     }
+    
+    // Start new processing session and wait for it to complete
+    console.log(`   🎬 Starting new processing session for ${event.t}`);
+    this.processingPromise = this.processEventQueue();
+    
+    // Wait for the processing to complete
+    console.log(`   ⌛ Waiting for processing to complete for ${event.t}...`);
+    await this.processingPromise;
+    console.log(`   ✅ Processing completed for ${event.t}`);
+    
+    console.log(`🏁 [EventEngine] Dispatch complete for ${event.t}`);
   }
 
   /**
@@ -148,21 +164,28 @@ export class EventEngine extends EventEmitter {
    */
   private async processEventQueue(): Promise<void> {
     if (this.processing) {
+      console.log(`⚠️ [EventEngine] processEventQueue called while already processing - returning early`);
       return; // Already processing
     }
     
     this.processing = true;
+    console.log(`🔄 [EventEngine] Starting event queue processing (${this.eventQueue.length} events queued)`);
     
     try {
+      let processedCount = 0;
       // Keep processing until queue is completely empty
       // This handles events added during automatic transitions
       while (this.eventQueue.length > 0) {
         const queuedEvent = this.eventQueue.shift()!;
+        processedCount++;
+        console.log(`   📨 Processing event ${processedCount}: ${queuedEvent.event.t} (${this.eventQueue.length} remaining)`);
         await this.processEvent(queuedEvent);
+        console.log(`   ✅ Completed event ${processedCount}: ${queuedEvent.event.t} (${this.eventQueue.length} remaining)`);
         
         // Continue processing any events that were added during processEvent
         // (e.g., from automatic transitions)
       }
+      console.log(`🎯 [EventEngine] Event queue processing complete (processed ${processedCount} events total)`);
     } finally {
       this.processing = false;
     }

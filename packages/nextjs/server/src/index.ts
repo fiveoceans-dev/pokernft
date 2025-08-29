@@ -440,7 +440,7 @@ function startGameCountdown(roomId: string) {
   let countdown = 10;
   broadcast(roomId, { type: "TIMER", countdown });
 
-  const timer = setInterval(() => {
+  const timer = setInterval(async () => {
     countdown--;
     broadcast(roomId, { type: "TIMER", countdown });
 

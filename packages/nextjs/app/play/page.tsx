@@ -38,7 +38,7 @@ export default function PlayPage() {
   const { isConnected, address } = useWalletGameSync();
   const { walletSeatIdx } = useTableViewModel();
   const [isLeaving, setIsLeaving] = useState(false);
-  
+
   // Check if current player is sitting out based on game state
   const mySeatIndex = playerIds.findIndex(id => id === currentWalletId);
   const isSittingOut = mySeatIndex >= 0 && playerStates[mySeatIndex] === PlayerState.SITTING_OUT;
@@ -82,7 +82,7 @@ export default function PlayPage() {
 
   const handleLeaveTable = async () => {
     if (walletSeatIdx < 0) return;
-    
+
     setIsLeaving(true);
     try {
       // Auto-fold if it's the player's turn
@@ -92,10 +92,10 @@ export default function PlayPage() {
         // Ignore fold errors - player might not be in turn
         console.log("No fold needed or not player's turn");
       }
-      
+
       // Leave the table
       await leaveSeat();
-      
+
       console.log("✅ Successfully left the table");
     } catch (error) {
       console.error("❌ Failed to leave table:", error);
@@ -111,7 +111,7 @@ export default function PlayPage() {
 
   const handleSitOutToggle = async () => {
     if (walletSeatIdx < 0) return;
-    
+
     try {
       if (isSittingOut) {
         await sitIn();
@@ -136,7 +136,7 @@ export default function PlayPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <header className="relative w-full flex items-start justify-start mt-6 mb-4 px-4 pl-8">
+      <header className="relative w-full flex items-center justify-center mt-4 mb-2 px-4">
         <AnimatedTitle text="Poker Night on Starknet" />
       </header>
       {/* Player Control Buttons - positioned in top right */}
@@ -145,13 +145,13 @@ export default function PlayPage() {
           {/* Sit Out / Sit In Button */}
           <button
             onClick={handleSitOutToggle}
-            disabled={connectionState === 'disconnected'}
+            disabled={connectionState === "disconnected"}
             className={`btn btn-sm px-3 py-2 gap-0 !h-auto border transition-all ${
-              connectionState === 'disconnected'
+              connectionState === "disconnected"
                 ? "bg-gray-500 border-gray-500 text-gray-300 cursor-not-allowed opacity-50"
                 : isSittingOut
-                ? "bg-green-600 border-green-600 hover:bg-green-700 hover:border-green-700 text-white"
-                : "bg-yellow-600 border-yellow-600 hover:bg-yellow-700 hover:border-yellow-700 text-white"
+                  ? "bg-green-600 border-green-600 hover:bg-green-700 hover:border-green-700 text-white"
+                  : "bg-yellow-600 border-yellow-600 hover:bg-yellow-700 hover:border-yellow-700 text-white"
             }`}
           >
             {isSittingOut ? "Sit In" : "Sit Out"}
@@ -160,9 +160,9 @@ export default function PlayPage() {
           {/* Leave Table Button */}
           <button
             onClick={handleLeaveClick}
-            disabled={isLeaving || connectionState === 'disconnected'}
+            disabled={isLeaving || connectionState === "disconnected"}
             className={`btn btn-sm px-3 py-2 gap-0 !h-auto border transition-all ${
-              isLeaving || connectionState === 'disconnected'
+              isLeaving || connectionState === "disconnected"
                 ? "bg-gray-500 border-gray-500 text-gray-300 cursor-not-allowed opacity-50"
                 : "bg-transparent border-[#5c4fe5] hover:bg-[#5c4fe5] hover:text-white text-white"
             }`}
@@ -172,21 +172,18 @@ export default function PlayPage() {
         </div>
       )}
 
-      
       <div className="flex-1 flex items-center justify-center">
-        <Table timer={timer} />
-      </div>
-      <div
-        id="action-buttons"
-        className="fixed right-0 flex justify-end p-4 z-10 bottom-10 sm:bottom-0"
-      >
-        <ActionBar
-          street={stageNames[street] ?? "preflop"}
-          onActivate={handleActivate}
-          onTurn={dealTurn}
-          onRiver={dealRiver}
-          hasHandStarted={handStarted}
-        />
+        <div className="flex flex-col items-center">
+          <Table timer={timer} />
+          <div id="action-buttons" className="mt-4">
+            <ActionBar
+              street={stageNames[street] ?? "preflop"}
+              onActivate={handleActivate}
+              onTurn={dealTurn}
+              onRiver={dealRiver}
+            />
+          </div>
+        </div>
       </div>
       
       {/* Player betting action buttons */}
