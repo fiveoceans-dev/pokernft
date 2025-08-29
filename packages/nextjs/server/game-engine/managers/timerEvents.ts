@@ -408,6 +408,13 @@ export class TimerIntegration {
   }
 
   /**
+   * Clear all timers (table-wide)
+   */
+  clearAllTimers(reason = 'table-reset'): number {
+    return this.timerManager.clearAllTimers(reason);
+  }
+
+  /**
    * Get timer manager reference
    */
   getTimerManager(): TimerEventManager {
