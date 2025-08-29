@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useGameStore } from '../hooks/useGameStore';
-import { useTableViewModel } from '../hooks/useTableViewModel';
 import useIsMobile from '../hooks/useIsMobile';
 
 interface Props {
@@ -19,11 +18,12 @@ export default function PlayerActionButtons({
   currentBet,
   playerCommitted,
   playerChips,
-  minRaise = 10,
+  minRaise,
   isMobile: propIsMobile
 }: Props) {
-  const { playerAction, connectionState } = useGameStore();
-  const [raiseAmount, setRaiseAmount] = useState(minRaise);
+  const { playerAction, connectionState, bigBlind } = useGameStore();
+  const effectiveMinRaise = minRaise ?? bigBlind;
+  const [raiseAmount, setRaiseAmount] = useState(effectiveMinRaise);
   const [isActionPending, setIsActionPending] = useState(false);
   const hookIsMobile = useIsMobile();
   const isMobile = propIsMobile ?? hookIsMobile;
@@ -32,7 +32,7 @@ export default function PlayerActionButtons({
   const toCall = Math.max(0, currentBet - playerCommitted);
   const canCheck = toCall === 0;
   const canCall = toCall > 0 && playerChips > 0;
-  const canRaise = playerChips > toCall + minRaise;
+  const canRaise = playerChips > toCall + effectiveMinRaise;
   const maxRaise = Math.max(0, playerChips - toCall);
 
   const handleAction = async (action: string, amount?: number) => {
@@ -50,8 +50,8 @@ export default function PlayerActionButtons({
   };
 
   const handleRaiseAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value) || minRaise;
-    setRaiseAmount(Math.max(minRaise, Math.min(value, maxRaise)));
+    const value = parseInt(e.target.value) || effectiveMinRaise;
+    setRaiseAmount(Math.max(effectiveMinRaise, Math.min(value, maxRaise)));
   };
 
   const showActions = isPlayerTurn && connectionState !== 'disconnected';
@@ -158,26 +158,26 @@ export default function PlayerActionButtons({
 
       {/* Row 2 - Quick Bet Buttons (Right aligned) */}
       <div className="flex justify-end items-center gap-1 mb-2" style={{minHeight: '32px'}}>
-        {showActions && canRaise && maxRaise > minRaise ? (
+        {showActions && canRaise && maxRaise > effectiveMinRaise ? (
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setRaiseAmount(Math.min(minRaise * 2, maxRaise))}
+              onClick={() => setRaiseAmount(Math.min(effectiveMinRaise * 2, maxRaise))}
               className="min-w-[50px] px-2 py-1 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-              disabled={minRaise * 2 > maxRaise}
+              disabled={effectiveMinRaise * 2 > maxRaise}
             >
               2BB
             </button>
             <button
-              onClick={() => setRaiseAmount(Math.min(minRaise * 3, maxRaise))}
+              onClick={() => setRaiseAmount(Math.min(effectiveMinRaise * 3, maxRaise))}
               className="min-w-[50px] px-2 py-1 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-              disabled={minRaise * 3 > maxRaise}
+              disabled={effectiveMinRaise * 3 > maxRaise}
             >
               3BB
             </button>
             <button
               onClick={() => setRaiseAmount(maxRaise)}
               className="min-w-[60px] px-2 py-1 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-              disabled={maxRaise <= minRaise}
+              disabled={maxRaise <= effectiveMinRaise}
             >
               All-in
             </button>
@@ -193,34 +193,34 @@ export default function PlayerActionButtons({
 
       {/* Row 3 - Betting Controls (Full width) */}
       <div className="flex items-center gap-1 w-full" style={{minHeight: '32px'}}>
-        {showActions && canRaise && maxRaise > minRaise ? (
+        {showActions && canRaise && maxRaise > effectiveMinRaise ? (
           <>
             {/* Minus Button */}
             <button
               onClick={() => {
-                const newAmount = Math.max(raiseAmount - minRaise, minRaise);
+                const newAmount = Math.max(raiseAmount - effectiveMinRaise, effectiveMinRaise);
                 setRaiseAmount(newAmount);
               }}
-              disabled={raiseAmount <= minRaise}
+              disabled={raiseAmount <= effectiveMinRaise}
               className="w-7 h-7 flex items-center justify-center rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               -
             </button>
-            
+
             {/* Betting Slider - Full width */}
             <input
               type="range"
-              min={minRaise}
+              min={effectiveMinRaise}
               max={maxRaise}
               value={raiseAmount}
               onChange={(e) => setRaiseAmount(parseInt(e.target.value))}
               className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
             />
-            
+
             {/* Plus Button */}
             <button
               onClick={() => {
-                const newAmount = Math.min(raiseAmount + minRaise, maxRaise);
+                const newAmount = Math.min(raiseAmount + effectiveMinRaise, maxRaise);
                 setRaiseAmount(newAmount);
               }}
               disabled={raiseAmount >= maxRaise}
@@ -228,11 +228,11 @@ export default function PlayerActionButtons({
             >
               +
             </button>
-            
+
             {/* Bet Amount Input */}
             <input
               type="number"
-              min={minRaise}
+              min={effectiveMinRaise}
               max={maxRaise}
               value={raiseAmount}
               onChange={handleRaiseAmountChange}

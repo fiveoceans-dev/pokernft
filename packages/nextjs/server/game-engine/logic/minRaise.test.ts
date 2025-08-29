@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import { validateAction } from "./validation";
 import { Table } from "../core/types";
 
-describe("minimum raise calculation", () => {
+describe.each([10, 50])("minimum raise calculation with big blind %d", (bb) => {
+  const sb = bb / 2;
+  const lastRaise = bb * 3;
+
   function createTable(): Table {
     return {
       id: "t1",
@@ -11,31 +14,31 @@ describe("minimum raise calculation", () => {
           id: 0,
           pid: "A",
           chips: 1000,
-          committed: 40,
-          streetCommitted: 40,
+          committed: bb * 4,
+          streetCommitted: bb * 4,
           status: "active",
         },
         {
           id: 1,
           pid: "B",
           chips: 1000,
-          committed: 10,
-          streetCommitted: 10,
+          committed: bb,
+          streetCommitted: bb,
           status: "active",
         },
       ],
       button: 0,
-      smallBlind: 5,
-      bigBlind: 10,
+      smallBlind: sb,
+      bigBlind: bb,
       phase: "preflop",
       street: "preflop",
       actor: 1,
       lastAggressor: 0,
-      currentBet: 40,
-      lastRaiseSize: 30,
+      currentBet: bb * 4,
+      lastRaiseSize: lastRaise,
       pots: [],
       communityCards: [],
-      blinds: { sb: 5, bb: 10 },
+      blinds: { sb, bb },
       handNumber: 1,
       timestamp: Date.now(),
     };
@@ -43,14 +46,14 @@ describe("minimum raise calculation", () => {
 
   it("rejects raises below last raise size", () => {
     const table = createTable();
-    const result = validateAction(table, 1, "raise", 25);
+    const result = validateAction(table, 1, "raise", lastRaise - sb);
     expect(result.valid).toBe(false);
-    expect(result.error).toContain("Minimum raise is $30");
+    expect(result.error).toContain(`Minimum raise is $${lastRaise}`);
   });
 
   it("accepts raises meeting last raise size", () => {
     const table = createTable();
-    const result = validateAction(table, 1, "raise", 30);
+    const result = validateAction(table, 1, "raise", lastRaise);
     expect(result.valid).toBe(true);
   });
 });
