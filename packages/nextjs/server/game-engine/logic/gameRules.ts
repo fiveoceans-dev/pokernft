@@ -9,6 +9,12 @@
  */
 
 import { Table, Seat, SeatStatus, Phase, Street } from '../core/types';
+import {
+  isActionable,
+  getNextActionableIndex,
+  countActivePlayers,
+  countPlayersInHand
+} from '../utils/ringOrder';
 
 export interface BlindPositions {
   sb: number;    // Small blind seat index
@@ -21,46 +27,7 @@ export interface ActionOrderResult {
   activeCount: number;    // Number of active players
 }
 
-/**
- * Check if a seat can take actions
- */
-export function isActionable(seat: Seat): boolean {
-  return seat.status === "active" && seat.pid !== undefined;
-}
-
-/**
- * Get next actionable seat index clockwise from start position
- */
-export function getNextActiveIndex(seats: Seat[], startIndex: number): number {
-  const seatCount = seats.length;
-  
-  for (let i = 1; i <= seatCount; i++) {
-    const index = (startIndex + i) % seatCount;
-    const seat = seats[index];
-    
-    if (isActionable(seat)) {
-      return index;
-    }
-  }
-  
-  return -1; // No actionable seats found
-}
-
-/**
- * Count active players (not folded, not all-in, not empty)
- */
-export function countActivePlayers(seats: Seat[]): number {
-  return seats.filter(isActionable).length;
-}
-
-/**
- * Count players still in hand (active or all-in, not folded)
- */
-export function countPlayersInHand(seats: Seat[]): number {
-  return seats.filter(seat => 
-    seat.status === "active" || seat.status === "allin"
-  ).length;
-}
+// Core player state helpers are centralized in utils/ringOrder
 
 /**
  * Get blind positions according to poker rules
@@ -97,10 +64,10 @@ export function getBlindPositions(seats: Seat[], button: number): BlindPositions
   }
   
   // Multi-way: Standard positions (button → SB → BB clockwise)
-  const sbIndex = getNextActiveIndex(seats, button);
+  const sbIndex = getNextActionableIndex(seats, button);
   if (sbIndex === -1) return null;
-  
-  const bbIndex = getNextActiveIndex(seats, sbIndex);
+
+  const bbIndex = getNextActionableIndex(seats, sbIndex);
   if (bbIndex === -1) return null;
   
   return { sb: sbIndex, bb: bbIndex };
@@ -144,7 +111,7 @@ export function getFirstActor(table: Table, isPreflop: boolean): ActionOrderResu
         return { actor: -1, isHeadsUp, activeCount };
       }
       
-      const utg = getNextActiveIndex(seats, blindPositions.bb);
+      const utg = getNextActionableIndex(seats, blindPositions.bb);
       return { 
         actor: utg, 
         isHeadsUp, 
@@ -167,7 +134,7 @@ export function getFirstActor(table: Table, isPreflop: boolean): ActionOrderResu
       };
     } else {
       // Multi-way postflop: Left of Button acts first
-      const firstActor = getNextActiveIndex(seats, button);
+      const firstActor = getNextActionableIndex(seats, button);
       return { 
         actor: firstActor, 
         isHeadsUp, 
