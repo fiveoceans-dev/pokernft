@@ -62,6 +62,10 @@ class MockTimerManager {
   cancelDealTimer(tableId: string): void {
     this.cancel(`deal_${tableId}`);
   }
+
+  clearTimer(timerId: string): void {
+    this.cancel(timerId);
+  }
 }
 
 describe("Event Engine Integration Tests", () => {
@@ -256,6 +260,7 @@ describe("Event Engine Integration Tests", () => {
       await engine.processCommand({
         type: "action",
         playerId: "player1",
+        seatId: 0,
         action: "call"
       });
 
@@ -267,6 +272,7 @@ describe("Event Engine Integration Tests", () => {
       await engine.processCommand({
         type: "action",
         playerId: "player2",
+        seatId: 1,
         action: "call"
       });
 
@@ -306,12 +312,14 @@ describe("Event Engine Integration Tests", () => {
       await engine.processCommand({
         type: "action", 
         playerId: "player1",
+        seatId: 0,
         action: "call"
       });
 
       await engine.processCommand({
         type: "action",
-        playerId: "player2", 
+        playerId: "player2",
+        seatId: 1, 
         action: "check"
       });
 
@@ -362,13 +370,15 @@ describe("Event Engine Integration Tests", () => {
       // Preflop
       await engine.processCommand({
         type: "action",
-        playerId: "player1", 
+        playerId: "player1",
+        seatId: 0, 
         action: "call"
       });
       
       await engine.processCommand({
         type: "action",
         playerId: "player2",
+        seatId: 1,
         action: "check"
       });
 
@@ -376,25 +386,29 @@ describe("Event Engine Integration Tests", () => {
       await engine.processCommand({
         type: "action",
         playerId: "player2",
+        seatId: 1,
         action: "check"
       });
 
       await engine.processCommand({
         type: "action", 
         playerId: "player1",
+        seatId: 0,
         action: "check"
       });
 
       // Turn
       await engine.processCommand({
         type: "action",
-        playerId: "player2", 
+        playerId: "player2",
+        seatId: 1, 
         action: "check"
       });
 
       await engine.processCommand({
         type: "action",
         playerId: "player1",
+        seatId: 0,
         action: "check"
       });
 
@@ -402,12 +416,14 @@ describe("Event Engine Integration Tests", () => {
       await engine.processCommand({
         type: "action",
         playerId: "player2",
+        seatId: 1,
         action: "check"
       });
 
       await engine.processCommand({
         type: "action",
         playerId: "player1",
+        seatId: 0,
         action: "check"
       });
 
@@ -463,18 +479,21 @@ describe("Event Engine Integration Tests", () => {
       await engine.processCommand({
         type: "action",
         playerId: "player1",
+        seatId: 0,
         action: "call"
       });
 
       await engine.processCommand({
         type: "action", 
         playerId: "player2",
+        seatId: 1,
         action: "allin"
       });
 
       await engine.processCommand({
         type: "action",
         playerId: "player1",
+        seatId: 0,
         action: "call"
       });
 
