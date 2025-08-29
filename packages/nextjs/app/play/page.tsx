@@ -107,7 +107,7 @@ export default function PlayPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <header className="relative w-full flex items-center justify-center mt-4 mb-2 px-4">
+      <header className="relative w-full flex items-center justify-center mt-4 mb-2 pl-4 pr-40">
         <AnimatedTitle text="Poker Night on Starknet" />
         {walletSeatIdx >= 0 && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2">
