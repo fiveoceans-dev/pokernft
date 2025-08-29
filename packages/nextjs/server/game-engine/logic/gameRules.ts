@@ -37,39 +37,34 @@ export interface ActionOrderResult {
  * - Multi-way (3+ players): Button → SB → BB (clockwise)
  */
 export function getBlindPositions(seats: Seat[], button: number): BlindPositions | null {
-  const activePlayers = seats.filter(seat => seat.status === "active" && seat.pid);
-  
-  if (activePlayers.length < 2) {
-    return null; // Need at least 2 players for blinds
-  }
-  
-  if (activePlayers.length === 2) {
-    // Heads-up: Button = Small Blind
-    const buttonSeat = seats[button];
-    if (!buttonSeat || !isActionable(buttonSeat)) {
-      // Find first active player as button (fallback)
-      const firstActive = seats.findIndex(isActionable);
-      if (firstActive === -1) return null;
-      button = firstActive;
-    }
-    
-    // Other active player is Big Blind
-    const bbIndex = seats.findIndex((seat, index) => 
-      index !== button && isActionable(seat)
-    );
-    
-    if (bbIndex === -1) return null;
-    
-    return { sb: button, bb: bbIndex };
-  }
-  
-  // Multi-way: Standard positions (button → SB → BB clockwise)
-  const sbIndex = getNextActionableIndex(seats, button);
-  if (sbIndex === -1) return null;
+  // Consider players in hand (occupied), regardless of current "active" vs "allin"
+  const occupied = seats.map((s, i) => (s.pid ? i : -1)).filter((i) => i !== -1);
 
-  const bbIndex = getNextActionableIndex(seats, sbIndex);
+  if (occupied.length < 2) return null;
+
+  if (occupied.length === 2) {
+    // Heads-up: Button = Small Blind, other = Big Blind
+    // Ensure button points to one of the occupied seats
+    const buttonSeatIndex = seats[button]?.pid ? button : occupied[0];
+    const sbIndex = buttonSeatIndex;
+    const bbIndex = occupied.find((i) => i !== sbIndex)!;
+    return { sb: sbIndex, bb: bbIndex };
+  }
+
+  // Multi-way: Button → next occupied = SB → next occupied = BB
+  const n = seats.length;
+  const nextOccupiedFrom = (start: number): number => {
+    for (let step = 1; step <= n; step++) {
+      const idx = (start + step) % n;
+      if (seats[idx]?.pid) return idx;
+    }
+    return -1;
+  };
+
+  const sbIndex = nextOccupiedFrom(button);
+  if (sbIndex === -1) return null;
+  const bbIndex = nextOccupiedFrom(sbIndex);
   if (bbIndex === -1) return null;
-  
   return { sb: sbIndex, bb: bbIndex };
 }
 
