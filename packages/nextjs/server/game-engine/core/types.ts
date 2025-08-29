@@ -78,6 +78,10 @@ export interface Table {
   // Board cards
   communityCards: number[]; // card indices (0-4)
 
+  // Deck management
+  deck?: Card[];        // Current shuffled deck for the hand
+  deckIndex?: number;   // Next card index to draw (0-51)
+
   // Configuration
   blinds: {
     sb: number; // small blind amount

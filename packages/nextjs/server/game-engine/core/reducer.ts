@@ -29,6 +29,8 @@ import {
   validateAndFixButton,
   shouldGiveBBOption,
 } from "../logic/gameRules";
+import { createDeck, generateDeckSeed } from "../logic/deckManager";
+import { generateHoleCards, generateBoardCards } from "./cardDealer";
 import { collectIntoPots } from "../logic/potManager";
 import { getNextStreet } from "../logic/betting";
 import { validateAction as validatePokerAction } from "../logic/validation";
@@ -109,6 +111,11 @@ function startHand(
     }
   }
 
+  // Generate deck seed and create shuffled deck
+  const deckSeed = generateDeckSeed(handNumber, timestamp);
+  const deck = createDeck(deckSeed);
+  console.log(`🎰 [Reducer] Created shuffled deck with seed: ${deckSeed}`);
+
   const nextState = {
     ...table,
     phase: "deal" as Phase,
@@ -122,6 +129,10 @@ function startHand(
     lastRaiseSize: table.bigBlind,
     pots: [],
     communityCards: [],
+    // Deck management
+    deck,
+    deckIndex: 0,
+    deckSeed,
     // Reset all seats for new hand
     seats: table.seats.map((seat) => ({
       ...seat,
@@ -291,13 +302,25 @@ function postBlinds(
  */
 function applyHoleCards(
   table: Table,
-  cards: Record<string, [number, number]>,
+  cards: Record<string, [number, number]> | undefined,
 ): StateTransition {
+  // If no cards provided, generate them from the table's deck
+  let playerCards = cards;
+  let nextDeckIndex = table.deckIndex;
+  
+  if (!playerCards || Object.keys(playerCards).length === 0) {
+    // Generate cards from the table's deck
+    const result = generateHoleCards(table);
+    playerCards = result.cards;
+    nextDeckIndex = result.nextIndex;
+    console.log(`🎴 [Reducer] Generated hole cards from deck, next index: ${nextDeckIndex}`);
+  }
+
   const newSeats = table.seats.map((seat) => {
-    if (seat.pid && cards[seat.pid]) {
+    if (seat.pid && playerCards![seat.pid]) {
       return {
         ...seat,
-        holeCards: cards[seat.pid],
+        holeCards: playerCards![seat.pid],
       };
     }
     return seat;
@@ -306,6 +329,7 @@ function applyHoleCards(
   const nextState = {
     ...table,
     seats: newSeats,
+    deckIndex: nextDeckIndex,
   };
 
   // Side effect: emit that cards were dealt
@@ -330,9 +354,19 @@ function enterStreet(
     streetCommitted: 0, // Reset street commitments
   }));
 
-  const communityCards = cards
-    ? [...table.communityCards, ...cards]
-    : table.communityCards;
+  // Generate cards from deck if not provided
+  let communityCards = table.communityCards;
+  let nextDeckIndex = table.deckIndex;
+  
+  if ((!cards || cards.length === 0) && street !== "preflop") {
+    // Generate board cards from the table's deck
+    const result = generateBoardCards(table, street, true);
+    communityCards = [...table.communityCards, ...result.cards];
+    nextDeckIndex = result.nextIndex;
+    console.log(`🎴 [Reducer] Generated ${result.cards.length} cards for ${street}, next index: ${nextDeckIndex}`);
+  } else if (cards) {
+    communityCards = [...table.communityCards, ...cards];
+  }
 
   // Determine first actor unless explicitly auto-dealt
   let actor: number | undefined = undefined;
@@ -353,6 +387,7 @@ function enterStreet(
     lastAggressor: undefined,
     actor, // Will be undefined for all-in scenarios
     communityCards,
+    deckIndex: nextDeckIndex, // Update deck position after dealing cards
   };
 
   const sideEffects: SideEffect[] = [
