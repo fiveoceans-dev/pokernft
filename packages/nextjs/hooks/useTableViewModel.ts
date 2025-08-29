@@ -79,8 +79,10 @@ export function useTableViewModel(_timer?: number | null) {
       const baseW = isMobile ? 420 : 820;
       const baseH = isMobile ? 680 : 520;
       const minTableWidth = isMobile ? 360 : baseW;
-      // Reserve space for action controls so the table plus buttons fit the viewport
-      const bottomSpace = isMobile ? 160 : 160;
+      const actionEl = document.getElementById("action-buttons");
+      const actionHeight = actionEl?.getBoundingClientRect().height ?? 0;
+      const extraMargin = isMobile ? 40 : 60;
+      const bottomSpace = actionHeight + extraMargin;
       const minScale = minTableWidth / baseW;
       const scale = Math.min(
         Math.max(window.innerWidth / baseW, minScale),
@@ -107,23 +109,28 @@ export function useTableViewModel(_timer?: number | null) {
   const { address } = useWalletGameSync();
   const walletSeatIdx = useMemo(() => {
     if (!currentWalletId || !tableId) return -1;
-    
+
     // Check if we have a seat at the current table
     const seatIndex = tableSeats.get(tableId);
     if (seatIndex !== undefined) {
       // Verify the seat is still ours in the current player list
       const playerId = playerIds[seatIndex];
-      if (playerId && playerId.toLowerCase() === currentWalletId.toLowerCase()) {
+      if (
+        playerId &&
+        playerId.toLowerCase() === currentWalletId.toLowerCase()
+      ) {
         return seatIndex;
       }
     }
-    
+
     // Fallback: search through playerIds (for compatibility)
     return playerIds.findIndex(
-      (id) => id && currentWalletId && id.toLowerCase() === currentWalletId.toLowerCase(),
+      (id) =>
+        id &&
+        currentWalletId &&
+        id.toLowerCase() === currentWalletId.toLowerCase(),
     );
   }, [playerIds, currentWalletId, tableSeats, tableId]);
-
 
   const communityCardSize = useMemo((): "xs" | "sm" | "md" | "lg" => {
     return tableScale < 0.75 ? "xs" : tableScale < 1 ? "sm" : "md";

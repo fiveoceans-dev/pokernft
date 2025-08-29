@@ -21,7 +21,7 @@ export default function AnimatedTitle({
   }, [interval]);
 
   return (
-    <h1 className="text-4xl font-bold text-left leading-tight">
+    <h1 className="text-2xl md:text-3xl font-bold text-left leading-tight whitespace-nowrap">
       {text.split("").map((ch, i) => (
         <span
           key={`${iteration}-${i}`}
