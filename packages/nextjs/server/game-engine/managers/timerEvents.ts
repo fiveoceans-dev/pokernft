@@ -41,6 +41,7 @@ export class TimerEventManager extends EventEmitter {
   private activeTimers = new Map<string, ActiveTimer>();
   private defaultTimeoutMs: number;
   private warningThresholdMs: number;
+  private currentActorPid: string | null = null; // Track current actor to prevent unnecessary clears
 
   constructor(defaultTimeoutMs = ACTION_TIMEOUT_MS, warningThresholdMs = 5000) {
     super();
@@ -59,9 +60,14 @@ export class TimerEventManager extends EventEmitter {
     const timeoutMs = actionTimeoutMs || this.defaultTimeoutMs;
     const deadline = Date.now() + timeoutMs;
     
-    // Clear any existing timer for this player AND any other active timers
-    // This ensures only one timer is active at a time
-    this.clearAllTimers("new-timer-starting");
+    // Clear ONLY the previous actor's timer (if different) to avoid race conditions
+    if (this.currentActorPid && this.currentActorPid !== pid) {
+      console.log(`⏰ [TimerEventManager] Clearing previous actor's timer: ${this.currentActorPid}`);
+      this.clearTimer(this.currentActorPid, "new-actor-turn");
+    }
+    
+    // Update current actor tracking
+    this.currentActorPid = pid;
     console.log(`⏰ [TimerEventManager] Starting timer for ${pid} at seat ${seat} (${timeoutMs}ms)`);
     
     // Create timeout handler
@@ -121,6 +127,12 @@ export class TimerEventManager extends EventEmitter {
     // Remove from active timers
     this.activeTimers.delete(pid);
     
+    // Reset current actor tracking if this was the current actor
+    if (this.currentActorPid === pid) {
+      this.currentActorPid = null;
+      console.log(`⏰ [TimerEventManager] Reset current actor tracking after clearing ${pid}`);
+    }
+    
     // Emit timer cleared event
     this.emit('timerEvent', {
       type: "TimerCleared",
@@ -142,6 +154,9 @@ export class TimerEventManager extends EventEmitter {
     for (const [pid] of this.activeTimers) {
       this.clearTimer(pid, reason);
     }
+    
+    // Reset current actor tracking when all timers cleared
+    this.currentActorPid = null;
     
     console.log(`⏰ [TimerEventManager] Cleared ${clearedCount} timers: ${reason}`);
     return clearedCount;
@@ -201,6 +216,13 @@ export class TimerEventManager extends EventEmitter {
     // Double-check the timer is for the right seat (paranoid validation)
     if (timer.seat !== seat) {
       console.warn(`⏰ [TimerEventManager] Timer seat mismatch for ${pid}: expected ${seat}, got ${timer.seat}`);
+      this.activeTimers.delete(pid);
+      return;
+    }
+    
+    // Check if this player is still the current actor (prevents race conditions)
+    if (this.currentActorPid !== pid) {
+      console.log(`⏰ [TimerEventManager] Timer expired for ${pid} but they're no longer current actor (now ${this.currentActorPid})`);
       this.activeTimers.delete(pid);
       return;
     }

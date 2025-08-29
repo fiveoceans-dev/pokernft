@@ -239,6 +239,15 @@ export class EventEngine extends EventEmitter {
     
     console.log(`📨 [EventEngine] Processing event: ${event.t}`, event);
     
+    // IMMEDIATE timer cancellation for actions to prevent race conditions
+    if (event.t === "Action" && this.timerManager) {
+      const seat = this.table.seats[event.seat];
+      if (seat?.pid && this.table.actor === event.seat) {
+        console.log(`⏰ [EventEngine] Immediately cancelling timer for acting player ${seat.pid} at seat ${event.seat}`);
+        this.timerManager.clearTimer(seat.pid);
+      }
+    }
+    
     // Apply event through pure reducer
     const transition = reduce(this.table, event);
     
