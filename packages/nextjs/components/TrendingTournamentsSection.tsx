@@ -3,6 +3,22 @@
 import { useState } from "react";
 import Image from "next/image";
 import { buyNft } from "~~/services/nft";
+import { PopularNftCard, type PopularNftCardProps } from "./ui/PopularNftCard";
+
+// Trending items used both for display and as NFT images for tournaments
+const trendingItems: PopularNftCardProps[] = Array.from({ length: 8 }).map((_, i) => ({
+  id: i,
+  title: `FIVE`,
+  image: `/nfts/nft${i}.png`,
+  buyIn: `$${20 + i}`,
+  status: "Minting",
+  gameType: "No-Limit Texas Hold'em",
+  dateTime: `[2025.08.${12 + i} 21:00 GMT]`,
+  tournamentType: "Tournament",
+  registered: 9999 - i,
+  maxRegistered: 10000,
+  prize: "$200,000",
+}));
 
 type Tournament = {
   id: number;
@@ -20,10 +36,9 @@ type Tournament = {
   nft: string;
 };
 
-const tournaments: Tournament[] = [
+const baseTournaments: Omit<Tournament, "nft">[] = [
   {
     id: 1,
-    nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Saturday $200,000",
     game: "NLH",
     date: "2024-10-01",
@@ -38,7 +53,6 @@ const tournaments: Tournament[] = [
   },
   {
     id: 2,
-    nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Saturday Million",
     game: "NLH",
     date: "2025-10-07",
@@ -53,7 +67,6 @@ const tournaments: Tournament[] = [
   },
   {
     id: 3,
-    nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Sunday Showdown",
     game: "NLH",
     date: "2025-10-14",
@@ -68,7 +81,6 @@ const tournaments: Tournament[] = [
   },
   {
     id: 4,
-    nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Nightly Brawl",
     game: "NLH",
     date: "2025-10-21",
@@ -83,7 +95,6 @@ const tournaments: Tournament[] = [
   },
   {
     id: 5,
-    nft: "https://placehold.co/220x320.png?text=NFT",
     name: "High Roller",
     game: "Hold'em",
     date: "2025-10-28",
@@ -98,7 +109,6 @@ const tournaments: Tournament[] = [
   },
   {
     id: 6,
-    nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Daily Spin",
     game: "Hold'em",
     date: "2025-09-20",
@@ -113,12 +123,11 @@ const tournaments: Tournament[] = [
   },
   {
     id: 7,
-    nft: "https://placehold.co/220x320.png?text=NFT",
     name: "Weekend Warriors",
     game: "Hold'em",
     date: "2024-09-02",
-    creator: "Squiggles",
     creatorAvatar: "https://placehold.co/320x320.png?text=NFT",
+    creator: "Squiggles",
     prize: 80,
     creatorShare: 10,
     protocolFee: 10,
@@ -128,7 +137,6 @@ const tournaments: Tournament[] = [
   },
   {
     id: 8,
-    nft: "https://placehold.co/320x320.png?text=NFT",
     name: "Grand Finale",
     date: "2025-12-30",
     game: "Hold'em",
@@ -143,23 +151,14 @@ const tournaments: Tournament[] = [
   },
 ];
 
+const tournaments: Tournament[] = baseTournaments.map((t, i) => ({
+  ...t,
+  nft: trendingItems[i % trendingItems.length].image,
+}));
+
 type SortKey = keyof Tournament;
 
-const columns: { key: SortKey; label: string; numeric?: boolean }[] = [
-  { key: "nft", label: "NFT" },
-  { key: "name", label: "Tournament" },
-  { key: "game", label: "Game" },
-  { key: "date", label: "Date" },
-  { key: "creator", label: "Creator" },
-  { key: "prize", label: "Prizes" },
-  { key: "creatorShare", label: "Prizes" },
-  { key: "protocolFee", label: "Prizes" },
-  { key: "sold", label: "Sold", numeric: true },
-  { key: "buyIn", label: "Buy-In", numeric: true },
-];
-
-export default function TournamentsTableSection() {
-  const [openColumn, setOpenColumn] = useState<SortKey | null>(null);
+export default function TrendingTournamentsSection() {
   const [sortConfig, setSortConfig] = useState<{
     key: SortKey;
     direction: "asc" | "desc";
@@ -179,44 +178,50 @@ export default function TournamentsTableSection() {
     return direction === "asc" ? comparison : -comparison;
   });
 
-  const toggleColumn = (key: SortKey) => {
-    setOpenColumn((prev) => (prev === key ? null : key));
-  };
-
-  const applySort = (key: SortKey, direction: "asc" | "desc") => {
-    setSortConfig({ key, direction });
-    setOpenColumn(null);
+  const applySort = (key: SortKey) => {
+    setSortConfig((prev) => {
+      if (prev?.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
   };
 
   return (
-    <section id="tournaments" className="py-24 text-gray-900 dark:text-white">
+    <section id="trending-tournaments" className="py-24 text-gray-900 dark:text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
-        <h2 className="text-3xl font-bold text-center mb-8">
-          <span className="text-accent">Upcoming Tournaments</span>
+        <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-10">
+          <span className="text-accent">Trending & Upcoming Tournaments</span>
         </h2>
+
+        <div className="overflow-x-auto pb-2 mb-8">
+          <div className="grid grid-cols-8 gap-4 md:gap-6 w-max">
+            {trendingItems.map((item) => (
+              <PopularNftCard key={item.id} {...item} />
+            ))}
+          </div>
+        </div>
+
         <div className="overflow-auto rounded-lg border border-gray-300 dark:border-gray-700">
           <table className="min-w-full text-xs sm:text-sm table-auto">
             <thead className="bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-400 uppercase text-[10px] sm:text-xs">
               <tr>
-                <th className="px-2 py-1">NFT</th>
-                <th className="px-2 py-1">Tournament</th>
-                <th className="px-2 py-1">Game</th>
-                <th className="px-2 py-1">Date</th>
-                <th className="px-2 py-1">Creator</th>
-                <th className="px-2 py-1 text-center">Prize 80%</th>
-                <th className="px-2 py-1 text-center">Creator 10%</th>
-                <th className="px-2 py-1 text-center">Protocol 10%</th>
-                <th className="px-2 py-1 text-center">Sold</th>
-                <th className="px-2 py-1 text-center">Buy-In</th>
+                <th className="px-2 py-1 cursor-pointer" onClick={() => applySort("nft")}>NFT</th>
+                <th className="px-2 py-1 cursor-pointer" onClick={() => applySort("name")}>Tournament</th>
+                <th className="px-2 py-1 cursor-pointer" onClick={() => applySort("game")}>Game</th>
+                <th className="px-2 py-1 cursor-pointer" onClick={() => applySort("date")}>Date</th>
+                <th className="px-2 py-1 cursor-pointer" onClick={() => applySort("creator")}>Creator</th>
+                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("prize")}>Prize 80%</th>
+                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("creatorShare")}>Creator 10%</th>
+                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("protocolFee")}>Protocol 10%</th>
+                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("sold")}>Sold</th>
+                <th className="px-2 py-1 text-center cursor-pointer" onClick={() => applySort("buyIn")}>Buy-In</th>
                 <th className="px-2 py-1 text-center">Buy</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
               {sorted.map((t) => (
-                <tr
-                  key={t.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-900 transition"
-                >
+                <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition">
                   <td className="px-2 py-1">
                     <Image
                       src={t.nft}
@@ -241,21 +246,11 @@ export default function TournamentsTableSection() {
                     />
                     <span>{t.creator}</span>
                   </td>
-                  <td className="px-2 py-1 text-center text-accent">
-                    {t.prize}%
-                  </td>
-                  <td className="px-2 py-1 text-center text-blue-400">
-                    {t.creatorShare}%
-                  </td>
-                  <td className="px-2 py-1 text-center text-red-400">
-                    {t.protocolFee}%
-                  </td>
-                  <td className="px-2 py-1 text-orange-500 text-center">
-                    {t.sold}/{t.supply}
-                  </td>
-                  <td className="px-2 py-1 text-green-500 text-center">
-                    ${t.buyIn}
-                  </td>
+                  <td className="px-2 py-1 text-center text-accent">{t.prize}%</td>
+                  <td className="px-2 py-1 text-center text-blue-400">{t.creatorShare}%</td>
+                  <td className="px-2 py-1 text-center text-red-400">{t.protocolFee}%</td>
+                  <td className="px-2 py-1 text-orange-500 text-center">{t.sold}/{t.supply}</td>
+                  <td className="px-2 py-1 text-green-500 text-center">${t.buyIn}</td>
                   <td className="px-2 py-1 text-center">
                     <button
                       onClick={() => buyNft(t.id)}
@@ -273,3 +268,4 @@ export default function TournamentsTableSection() {
     </section>
   );
 }
+
