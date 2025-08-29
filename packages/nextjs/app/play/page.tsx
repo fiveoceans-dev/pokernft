@@ -204,7 +204,7 @@ export default function PlayPage() {
                 <input
                   type="text"
                   placeholder="Send message"
-                  className="w-full px-2 py-1 text-white rounded text-xs border focus:border-blue-500 focus:outline-none bg-transparent mb-2"
+                  className="w-full px-2 py-1 text-white rounded text-xs border border-black/40 placeholder-gray-300 font-bold focus:border-black/60 focus:outline-none bg-transparent mb-2"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       // TODO: Implement chat message sending

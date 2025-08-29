@@ -30,6 +30,11 @@ import {
   createShuffledDeck,
 } from "./cardDealer";
 import {
+  evaluateHand,
+  determineWinners,
+  type PlayerHand
+} from "../logic/handEvaluation";
+import {
   STREET_DEAL_DELAY_MS,
   NEW_HAND_DELAY_MS,
   GAME_START_COUNTDOWN_MS,
@@ -395,14 +400,69 @@ export class EventEngine extends EventEmitter {
   }
 
   /**
-   * Process showdown phase
+   * Process showdown phase with real hand evaluation
    */
   private async processShowdown(): Promise<void> {
-    // In a full implementation, evaluate hands here
-    // For now, create mock results
-    const mockResults = this.createMockShowdownResults();
-
-    const distributions = calculatePayouts(this.table.pots, mockResults);
+    logger.info(`🃏 [EventEngine] Processing showdown - evaluating hands`);
+    
+    // Get players still in hand with their hole cards
+    const playersInHand = this.table.seats.filter(
+      (seat) => 
+        seat.pid && 
+        seat.holeCards && 
+        (seat.status === "active" || seat.status === "allin")
+    );
+    
+    if (playersInHand.length === 0) {
+      logger.error(`❌ [EventEngine] No players in hand for showdown`);
+      return;
+    }
+    
+    if (playersInHand.length === 1) {
+      // Only one player left - they win without showing cards
+      const winner = playersInHand[0];
+      logger.info(`🏆 [EventEngine] ${winner.pid} wins by elimination`);
+      
+      const distributions = [{
+        pid: winner.pid!,
+        amount: this.table.pots.reduce((sum, pot) => sum + pot.amount, 0),
+        potIndex: 0,
+        reason: "win" as const
+      }];
+      
+      await this.dispatch({ t: "Payout", distributions });
+      return;
+    }
+    
+    // Evaluate each player's hand
+    const evaluatedHands: PlayerHand[] = playersInHand.map(seat => {
+      const handRank = evaluateHand(seat.holeCards!, this.table.communityCards);
+      
+      logger.info(`   🃏 ${seat.pid}: ${handRank.description}`);
+      
+      return {
+        pid: seat.pid!,
+        handRank,
+        holeCards: seat.holeCards!
+      };
+    });
+    
+    // Determine winners and rankings
+    const results = determineWinners(evaluatedHands);
+    
+    // Log results
+    results.forEach(result => {
+      if (result.rank === 1) {
+        logger.info(`🏆 [EventEngine] Winner: ${result.pid} with ${result.description}`);
+      } else {
+        logger.info(`   ${result.rank}. ${result.pid} with ${result.description}`);
+      }
+    });
+    
+    // Calculate payouts based on hand rankings
+    const distributions = calculatePayouts(this.table.pots, results);
+    
+    // Dispatch payout after a brief delay to show cards
     await this.dispatch({ t: "Payout", distributions });
   }
 
@@ -599,25 +659,6 @@ export class EventEngine extends EventEmitter {
     return generateBoardCards(street as any, this.currentDeck, true);
   }
 
-  /**
-   * Create mock showdown results for testing
-   */
-  private createMockShowdownResults(): Array<{
-    pid: string;
-    rank: number;
-    description: string;
-  }> {
-    const playersInHand = this.table.seats.filter(
-      (seat) =>
-        seat.pid && (seat.status === "active" || seat.status === "allin"),
-    );
-
-    return playersInHand.map((seat, index) => ({
-      pid: seat.pid!,
-      rank: index + 1, // Lower is better
-      description: `Mock hand #${index + 1}`,
-    }));
-  }
 
   /**
    * Set timer manager for automated actions

@@ -379,20 +379,26 @@ function enterStreet(
     }
   }
 
-  // Fail-safe progression: if no actor or round is trivially complete, schedule next transitions
+  // Only auto-progress if everyone is all-in (no betting possible)
   const roundState = getBettingRoundState(nextState);
-  if (roundState.isComplete || actor === undefined) {
-    // Collect into pots then proceed
+  if (roundState.isComplete && roundState.reason === 'all-players-allin') {
+    console.log(`🎯 [Reducer] All players all-in on ${street}, auto-dealing remaining streets`);
+    // Auto-deal remaining streets when no betting is possible
     sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'CloseStreet' } } });
     const currentStreet = nextState.street;
     const nextStreet = currentStreet ? getNextStreet(currentStreet as Street) : null;
-    const atRiver = !nextStreet;
-    if (atRiver || roundState.reason === 'all-players-allin' || roundState.reason === 'fold-to-one') {
+    if (nextStreet) {
+      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet, isAutoDealt: true } } });
+    } else {
+      // No more streets, go to showdown
       sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
-    } else if (nextStreet) {
-      // Auto-deal next street when all-in (no actor)
-      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet, isAutoDealt: roundState.reason === 'all-players-allin' || actor === undefined } } });
     }
+  } else if (actor === undefined) {
+    // ERROR: Can't determine first actor but players can act
+    console.error(`❌ [Reducer] Failed to determine first actor for ${street} - this should not happen`);
+    console.error(`   Active players: ${nextState.seats.filter(s => s.status === 'active' && s.pid).map(s => `${s.pid}(${s.id})`).join(', ')}`);
+    console.error(`   Button: ${nextState.button}, IsAutoDealt: ${isAutoDealt}`);
+    // Don't auto-progress - wait for manual fix or debugging
   }
 
   return { nextState, sideEffects };
@@ -607,23 +613,51 @@ function closeStreet(table: Table): StateTransition {
 
 /**
  * Process showdown results
+ * Note: Hand evaluation is done by the EventEngine, reducer just transitions state
  */
 function processShowdown(table: Table, results: any[]): StateTransition {
+  // Count players still in hand
+  const playersInHand = table.seats.filter(seat => 
+    seat.pid && 
+    (seat.status === "active" || seat.status === "allin")
+  ).length;
+
+  console.log(`🃏 [Reducer] Starting showdown with ${playersInHand} players`);
+
   const nextState = {
     ...table,
     phase: "showdown" as Phase,
+    // Clear the actor since no more betting
+    actor: undefined,
   };
+
+  const sideEffects: SideEffect[] = [
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "showdown_started" } },
+  ];
+
+  // If only one player left, they win immediately
+  if (playersInHand <= 1) {
+    console.log(`🏆 [Reducer] Only ${playersInHand} player(s) remaining - immediate win`);
+    sideEffects.push({ 
+      type: "EMIT_STATE_CHANGE", 
+      payload: { reason: "win_by_elimination" } 
+    });
+  } else {
+    console.log(`🃏 [Reducer] Multiple players - cards will be evaluated`);
+    sideEffects.push({ 
+      type: "EMIT_STATE_CHANGE", 
+      payload: { reason: "revealing_cards" } 
+    });
+  }
 
   return {
     nextState,
-    sideEffects: [
-      { type: "EMIT_STATE_CHANGE", payload: { reason: "showdown_started" } },
-    ],
+    sideEffects,
   };
 }
 
 /**
- * Process payout distributions
+ * Process payout distributions with winner announcements
  */
 function processPayout(
   table: Table,
@@ -631,16 +665,27 @@ function processPayout(
 ): StateTransition {
   const newSeats = [...table.seats];
 
-  // Distribute winnings
+  console.log(`💰 [Reducer] Processing payouts for ${distributions.length} distributions`);
+
+  // Distribute winnings and log winners
   distributions.forEach((dist) => {
     const seatIndex = newSeats.findIndex((seat) => seat.pid === dist.pid);
     if (seatIndex !== -1) {
+      const oldChips = newSeats[seatIndex].chips;
       newSeats[seatIndex] = {
         ...newSeats[seatIndex],
-        chips: newSeats[seatIndex].chips + dist.amount,
+        chips: oldChips + dist.amount,
       };
+      
+      console.log(`💰 [Reducer] ${dist.pid} wins $${dist.amount} (${dist.reason}) - ${oldChips} → ${oldChips + dist.amount} chips`);
     }
   });
+
+  // Calculate total pot distributed
+  const totalPayout = distributions.reduce((sum, dist) => sum + dist.amount, 0);
+  const totalPots = table.pots.reduce((sum, pot) => sum + pot.amount, 0);
+  
+  console.log(`💰 [Reducer] Total distributed: $${totalPayout} from $${totalPots} in pots`);
 
   // Immediately transition to handEnd phase to prevent infinite loops
   const nextState = {
@@ -654,8 +699,9 @@ function processPayout(
     lastRaiseSize: table.bigBlind,
   };
 
-  // Side effect: schedule next hand after delay
+  // Side effects: announce winners and schedule next hand
   const sideEffects: SideEffect[] = [
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "winners_announced" } },
     { type: "EMIT_STATE_CHANGE", payload: { reason: "payout_complete" } },
     {
       type: "DISPATCH_EVENT",
@@ -670,13 +716,32 @@ function processPayout(
  * End hand and prepare for next
  */
 function endHand(table: Table): StateTransition {
+  // Remove broke players (0 chips) from the table
+  const newSeats = table.seats.map((seat) => {
+    if (seat.pid && seat.chips === 0) {
+      console.log(`💸 [Reducer] Removing broke player ${seat.pid} from seat ${seat.id}`);
+      return {
+        id: seat.id,
+        chips: 0,
+        committed: 0,
+        streetCommitted: 0,
+        status: "empty" as SeatStatus,
+      };
+    }
+    return seat;
+  });
+
   // Calculate next button using game rules
-  const nextButton = calculateNextButton(table.seats, table.button);
+  const nextButton = calculateNextButton(newSeats, table.button);
   const buttonMoved = nextButton !== table.button;
 
   console.log(
     `🔄 [Reducer] Button ${buttonMoved ? "advanced" : "stayed"}: ${table.button} → ${nextButton}`,
   );
+
+  // Count remaining players with chips
+  const playersWithChips = newSeats.filter(seat => seat.pid && seat.chips > 0).length;
+  console.log(`👥 [Reducer] ${playersWithChips} players remaining with chips`);
 
   const nextState = {
     ...table,
@@ -688,6 +753,7 @@ function endHand(table: Table): StateTransition {
     lastRaiseSize: table.bigBlind,
     communityCards: [],
     button: nextButton,
+    seats: newSeats,
     bbSeat: undefined, // Reset BB tracking
     bbHasActed: false, // Reset BB action tracking
   };
@@ -701,6 +767,18 @@ function endHand(table: Table): StateTransition {
     sideEffects.push({
       type: "EMIT_STATE_CHANGE",
       payload: { reason: "button_moved" },
+    });
+  }
+
+  // Emit notification if players were removed
+  const brokePlayersRemoved = table.seats.filter((seat, index) => 
+    seat.pid && newSeats[index].status === "empty"
+  ).length;
+  
+  if (brokePlayersRemoved > 0) {
+    sideEffects.push({
+      type: "EMIT_STATE_CHANGE",
+      payload: { reason: "broke_players_removed" },
     });
   }
 
@@ -740,10 +818,23 @@ function addPlayer(
     return { nextState: table, sideEffects: [] }; // Player already seated
   }
 
-  // Validate chips amount
+  // Validate chips amount with buy-in limits
+  const minBuyIn = table.bigBlind * 20;  // 20 big blinds minimum
+  const maxBuyIn = table.bigBlind * 200; // 200 big blinds maximum
+  
   if (chips <= 0) {
-    console.error(`❌ [Reducer] Invalid chips amount: ${chips}`);
+    console.error(`❌ [Reducer] Invalid chips amount: ${chips} (must be > 0)`);
     return { nextState: table, sideEffects: [] }; // Invalid chips
+  }
+  
+  if (chips < minBuyIn) {
+    console.error(`❌ [Reducer] Buy-in too small: ${chips} (minimum: ${minBuyIn})`);
+    return { nextState: table, sideEffects: [] }; // Buy-in too small
+  }
+  
+  if (chips > maxBuyIn) {
+    console.error(`❌ [Reducer] Buy-in too large: ${chips} (maximum: ${maxBuyIn})`);
+    return { nextState: table, sideEffects: [] }; // Buy-in too large
   }
 
   const newSeats = [...table.seats];
