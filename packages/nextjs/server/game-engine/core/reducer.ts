@@ -429,8 +429,8 @@ function applyAction(
       };
       break;
 
-    case "bet":
-    case "raise":
+    case "bet": {
+      // No existing bet: commit the bet amount
       const betAmount = Math.min(finalAmount, seat.chips);
       const newStreetCommitted = seat.streetCommitted + betAmount;
       newSeats[seatId] = {
@@ -440,11 +440,29 @@ function applyAction(
         streetCommitted: newStreetCommitted,
         status: seat.chips === betAmount ? "allin" : "active",
       };
-      const raiseSize = newStreetCommitted - table.currentBet;
       newCurrentBet = Math.max(newCurrentBet, newStreetCommitted);
       newLastAggressor = seatId;
-      newLastRaiseSize = raiseSize;
+      newLastRaiseSize = betAmount;
       break;
+    }
+    case "raise": {
+      // Must first call up to currentBet, then add raise increment
+      const toCall = Math.max(0, table.currentBet - seat.streetCommitted);
+      const raiseInc = Math.min(finalAmount, Math.max(0, seat.chips - toCall));
+      const totalPutIn = Math.min(seat.chips, toCall + raiseInc);
+      const newStreetCommitted = seat.streetCommitted + totalPutIn;
+      newSeats[seatId] = {
+        ...seat,
+        chips: seat.chips - totalPutIn,
+        committed: seat.committed + totalPutIn,
+        streetCommitted: newStreetCommitted,
+        status: seat.chips === totalPutIn ? "allin" : "active",
+      };
+      newCurrentBet = Math.max(newCurrentBet, newStreetCommitted);
+      newLastAggressor = seatId;
+      newLastRaiseSize = raiseInc;
+      break;
+    }
 
     case "allin":
       const allInAmount = seat.chips;
