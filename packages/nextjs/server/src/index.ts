@@ -880,7 +880,8 @@ wss.on("connection", (ws) => {
           const room = engine.getState();
           const playerId = session.userId ?? session.sessionId;
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
-          const currentPlayer = room.players[room.currentTurnIndex];
+          // currentTurnIndex is a seat index; players[] is filtered and not indexed by seat
+          const currentPlayer = room.players.find(p => p.seat === room.currentTurnIndex);
           if (!currentPlayer || currentPlayer.id !== playerId) {
             ws.send(
               JSON.stringify({
