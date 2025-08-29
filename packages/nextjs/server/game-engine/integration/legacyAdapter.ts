@@ -52,6 +52,14 @@ export class LegacyGameEngineAdapter extends EventEmitter {
     // Forward state changes as legacy events
     this.eventEngine.on('stateChanged', (table: Table) => {
       const legacyRoom = this.convertTableToRoom(table);
+      
+      // Debug logging for state changes
+      console.log(`🔄 [LegacyAdapter] State change: phase=${table.phase}, actor=${table.actor}, players=${table.seats.filter(s => s.pid).length}`);
+      if (table.actor !== undefined) {
+        const actorSeat = table.seats[table.actor];
+        console.log(`   👤 Actor: ${actorSeat?.pid} (seat ${table.actor}), chips=${actorSeat?.chips}`);
+      }
+      
       this.emit('stateChanged', legacyRoom);
     });
 
@@ -123,7 +131,7 @@ export class LegacyGameEngineAdapter extends EventEmitter {
         isDealer: table.button === seat.id,
         currentBet: seat.streetCommitted,
         hasFolded: seat.status === "folded",
-        isTurn: table.actor === seat.id,
+        isTurn: table.actor !== undefined && table.actor === seat.id,
         hand: seat.holeCards as any[], // Will need proper Card conversion
         // Additional legacy fields
         stack: seat.chips, // Legacy alias
@@ -137,7 +145,7 @@ export class LegacyGameEngineAdapter extends EventEmitter {
       id: table.id,
       players,
       dealerIndex: table.button,
-      currentTurnIndex: table.actor ?? 0,
+      currentTurnIndex: table.actor ?? -1,
       firstToActIndex: 0, // Will be calculated properly in full implementation
       lastAggressorIndex: table.lastAggressor ?? -1,
       stage: table.phase as any,
@@ -286,10 +294,16 @@ export class LegacyGameEngineAdapter extends EventEmitter {
   }
 
   /**
-   * Start new hand
+   * Start new hand (async to ensure completion)
    */
-  startHand(): void {
-    this.eventEngine.processCommand({ type: "start_hand" });
+  async startHand(): Promise<void> {
+    try {
+      await this.eventEngine.processCommand({ type: "start_hand" });
+      console.log(`🎯 [LegacyAdapter] Hand start completed successfully`);
+    } catch (error) {
+      console.error(`❌ [LegacyAdapter] Hand start failed:`, error);
+      throw error;
+    }
   }
 
   /**

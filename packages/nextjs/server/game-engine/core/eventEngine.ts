@@ -135,7 +135,12 @@ export class EventEngine extends EventEmitter {
     };
     
     this.eventQueue.push(queuedEvent);
-    await this.processEventQueue();
+    
+    // If we're not currently processing, start processing
+    // If we are processing, the current loop will pick up the new event
+    if (!this.processing) {
+      await this.processEventQueue();
+    }
   }
 
   /**
@@ -149,9 +154,14 @@ export class EventEngine extends EventEmitter {
     this.processing = true;
     
     try {
+      // Keep processing until queue is completely empty
+      // This handles events added during automatic transitions
       while (this.eventQueue.length > 0) {
         const queuedEvent = this.eventQueue.shift()!;
         await this.processEvent(queuedEvent);
+        
+        // Continue processing any events that were added during processEvent
+        // (e.g., from automatic transitions)
       }
     } finally {
       this.processing = false;
@@ -199,12 +209,15 @@ export class EventEngine extends EventEmitter {
     this.table = newTable;
     this.eventLog.push(event);
     
-    // Emit state change for external listeners
+    // Check for automatic transitions FIRST (before emitting)
+    await this.checkAutomaticTransitions();
+    
+    // Start action timer if we're in a betting phase and have an active player
+    this.startActionTimerIfNeeded();
+    
+    // Emit state change for external listeners AFTER state is fully consistent
     this.emit('stateChanged', this.table);
     this.emit('eventProcessed', event, this.table);
-    
-    // Check for automatic transitions
-    await this.checkAutomaticTransitions();
     
     console.log(`✅ [EventEngine] Event ${event.t} processed successfully`);
   }
@@ -278,20 +291,27 @@ export class EventEngine extends EventEmitter {
    * Start betting rounds after deal phase
    */
   private async startBettingRounds(): Promise<void> {
+    console.log(`🎲 [EventEngine] Starting betting rounds from deal phase`);
+    
     // Post blinds and start preflop
+    console.log(`   → Dispatching PostBlinds...`);
     await this.dispatch({
       t: "PostBlinds",
       sb: this.table.blinds.sb,
       bb: this.table.blinds.bb,
       ante: this.table.blinds.ante
     });
+    console.log(`   ✅ PostBlinds completed`);
     
     // Generate and deal hole cards to all active players
+    console.log(`   → Generating and dispatching DealHole...`);
     const holeCards = generateHoleCards(this.table, this.getDeckSeed());
     await this.dispatch({
       t: "DealHole",
       cards: holeCards
     });
+    console.log(`   ✅ DealHole completed`);
+    console.log(`🎯 [EventEngine] Betting rounds setup completed`);
   }
 
   /**
@@ -457,6 +477,25 @@ export class EventEngine extends EventEmitter {
   private resetDeck(): void {
     this.deckSeed = undefined;
     this.currentDeck = undefined;
+  }
+
+  /**
+   * Start action timer if we're in a betting phase with an active player
+   */
+  private startActionTimerIfNeeded(): void {
+    const bettingPhases = ["preflop", "flop", "turn", "river"];
+    
+    if (!bettingPhases.includes(this.table.phase) || this.table.actor === undefined) {
+      return; // Not in betting phase or no active player
+    }
+    
+    const currentSeat = this.table.seats[this.table.actor];
+    if (!currentSeat.pid || currentSeat.status !== "active") {
+      return; // Invalid current player
+    }
+    
+    console.log(`⏰ [EventEngine] Starting action timer for player ${currentSeat.pid} (seat ${this.table.actor})`);
+    this.startActionTimer();
   }
 
   /**

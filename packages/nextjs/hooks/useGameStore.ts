@@ -10,13 +10,16 @@ import {
 import { shortAddress } from "../utils/address";
 
 /** Map Stage strings to numeric street indices used by the UI */
-const stageToStreet: Record<Stage, number> = {
+const stageToStreet: Record<string, number> = {
   waiting: 0,
+  deal: 0,        // New EventEngine phase
   preflop: 0,
   flop: 1,
   turn: 2,
   river: 3,
   showdown: 4,
+  payout: 4,      // New EventEngine phase
+  handEnd: 0      // New EventEngine phase
 };
 
 let socket: WebSocket | null = null;
@@ -106,31 +109,63 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const states = Array(9).fill(PlayerState.EMPTY) as PlayerState[];
 
     // Populate only seats that have active players
-    room.players?.forEach((p: any) => {
-      if (p.seat >= 0 && p.seat < 9) {
-        // Use nickname if available, otherwise use wallet address for display
-        seats[p.seat] = p.nickname || p.id;
-        ids[p.seat] = p.id;
-        
-        if (p.hand?.length === 2) {
-          hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
+    // Handle both new EventEngine format (seats array) and legacy format (players array)
+    if (room.seats && Array.isArray(room.seats)) {
+      // New EventEngine format
+      room.seats.forEach((seat: any, index: number) => {
+        if (seat.pid) {
+          seats[index] = seat.nickname || seat.pid;
+          ids[index] = seat.pid;
+          
+          if (seat.holeCards?.length === 2) {
+            hands[index] = [seat.holeCards[0], seat.holeCards[1]];
+          }
+          
+          chips[index] = seat.chips ?? 0;
+          bets[index] = seat.committed ?? 0;
+          
+          // Map new EventEngine status to PlayerState
+          let state = PlayerState.ACTIVE;
+          if (seat.status === "folded") {
+            state = PlayerState.FOLDED;
+          } else if (seat.status === "allin") {
+            state = PlayerState.ALL_IN;
+          } else if (seat.status === "empty") {
+            state = PlayerState.EMPTY;
+          }
+          states[index] = state;
+          
+          console.log(`👤 Seat ${index}: ${seat.pid?.slice(0, 10)}... (${chips[index]} chips, ${seat.committed} committed, state: ${seat.status})`);
         }
-        
-        chips[p.seat] = p.chips ?? p.stack ?? 0;
-        bets[p.seat] = p.currentBet ?? p.betThisRound ?? 0;
-        
-        // Determine player state
-        let state = PlayerState.ACTIVE;
-        if (p.hasFolded) {
-          state = PlayerState.FOLDED;
-        } else if ((p.chips ?? p.stack ?? 0) === 0) {
-          state = PlayerState.ALL_IN;
+      });
+    } else if (room.players) {
+      // Legacy format
+      room.players.forEach((p: any) => {
+        if (p.seat >= 0 && p.seat < 9) {
+          // Use nickname if available, otherwise use wallet address for display
+          seats[p.seat] = p.nickname || p.id;
+          ids[p.seat] = p.id;
+          
+          if (p.hand?.length === 2) {
+            hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
+          }
+          
+          chips[p.seat] = p.chips ?? p.stack ?? 0;
+          bets[p.seat] = p.currentBet ?? p.betThisRound ?? 0;
+          
+          // Determine player state
+          let state = PlayerState.ACTIVE;
+          if (p.hasFolded) {
+            state = PlayerState.FOLDED;
+          } else if ((p.chips ?? p.stack ?? 0) === 0) {
+            state = PlayerState.ALL_IN;
+          }
+          states[p.seat] = p.state ?? state;
+          
+          console.log(`👤 Player ${p.seat}: ${p.id?.slice(0, 10)}... (${chips[p.seat]} chips, state: ${state})`);
         }
-        states[p.seat] = p.state ?? state;
-        
-        console.log(`👤 Player ${p.seat}: ${p.id?.slice(0, 10)}... (${chips[p.seat]} chips, state: ${state})`);
-      }
-    });
+      });
+    }
 
     const comm = Array(5).fill(null) as (number | null)[];
     (room.communityCards ?? room.board ?? []).forEach((c: any, i: number) => {
@@ -152,11 +187,42 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       playerStates: states,
       dealerIndex: room.dealerIndex ?? null,
       pot,
-      currentTurn:
-        room.players?.length && room.players[room.currentTurnIndex]?.isTurn
-          ? room.players[room.currentTurnIndex].seat
-          : (room.actingIndex ?? null),
-      street: stageToStreet[room.stage as Stage] ?? 0,
+      currentTurn: (() => {
+        // Debug logging for currentTurn calculation
+        console.log(`🔍 [useGameStore] Calculating currentTurn:`, {
+          hasActor: 'actor' in room,
+          actor: (room as any).actor,
+          currentTurnIndex: room.currentTurnIndex,
+          playersLength: room.players?.length,
+          playerWithTurn: room.players?.find(p => p.isTurn)?.seat,
+          actingIndex: (room as any).actingIndex
+        });
+        
+        // New EventEngine format: use actor directly
+        if ('actor' in room && (room as any).actor !== undefined) {
+          console.log(`   → Using EventEngine actor: ${(room as any).actor}`);
+          return (room as any).actor;
+        }
+        
+        // Legacy format: find player with isTurn=true
+        if (room.players?.length) {
+          const playerWithTurn = room.players.find(p => p.isTurn);
+          if (playerWithTurn) {
+            console.log(`   → Using legacy isTurn player: seat ${playerWithTurn.seat}`);
+            return playerWithTurn.seat;
+          }
+        }
+        
+        // Fallback: use currentTurnIndex if valid
+        if (room.currentTurnIndex >= 0 && room.players?.[room.currentTurnIndex]) {
+          console.log(`   → Using currentTurnIndex: ${room.currentTurnIndex}`);
+          return room.players[room.currentTurnIndex].seat;
+        }
+        
+        console.log(`   → No current turn found, returning null`);
+        return null;
+      })(),
+      street: stageToStreet[room.phase ?? room.stage] ?? 0,
       loading: false,
       error: null,
       smallBlind: room.smallBlindAmount ?? get().smallBlind,

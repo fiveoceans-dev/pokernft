@@ -53,10 +53,7 @@ export * from "./server/game-engine/utils/utils";
 export * from "./server/game-engine/utils/hashEvaluator";
 export * from "./server/game-engine/utils/rng";
 
-// Export hash tables for hand evaluation (avoid conflicting exports)
-export { 
-  HAND_RANKS,
-  HAND_RANKS_FLUSH 
-} from "./server/game-engine/hashTables";
+// Export hash tables for hand evaluation (only existing constants)
+export * from "./server/game-engine/hashTables";
 
 console.log('🎮 [ClientGameEngine] New state machine architecture loaded for UI');

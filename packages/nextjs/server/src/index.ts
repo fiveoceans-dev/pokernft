@@ -452,8 +452,13 @@ function startGameCountdown(roomId: string) {
       const engine = getEngine(roomId);
       const room = engine.getState();
       if (room.players.length >= 2 && room.stage === "waiting") {
-        engine.startHand();
-        broadcast(roomId, { type: "HAND_START" });
+        try {
+          await engine.startHand();
+          broadcast(roomId, { type: "HAND_START" });
+          console.log(`🎯 [GameCountdown] Hand started successfully for ${roomId}`);
+        } catch (error) {
+          console.error(`❌ [GameCountdown] Failed to start hand for ${roomId}:`, error);
+        }
       }
     }
   }, 1000);

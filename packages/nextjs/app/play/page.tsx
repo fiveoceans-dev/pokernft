@@ -8,6 +8,7 @@ import Table from "../../components/Table";
 import AnimatedTitle from "../../components/AnimatedTitle";
 import DealerWindow from "../../components/DealerWindow";
 import ActionBar from "../../components/ActionBar";
+import PlayerActionButtons from "../../components/PlayerActionButtons";
 import { usePlayViewModel } from "../../hooks/usePlayViewModel";
 import { useGameStore } from "../../hooks/useGameStore";
 import { useWalletGameSync } from "../../hooks/useWalletGameSync";
@@ -19,7 +20,21 @@ import { PlayerState } from "../../game-engine";
 export default function PlayPage() {
   const searchParams = useSearchParams();
   const tableId = searchParams.get("table");
-  const { joinTable, leaveSeat, sitOut, sitIn, playerAction, connectionState, playerStates, currentWalletId, playerIds } = useGameStore();
+  const { 
+    joinTable, 
+    leaveSeat, 
+    sitOut, 
+    sitIn, 
+    playerAction, 
+    connectionState, 
+    playerStates, 
+    currentWalletId, 
+    playerIds,
+    currentTurn,
+    chips,
+    playerBets,
+    bigBlind
+  } = useGameStore();
   const { isConnected, address } = useWalletGameSync();
   const { walletSeatIdx } = useTableViewModel();
   const [isLeaving, setIsLeaving] = useState(false);
@@ -27,6 +42,24 @@ export default function PlayPage() {
   // Check if current player is sitting out based on game state
   const mySeatIndex = playerIds.findIndex(id => id === currentWalletId);
   const isSittingOut = mySeatIndex >= 0 && playerStates[mySeatIndex] === PlayerState.SITTING_OUT;
+  
+  // Calculate action button props
+  const isMyTurn = currentTurn !== null && currentTurn === mySeatIndex;
+  const myChips = mySeatIndex >= 0 ? chips[mySeatIndex] : 0;
+  const myCommitted = mySeatIndex >= 0 ? playerBets[mySeatIndex] : 0;
+  const currentBet = Math.max(...playerBets.filter(bet => bet !== null));
+  const minRaise = bigBlind || 10;
+  
+  // Debug logging for action button visibility
+  console.log(`🎮 [PlayPage] Action button calculation:`, {
+    currentTurn,
+    mySeatIndex,
+    isMyTurn,
+    isSittingOut,
+    shouldShowButtons: isMyTurn && !isSittingOut,
+    myChips,
+    currentBet
+  });
   
   const {
     street,
@@ -155,6 +188,16 @@ export default function PlayPage() {
           hasHandStarted={handStarted}
         />
       </div>
+      
+      {/* Player betting action buttons */}
+      <PlayerActionButtons
+        isPlayerTurn={isMyTurn && !isSittingOut}
+        currentBet={currentBet}
+        playerCommitted={myCommitted}
+        playerChips={myChips}
+        minRaise={minRaise}
+      />
+      
       <DealerWindow />
     </main>
   );
