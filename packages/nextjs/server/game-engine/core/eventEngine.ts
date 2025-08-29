@@ -667,6 +667,8 @@ export class EventEngine extends EventEmitter {
       this.deckSeed = this.generateDeckSeed();
       this.currentDeck = createShuffledDeck(this.deckSeed);
       logger.info(`🎰 [EventEngine] Created new deck with seed: ${this.deckSeed}`);
+      // Persist deck seed on table for replay/debug
+      this.table = { ...this.table, deckSeed: this.deckSeed };
     }
     return this.deckSeed;
   }
@@ -677,6 +679,8 @@ export class EventEngine extends EventEmitter {
   private resetDeck(): void {
     this.deckSeed = undefined;
     this.currentDeck = undefined;
+    // Clear persisted seed between hands
+    this.table = { ...this.table, deckSeed: undefined };
   }
 
   /**

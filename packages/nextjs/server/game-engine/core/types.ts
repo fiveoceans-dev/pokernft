@@ -60,6 +60,7 @@ export interface Table {
   button: number; // dealer button position
   smallBlind: number; // small blind amount
   bigBlind: number; // big blind amount
+  deckSeed?: string; // deterministic deck seed for this hand (persisted)
 
   // Game state
   phase: Phase; // current game phase

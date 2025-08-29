@@ -96,11 +96,25 @@ function startHand(
   handNumber: number,
   timestamp: number,
 ): StateTransition {
+  // Randomize first dealer (button) deterministically on first hand using timestamp
+  let button = table.button;
+  if (table.handNumber === 0) {
+    const eligible = table.seats
+      .filter((s) => s.pid && s.chips > 0)
+      .map((s) => s.id);
+    if (eligible.length > 1) {
+      const idx = timestamp % eligible.length;
+      button = eligible[idx];
+      console.log(`🎲 [Reducer] Randomized initial button to seat ${button} from eligible ${eligible.join(',')}`);
+    }
+  }
+
   const nextState = {
     ...table,
     phase: "deal" as Phase,
     handNumber,
     timestamp,
+    button,
     street: undefined,
     actor: undefined,
     lastAggressor: undefined,
@@ -126,6 +140,7 @@ function startHand(
         event: { t: "PostBlinds", sb: table.smallBlind, bb: table.bigBlind },
       },
     },
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "dealer_selected" } },
     { type: "EMIT_STATE_CHANGE", payload: { reason: "hand_started" } },
   ];
 
@@ -319,16 +334,13 @@ function enterStreet(
     ? [...table.communityCards, ...cards]
     : table.communityCards;
 
-  // If auto-dealt (all-in scenario), don't set an actor - no betting occurs
+  // Determine first actor unless explicitly auto-dealt
   let actor: number | undefined = undefined;
   if (!isAutoDealt) {
     const tableWithSeats = { ...table, seats: newSeats };
     const actionOrder = getFirstActor(tableWithSeats, false);
     actor = actionOrder.actor === -1 ? undefined : actionOrder.actor;
-
-    console.log(
-      `🎯 [Reducer] ${street} first actor: seat ${actor} (${actor !== undefined ? newSeats[actor]?.pid : "none"})`,
-    );
+    console.log(`🎯 [Reducer] ${street} first actor: seat ${actor} (${actor !== undefined ? newSeats[actor]?.pid : "none"})`);
   }
 
   const nextState = {
@@ -364,6 +376,22 @@ function enterStreet(
           timeoutMs: ACTION_TIMEOUT_MS,
         },
       });
+    }
+  }
+
+  // Fail-safe progression: if no actor or round is trivially complete, schedule next transitions
+  const roundState = getBettingRoundState(nextState);
+  if (roundState.isComplete || actor === undefined) {
+    // Collect into pots then proceed
+    sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'CloseStreet' } } });
+    const currentStreet = nextState.street;
+    const nextStreet = currentStreet ? getNextStreet(currentStreet as Street) : null;
+    const atRiver = !nextStreet;
+    if (atRiver || roundState.reason === 'all-players-allin' || roundState.reason === 'fold-to-one') {
+      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
+    } else if (nextStreet) {
+      // Auto-deal next street when all-in (no actor)
+      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet, isAutoDealt: roundState.reason === 'all-players-allin' || actor === undefined } } });
     }
   }
 
