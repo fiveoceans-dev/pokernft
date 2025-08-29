@@ -9,7 +9,6 @@ import { indexToCard, PlayerState } from "../game-engine";
 import PlayerSeat from "./PlayerSeat";
 import type { UiPlayer, Card as TCard } from "../game-engine";
 import { useWalletGameSync } from "../hooks/useWalletGameSync";
-import ActionButtons from "./ActionButtons";
 import { PotDisplayBubbles } from "./PotDisplayBubbles";
 import useIsMobile from "../hooks/useIsMobile";
 
@@ -290,8 +289,6 @@ export default function Table({ timer }: { timer?: number | null }) {
         {layout.map((_, i) => seatAt(i))}
       </div>
 
-      {/* Smart Action Buttons */}
-      <ActionButtons scale={tableScale} />
       
       {/* Card Reveal Button - Show during showdown if player hasn't revealed cards */}
       {street === 4 && walletSeatIdx !== null && walletSeatIdx >= 0 && 

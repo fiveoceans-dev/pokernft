@@ -166,6 +166,22 @@ function isBettingRoundComplete(table: Table, nextActorIndex: number): boolean {
 }
 
 /**
+ * Check if all remaining players in hand are all-in (proper detection)
+ */
+export function areAllPlayersAllIn(seats: Seat[]): boolean {
+  const playersInHand = seats.filter(seat => 
+    seat.status === "active" || seat.status === "allin"
+  );
+  
+  // Must have at least 2 players still in hand
+  if (playersInHand.length < 2) return false;
+  
+  // Check if ALL players in hand are all-in (no active players)
+  const activePlayers = playersInHand.filter(seat => seat.status === "active");
+  return activePlayers.length === 0;
+}
+
+/**
  * Calculate betting round state and completion reason
  */
 export function getBettingRoundState(table: Table): BettingRoundState {
@@ -181,11 +197,11 @@ export function getBettingRoundState(table: Table): BettingRoundState {
     };
   }
   
-  // Check if everyone is all-in
-  if (activeCount === 0) {
+  // Check if ALL remaining players are all-in (corrected logic)
+  if (areAllPlayersAllIn(seats)) {
     return {
       isComplete: true,
-      reason: "all-allin"
+      reason: "all-players-allin"
     };
   }
   

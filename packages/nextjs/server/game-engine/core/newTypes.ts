@@ -96,7 +96,7 @@ export type PokerEvent =
   | { t: "StartHand"; handNumber: number; timestamp: number }
   | { t: "PostBlinds"; sb: number; bb: number; ante?: number }
   | { t: "DealHole"; cards: Record<string, [number, number]> }
-  | { t: "EnterStreet"; street: Street; cards?: number[] }
+  | { t: "EnterStreet"; street: Street; cards?: number[]; isAutoDealt?: boolean }
   | { t: "Action"; seat: number; action: ActionType; amount?: number }
   | { t: "TimeoutAutoFold"; seat: number }
   | { t: "CloseStreet" }
@@ -138,7 +138,7 @@ export interface ActionValidation {
  */
 export interface BettingRoundState {
   isComplete: boolean;
-  reason?: "fold-to-one" | "action-complete" | "all-allin";
+  reason?: "fold-to-one" | "action-complete" | "all-players-allin";
   nextActor?: number;
 }
 

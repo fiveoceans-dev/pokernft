@@ -168,24 +168,24 @@ ensurePersistentTables();
 function ensurePersistentTables() {
   const persistentTables = [
     // $1/$2 Tables
-    { id: "micro-1", name: "Micro Stakes #1", blinds: { small: 1, big: 2 } },
-    { id: "micro-2", name: "Micro Stakes #2", blinds: { small: 1, big: 2 } },
+    { id: "micro-1", name: "Micro Stakes 1", blinds: { small: 1, big: 2 } },
+    { id: "micro-2", name: "Micro Stakes 2", blinds: { small: 1, big: 2 } },
     
     // $5/$10 Tables  
-    { id: "low-1", name: "Low Stakes #1", blinds: { small: 5, big: 10 } },
-    { id: "low-2", name: "Low Stakes #2", blinds: { small: 5, big: 10 } },
+    { id: "low-1", name: "Low Stakes 1", blinds: { small: 5, big: 10 } },
+    { id: "low-2", name: "Low Stakes 2", blinds: { small: 5, big: 10 } },
     
     // $25/$50 Tables
-    { id: "mid-1", name: "Mid Stakes #1", blinds: { small: 25, big: 50 } },
-    { id: "mid-2", name: "🚀 Mid Stakes #2", blinds: { small: 25, big: 50 } },
+    { id: "mid-1", name: "Mid Stakes 1", blinds: { small: 25, big: 50 } },
+    { id: "mid-2", name: "Mid Stakes 2", blinds: { small: 25, big: 50 } },
     
     // $50/$100 Tables
-    { id: "stark-1", name: "Stark #1", blinds: { small: 50, big: 100 } },
-    { id: "stark-2", name: "Stark #2", blinds: { small: 50, big: 100 } },
+    { id: "stark-1", name: "Stark 1", blinds: { small: 50, big: 100 } },
+    { id: "stark-2", name: "Stark 2", blinds: { small: 50, big: 100 } },
     
     // $1000/$2000 Tables (High Roller)
-    { id: "High-rollers-1", name: "👑 High rollers #1", blinds: { small: 1000, big: 2000 } },
-    { id: "High-rollers-2", name: "👑 High rollers #2", blinds: { small: 1000, big: 2000 } }
+    { id: "High-rollers-1", name: "👑 High rollers 1", blinds: { small: 1000, big: 2000 } },
+    { id: "High-rollers-2", name: "👑 High rollers 2", blinds: { small: 1000, big: 2000 } }
   ];
 
   persistentTables.forEach(({ id, name, blinds }) => {

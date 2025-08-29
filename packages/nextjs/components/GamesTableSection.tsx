@@ -31,7 +31,7 @@ export default function GamesTableSection() {
   }, []);
 
   return (
-    <section id="games" className="py-24 text-gray-900 dark:text-white">
+    <section id="games" className="py-8 text-gray-900 dark:text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl font-bold text-center mb-8">
           <span className="text-accent">Live Games (Testnet)</span>

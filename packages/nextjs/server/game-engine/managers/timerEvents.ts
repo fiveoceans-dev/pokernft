@@ -10,6 +10,7 @@
 
 import { EventEmitter } from "events";
 import { TimerEvent } from '../core/newTypes';
+import { ACTION_TIMEOUT_MS } from '../core/constants';
 
 /**
  * Timer state for active timers
@@ -41,12 +42,12 @@ export class TimerEventManager extends EventEmitter {
   private defaultTimeoutMs: number;
   private warningThresholdMs: number;
 
-  constructor(defaultTimeoutMs = 30000, warningThresholdMs = 5000) {
+  constructor(defaultTimeoutMs = ACTION_TIMEOUT_MS, warningThresholdMs = 5000) {
     super();
     this.defaultTimeoutMs = defaultTimeoutMs;
     this.warningThresholdMs = warningThresholdMs;
     
-    console.log(`⏰ [TimerEventManager] Initialized with ${defaultTimeoutMs}ms timeout`);
+    console.log(`⏰ [TimerEventManager] Initialized with ${defaultTimeoutMs}ms timeout (from env)`);
   }
 
   /**

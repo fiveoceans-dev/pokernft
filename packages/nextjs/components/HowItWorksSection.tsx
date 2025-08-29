@@ -48,7 +48,7 @@ const steps = [
 
 export default function HowItWorksSection() {
   return (
-    <section id="how" className="py-24 text-white">
+    <section id="how" className="py-8 text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl sm:text-4xl font-bold text-center mb-16">
           Create Your Own <span className="text-accent">POKER</span> Tournament

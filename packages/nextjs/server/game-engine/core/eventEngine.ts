@@ -16,6 +16,12 @@ import { getBettingRoundState } from '../utils/ringOrder';
 import { collectIntoPots, calculatePayouts, handleUncalledBet } from '../logic/potManager';
 import { getNextStreet } from '../logic/betting';
 import { generateHoleCards, generateBoardCards, createShuffledDeck } from './cardDealer';
+import { 
+  STREET_DEAL_DELAY_MS, 
+  NEW_HAND_DELAY_MS, 
+  GAME_START_COUNTDOWN_MS, 
+  MIN_PLAYERS_TO_START 
+} from './constants';
 
 /**
  * Event queue entry for processing
@@ -235,6 +241,11 @@ export class EventEngine extends EventEmitter {
     // Check for automatic transitions FIRST (before emitting)
     await this.checkAutomaticTransitions();
     
+    // Check if game should start after player join/leave events
+    if (event.t === "PlayerJoin" || event.t === "PlayerLeave") {
+      await this.checkGameStart();
+    }
+    
     // Start action timer if we're in a betting phase and have an active player
     this.startActionTimerIfNeeded();
     
@@ -294,14 +305,20 @@ export class EventEngine extends EventEmitter {
     
     // Determine next phase
     if (bettingState.reason === "fold-to-one") {
-      // Skip to payout
+      // Skip to payout immediately - only one player left
       const distributions = handleUncalledBet(this.table);
       await this.dispatch({ t: "Payout", distributions });
-    } else if (this.table.street === "river" || bettingState.reason === "all-allin") {
-      // Go to showdown
-      await this.dispatch({ t: "Showdown", results: [] }); // Results will be calculated
+      
+    } else if (this.table.street === "river") {
+      // River complete - go to showdown
+      await this.dispatch({ t: "Showdown", results: [] });
+      
+    } else if (bettingState.reason === "all-players-allin") {
+      // ALL players are all-in - schedule remaining streets with delays
+      await this.scheduleAllInShowdown();
+      
     } else {
-      // Advance to next street
+      // Normal street advancement
       const nextStreet = getNextStreet(this.table.street!);
       if (nextStreet) {
         const cards = this.getCommunityCards(nextStreet);
@@ -350,14 +367,59 @@ export class EventEngine extends EventEmitter {
   }
 
   /**
-   * Process payout phase
+   * Schedule remaining streets when all players are all-in
+   */
+  private async scheduleAllInShowdown(): Promise<void> {
+    const remainingStreets = this.getRemainingStreets();
+    let delay = 0;
+    
+    console.log(`🎯 [EventEngine] Scheduling all-in showdown for streets: ${remainingStreets.join(', ')}`);
+    
+    for (const street of remainingStreets) {
+      delay += STREET_DEAL_DELAY_MS;
+      
+      setTimeout(() => {
+        const cards = this.getCommunityCards(street);
+        this.dispatch({ 
+          t: "EnterStreet", 
+          street: street as any, 
+          cards, 
+          isAutoDealt: true 
+        });
+      }, delay);
+    }
+    
+    // Schedule showdown after all streets
+    setTimeout(() => {
+      this.dispatch({ t: "Showdown", results: [] });
+    }, delay + STREET_DEAL_DELAY_MS);
+  }
+
+  /**
+   * Get remaining streets to deal for all-in showdown
+   */
+  private getRemainingStreets(): string[] {
+    const currentStreet = this.table.street;
+    const allStreets = ["preflop", "flop", "turn", "river"];
+    const currentIndex = currentStreet ? allStreets.indexOf(currentStreet) : -1;
+    
+    if (currentIndex === -1) return allStreets.slice(1); // Start from flop if no street
+    
+    return allStreets.slice(currentIndex + 1);
+  }
+
+  /**
+   * Process payout phase with delay before next hand
    */
   private async processPayout(): Promise<void> {
-    // Payout complete - end hand
-    await this.dispatch({ t: "HandEnd" });
+    console.log(`💰 [EventEngine] Processing payout, scheduling next hand in ${NEW_HAND_DELAY_MS}ms`);
     
-    // Reset deck for next hand
-    this.resetDeck();
+    // Schedule next hand with delay
+    setTimeout(() => {
+      this.dispatch({ t: "HandEnd" });
+      // Reset deck for next hand
+      this.resetDeck();
+    }, NEW_HAND_DELAY_MS);
   }
 
   /**
@@ -407,6 +469,39 @@ export class EventEngine extends EventEmitter {
     }
     
     return [];
+  }
+
+  /**
+   * Check if game should start and initiate countdown
+   */
+  private async checkGameStart(): Promise<void> {
+    const playerCount = this.table.seats.filter(s => s.pid).length;
+    
+    console.log(`🎮 [EventEngine] Checking game start: ${playerCount}/${MIN_PLAYERS_TO_START} players`);
+    
+    if (playerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
+      console.log(`🚀 [EventEngine] Starting game countdown: ${GAME_START_COUNTDOWN_MS}ms`);
+      
+      // Emit countdown event for clients
+      this.emit('gameStartCountdown', { 
+        seconds: GAME_START_COUNTDOWN_MS / 1000,
+        playerCount 
+      });
+      
+      setTimeout(() => {
+        const currentPlayerCount = this.table.seats.filter(s => s.pid).length;
+        if (currentPlayerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
+          console.log(`✅ [EventEngine] Countdown complete, starting hand with ${currentPlayerCount} players`);
+          this.dispatch({ 
+            t: "StartHand", 
+            handNumber: this.table.handNumber + 1, 
+            timestamp: Date.now() 
+          });
+        } else {
+          console.log(`❌ [EventEngine] Countdown cancelled - insufficient players or game already started`);
+        }
+      }, GAME_START_COUNTDOWN_MS);
+    }
   }
 
   /**

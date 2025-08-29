@@ -174,7 +174,7 @@ export default function TrendingTournamentsSection() {
   };
 
   return (
-    <section id="trending-tournaments" className="py-24 text-gray-900 dark:text-white">
+    <section id="trending-tournaments" className="py-8 text-gray-900 dark:text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
         <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-10">
           <span className="text-accent">Upcoming Tournaments</span>
