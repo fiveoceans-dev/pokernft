@@ -33,7 +33,7 @@ export function reduce(table: Table, event: PokerEvent): Table {
       return postBlinds(table, event.sb, event.bb, event.ante);
     
     case "DealHole":
-      return dealHoleCards(table, event.cards);
+      return applyHoleCards(table, event.cards);
     
     case "EnterStreet":
       return enterStreet(table, event.street, event.cards);
@@ -163,9 +163,9 @@ function postBlinds(table: Table, sb: number, bb: number, ante?: number): Table 
 }
 
 /**
- * Deal hole cards to active players
+ * Apply hole cards to active players (pure state update)
  */
-function dealHoleCards(table: Table, cards: Record<string, [number, number]>): Table {
+function applyHoleCards(table: Table, cards: Record<string, [number, number]>): Table {
   const newSeats = table.seats.map(seat => {
     if (seat.pid && cards[seat.pid]) {
       return {
@@ -341,7 +341,7 @@ function processPayout(table: Table, distributions: PayoutDistribution[]): Table
 function endHand(table: Table): Table {
   return {
     ...table,
-    phase: "lobby",
+    phase: "waiting",
     street: undefined,
     actor: undefined,
     lastAggressor: undefined,

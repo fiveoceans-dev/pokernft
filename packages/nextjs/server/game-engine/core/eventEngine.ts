@@ -15,6 +15,7 @@ import { validateAction, getAvailableActions } from '../logic/validation';
 import { getBettingRoundState } from '../utils/ringOrder';
 import { collectIntoPots, calculatePayouts, handleUncalledBet } from '../logic/potManager';
 import { getNextStreet } from '../logic/betting';
+import { generateHoleCards, generateBoardCards, createShuffledDeck } from './cardDealer';
 
 /**
  * Event queue entry for processing
@@ -47,6 +48,8 @@ export class EventEngine extends EventEmitter {
   private eventQueue: QueuedEvent[] = [];
   private processing = false;
   private timerManager?: any; // Will be injected
+  private currentDeck?: any[]; // Current shuffled deck
+  private deckSeed?: string; // Seed for current deck
 
   constructor(tableId: string, smallBlind: number, bigBlind: number) {
     super();
@@ -64,7 +67,7 @@ export class EventEngine extends EventEmitter {
       button: 0,
       smallBlind,
       bigBlind,
-      phase: "lobby",
+      phase: "waiting",
       currentBet: 0,
       pots: [],
       communityCards: [],
@@ -282,6 +285,13 @@ export class EventEngine extends EventEmitter {
       bb: this.table.blinds.bb,
       ante: this.table.blinds.ante
     });
+    
+    // Generate and deal hole cards to all active players
+    const holeCards = generateHoleCards(this.table, this.getDeckSeed());
+    await this.dispatch({
+      t: "DealHole",
+      cards: holeCards
+    });
   }
 
   /**
@@ -302,6 +312,9 @@ export class EventEngine extends EventEmitter {
   private async processPayout(): Promise<void> {
     // Payout complete - end hand
     await this.dispatch({ t: "HandEnd" });
+    
+    // Reset deck for next hand
+    this.resetDeck();
   }
 
   /**
@@ -357,14 +370,13 @@ export class EventEngine extends EventEmitter {
    * Get community cards for street transitions
    */
   private getCommunityCards(street: string): number[] {
-    // In a full implementation, deal from shuffled deck
-    // For now, return mock cards
-    switch (street) {
-      case "flop": return [0, 1, 2]; // Mock card indices
-      case "turn": return [3];
-      case "river": return [4];
-      default: return [];
+    // Generate real community cards using the deck
+    if (!this.currentDeck) {
+      console.warn("⚠️ [EventEngine] No deck available for community cards");
+      return [];
     }
+    
+    return generateBoardCards(street as any, this.currentDeck, true);
   }
 
   /**
@@ -418,6 +430,33 @@ export class EventEngine extends EventEmitter {
     };
     
     this.timerManager.startTimer(timerData);
+  }
+
+  /**
+   * Generate a new deck seed for the current hand
+   */
+  private generateDeckSeed(): string {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Get the current deck seed (or generate one if needed)
+   */
+  private getDeckSeed(): string {
+    if (!this.deckSeed) {
+      this.deckSeed = this.generateDeckSeed();
+      this.currentDeck = createShuffledDeck(this.deckSeed);
+      console.log(`🎰 [EventEngine] Created new deck with seed: ${this.deckSeed}`);
+    }
+    return this.deckSeed;
+  }
+
+  /**
+   * Reset deck for new hand
+   */
+  private resetDeck(): void {
+    this.deckSeed = undefined;
+    this.currentDeck = undefined;
   }
 
   /**

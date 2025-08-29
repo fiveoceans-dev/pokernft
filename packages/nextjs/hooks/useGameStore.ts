@@ -424,6 +424,37 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 }
               });
               break;
+            case "PLAYER_WAITING":
+              // Handle player waiting to join next hand
+              set((s) => {
+                const arr = [...s.players];
+                const ids = [...s.playerIds];
+                const states = [...s.playerStates];
+                
+                // Use nickname if available, otherwise use playerId for display
+                const nickname = (msg as any).nickname || shortAddress(msg.playerId);
+                arr[msg.seat] = nickname;
+                ids[msg.seat] = msg.playerId;
+                states[msg.seat] = PlayerState.SITTING_OUT; // Show as sitting out until next hand
+                
+                // If this is our wallet, update table seats tracking
+                if (msg.playerId === s.currentWalletId) {
+                  const newTableSeats = new Map(s.tableSeats);
+                  newTableSeats.set(msg.tableId || s.tableId || "", msg.seat);
+                  console.log(`🪑 [GameStore] Updated our seat tracking: table ${msg.tableId} -> seat ${msg.seat}`);
+                  return { players: arr, playerIds: ids, playerStates: states, tableSeats: newTableSeats };
+                }
+                
+                return { players: arr, playerIds: ids, playerStates: states };
+              });
+              get().addLog(`${shortAddress(msg.playerId)} waiting for next hand`);
+              break;
+            case "WAITING_FOR_NEXT_HAND":
+              // Handle personal message about waiting for next hand
+              console.log(`⏳ [GameStore] Waiting for next hand at seat ${msg.seat}:`, msg.msg);
+              get().addLog(`⏳ ${msg.msg}`);
+              // This is sent directly to the requesting player, so no state updates needed
+              break;
             case "ERROR":
               set({ error: msg.msg });
               break;

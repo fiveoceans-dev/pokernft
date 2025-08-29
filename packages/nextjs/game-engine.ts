@@ -1,7 +1,8 @@
 // Re-export types and constants from server game-engine for client use
 // This file serves as a bridge between the client and server game-engine
+// Updated to use ONLY the new event-driven state machine architecture
 
-// Export types from types.ts
+// Export types from types.ts (legacy compatibility)
 export type { 
   UiPlayer,
   Card,
@@ -28,7 +29,7 @@ export type {
   ClientCommand
 } from "./server/game-engine/network/networking";
 
-// Export enums and constants
+// Export enums and constants (legacy compatibility)
 export { 
   PlayerState,
   TableState,
@@ -47,44 +48,15 @@ export {
 // Export address utilities for client use
 export { shortAddress, randomAddress } from "./utils/address";
 
-// Export wildcard modules (matching original client game-engine)
-export * from "./server/game-engine/state/stateMachine";
+// Export only safe utility modules (no archived modules)
 export * from "./server/game-engine/utils/utils";
 export * from "./server/game-engine/utils/hashEvaluator";
-export * from "./server/game-engine/game-logic/handEvaluator";
 export * from "./server/game-engine/utils/rng";
-export * from "./server/game-engine/core/gameEngine";
-// Legacy modules removed - functionality moved to GameController
-// export * from "./server/game-engine/blindManager";
-// export * from "./server/game-engine/seatingManager";
-export * from "./server/game-engine/network/eventBus";
-export * from "./server/game-engine/state/playerStateMachine";
-export * from "./server/game-engine/state/tableStateMachine";
-export * from "./server/game-engine/game-logic/dealer";
-export * from "./server/game-engine/game-logic/potManager";
-// export * from "./server/game-engine/timerService"; // Legacy - use TimerManager
-export * from "./server/game-engine/game-logic/handReset";
-export * from "./server/game-engine/auditLogger";
 
-// Export specific functions from room module
-export {
-  createRoom,
-  addPlayer,
-  nextTurn,
-  determineWinners,
-  isRoomRoundComplete,
-  payout,
-  startRoomHand,
-  progressStage,
-} from "./server/game-engine/core/room";
+// Export hash tables for hand evaluation (avoid conflicting exports)
+export { 
+  HAND_RANKS,
+  HAND_RANKS_FLUSH 
+} from "./server/game-engine/hashTables";
 
-// Legacy betting engine exports removed - functionality moved to GameController
-// export {
-//   startBettingRound,
-//   applyAction,
-//   applyActionFromJson,
-//   isBettingRoundComplete,
-// } from "./server/game-engine/bettingEngine";
-
-// Export specific functions from hand lifecycle
-export { startTableHand, endHand } from "./server/game-engine/game-logic/handLifecycle";
+console.log('🎮 [ClientGameEngine] New state machine architecture loaded for UI');

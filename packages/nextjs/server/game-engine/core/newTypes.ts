@@ -3,13 +3,13 @@
  * 
  * This implements the battle-tested pattern for poker game engines:
  * - Immutable state with pure reducer functions
- * - Explicit FSM: Lobby → Deal → Preflop → Flop → Turn → River → Showdown → Payout → HandEnd
+ * - Explicit FSM: Waiting → Deal → Preflop → Flop → Turn → River → Showdown → Payout → HandEnd
  * - Event-sourced architecture for complete auditability
  */
 
 // Core game phases following explicit FSM pattern
 export type Phase = 
-  | "lobby"      // Waiting for players
+  | "waiting"    // Waiting for players between hands
   | "deal"       // Dealing hole cards
   | "preflop"    // Pre-flop betting round
   | "flop"       // Post-flop betting round  
