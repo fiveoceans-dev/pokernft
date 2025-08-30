@@ -120,7 +120,7 @@ export default function PlayPage() {
 
   return (
     <div
-      className="h-screen text-white bg-main flex flex-col"
+      className="w-dvw h-dvh overflow-hidden text-white bg-main flex flex-col"
       style={{
         backgroundImage: "url('/nfts/nft2.png')",
         backgroundSize: "cover",
@@ -428,6 +428,14 @@ export default function PlayPage() {
             --safe-padding: 8px; /* Reduced padding for more space */
             padding: 2px;
           }
+        }
+      `}</style>
+      <style jsx global>{`
+        html,
+        body {
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
         }
       `}</style>
     </div>
