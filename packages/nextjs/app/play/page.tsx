@@ -39,11 +39,7 @@ export default function PlayPage() {
   const { walletSeatIdx, baseW, baseH } = useTableViewModel();
   const [isLeaving, setIsLeaving] = useState(false);
   const isMobile = useIsMobile();
-  const tableAreaRef = useRef<HTMLDivElement>(null);
-  const tableSectionRef = useRef<HTMLDivElement>(null);
-  const controlPanelRef = useRef<HTMLDivElement>(null);
   const [tableScale, setTableScale] = useState(1);
-  const [tablePixelHeight, setTablePixelHeight] = useState(520);
   const [uiScale, setUiScale] = useState(1);
 
   // Check if current player is sitting out based on game state
@@ -77,6 +73,14 @@ export default function PlayPage() {
       joinTable("demo");
     }
   }, [tableId, joinTable]);
+
+  // Add body class for styling and cleanup on unmount
+  useEffect(() => {
+    document.body.classList.add('play-page');
+    return () => {
+      document.body.classList.remove('play-page');
+    };
+  }, []);
 
   // Calculate optimal table scale to fit viewport with controls
   useEffect(() => {
@@ -265,163 +269,227 @@ export default function PlayPage() {
       </div>
 
       <style jsx>{`
-        .game-container { padding: 8px; }
-
-        /* Transparent game header; does not block cards */
-        .game-header {
-          background: transparent;
-          border: 0;
-        }
-
-        .table-section { /* centers the [table + controls] group */ }
-
-        .table-area {
-          /* Reserved space to render table at computed scale; grid centers even when content overflows */
-          padding: 8px 10px;
-          padding-top: clamp(56px, 10vh, 96px); /* ensure cards not blocked by site header + in-game header */
-          overflow: visible;
+        /* Main container using CSS Grid for perfect viewport fit */
+        .play-page-container {
+          width: 100vw;
+          height: 100vh;
+          overflow: hidden;
           display: grid;
-          place-items: center;
+          grid-template-rows: auto 1fr auto;
+          grid-template-areas: 
+            "header"
+            "table"
+            "controls";
+          color: white;
+          background-color: #1a202c;
         }
 
-        .table-wrapper {
-          /* Absolutely position base-size table, scale from top-left into the sized box */
-          position: absolute;
-          top: 0;
-          left: 0;
-          transform: scale(var(--table-scale, 1));
-          transform-origin: top left;
-          transition: transform 0.2s ease;
-        }
-        .table-box { position: relative; }
-
-        .control-panel {
-          width: 100%;
-          position: relative;
-          z-index: 11; /* Above other elements */
-          background: transparent; /* panel is transparent; child components render their backgrounds */
-          border: 0;
-          border-radius: 0;
-          margin-top: 8px; /* small space under the table */
-          display: grid; /* center controls box horizontally */
-          place-items: center;
-        }
-
-        /* Z-index layering */
-        header {
-          position: relative;
-          z-index: 1;
-        }
-
-        .game-container {
-          position: relative;
-          z-index: 10;
-          height: 100%;
-          max-height: 100%;
-          overflow: hidden; /* prevent body scroll and card clipping */
-        }
-
-        /* Simplified Responsive Layout System */
-        .responsive-controls {
+        /* Game Header */
+        .game-header {
+          grid-area: header;
           display: flex;
-          gap: 1rem;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          height: 48px;
+          background: rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(10px);
+          z-index: 20;
+        }
+
+        .header-actions {
+          display: flex;
+          gap: 8px;
+        }
+
+        .action-btn {
+          padding: 6px 12px;
+          font-size: 12px;
+          border: 1px solid transparent;
+          border-radius: 4px;
+          background: transparent;
+          color: white;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .action-btn.sit-in {
+          border-color: #10b981;
+        }
+        .action-btn.sit-in:hover {
+          background: #10b981;
+        }
+
+        .action-btn.sit-out {
+          border-color: #f59e0b;
+        }
+        .action-btn.sit-out:hover {
+          background: #f59e0b;
+        }
+
+        .action-btn.leave {
+          border-color: #5c4fe5;
+        }
+        .action-btn.leave:hover {
+          background: #5c4fe5;
+        }
+
+        .action-btn.disabled {
+          background: #6b7280;
+          border-color: #6b7280;
+          color: #d1d5db;
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+
+        /* Table Area - Centered with space for cards */
+        .table-area {
+          grid-area: table;
+          display: flex;
+          align-items: center;
           justify-content: center;
+          padding: ${isMobile ? '60px 16px 20px' : '80px 32px 20px'};
+          overflow: visible;
+          position: relative;
         }
-        .controls-wrapper {
-          /* Base width for control content, scaled via --ui-scale to fit */
-          transform: scale(var(--ui-scale, 1));
-          transform-origin: top center;
+
+        .table-container {
+          position: relative;
+          transition: transform 0.3s ease;
         }
-        .controls-box { display: grid; place-items: center; position: relative; }
 
-        /* Components handle their own styling now */
-
-        /* Controls size to content (no forced heights) */
-        .control-dealer,
-        .control-actions,
-        .control-chat {
-          min-height: 0;
-          height: auto;
+        /* Control Panel - Fixed at bottom */
+        .control-panel {
+          grid-area: controls;
+          background: rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(10px);
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 12px;
+          z-index: 15;
           overflow: hidden;
         }
 
-        /* Desktop/Tablet (>= 768px) */
-        @media (min-width: 768px) {
-          .responsive-controls {
-            flex-direction: row;
-            width: 100%;
+        .control-panel-inner {
+          max-width: 100%;
+          margin: 0 auto;
+          transition: transform 0.3s ease;
+        }
+
+        .control-sections {
+          display: grid;
+          gap: 12px;
+          align-items: center;
+          grid-template-columns: ${isMobile ? '1fr' : '1fr 2fr 1fr'};
+          grid-template-areas: ${isMobile 
+            ? '"dealer" "actions" "chat"' 
+            : '"dealer actions chat"'};
+        }
+
+        .control-dealer {
+          grid-area: dealer;
+          min-height: ${isMobile ? '40px' : '60px'};
+        }
+
+        .control-actions {
+          grid-area: actions;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: ${isMobile ? '60px' : '80px'};
+        }
+
+        .control-chat {
+          grid-area: chat;
+          min-height: ${isMobile ? '40px' : '60px'};
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .chat-input {
+          width: 100%;
+          padding: 6px 8px;
+          font-size: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          border-radius: 4px;
+          background: rgba(0, 0, 0, 0.3);
+          color: white;
+          outline: none;
+        }
+
+        .chat-input::placeholder {
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        .chat-input:focus {
+          border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .chat-messages {
+          flex: 1;
+          font-size: 11px;
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+
+        /* Responsive breakpoints */
+        @media (max-width: 768px) {
+          .table-area {
+            padding: 40px 8px 16px;
           }
+          
+          .control-panel {
+            padding: 8px;
+          }
+          
+          .control-sections {
+            gap: 8px;
+          }
+        }
+
+        @media (max-height: 600px) {
+          .table-area {
+            padding: 20px 8px 8px;
+          }
+          
           .control-dealer,
           .control-chat {
-            flex: 1;
-            height: auto;
+            min-height: 32px;
           }
+          
           .control-actions {
-            flex: 2;
-            height: auto;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
+            min-height: 50px;
           }
         }
 
-        /* Mobile layout - STACKED: Dealer → Controls → Chat */
-        @media (max-width: 767px), (max-height: 700px) {
-          .responsive-controls {
-            flex-direction: column;
-            gap: 0.25rem;
-            width: 100%;
+        /* Very small screens */
+        @media (max-width: 480px) {
+          .game-header {
+            padding: 8px 12px;
+            height: 40px;
           }
-          .table-area { padding: 6px 8px; }
-          .control-dealer {
-            order: 1;
-            height: 2.5rem; /* compact dealer */
-          }
-          .control-actions {
-            order: 2;
-            height: auto;
-            display: flex;
-            justify-content: center;
-          }
-          .control-chat {
-            order: 3;
-            height: 2.5rem; /* compact chat */
-          }
-          /* Control panel sits at bottom via flex layout (no sticky/fixed) */
-          /* Use measured scale only (no extra transform overrides) */
-        }
-
-        /* Ultra-compact for very short screens */
-        @media (max-height: 500px) {
-          .game-container {
-            --game-header-height: 36px;
-            --controls-height: clamp(64px, 16vh, 96px);
-            --gap-size: 10px;
-          }
-          .game-header { padding-top: 2px; padding-bottom: 2px; }
-          .control-dealer,
-          .control-actions,
-          .control-chat {
-            height: 64px !important;
+          
+          .action-btn {
+            padding: 4px 8px;
+            font-size: 11px;
           }
         }
-
-        @media (min-width: 1024px) { }
-
-        @media (max-width: 767px) { .game-container { padding: 4px; } }
-
-        @media (max-height: 640px) and (max-width: 767px) { .control-dealer, .control-chat { height: 2.25rem; } }
-
-        @media (max-width: 639px) { }
-
-        @media (max-width: 480px) { .game-container { padding: 2px; } }
       `}</style>
       <style jsx global>{`
         html,
-        body {
+        body,
+        #__next,
+        main {
           width: 100%;
           height: 100%;
+          margin: 0;
+          padding: 0;
           overflow: hidden;
+        }
+        
+        /* Prevent any scrolling on the play page */
+        body.play-page {
+          overflow: hidden !important;
         }
       `}</style>
     </div>
