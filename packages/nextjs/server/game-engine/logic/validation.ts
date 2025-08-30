@@ -42,7 +42,7 @@ export function validateAction(
       return validateFold(table, seat);
 
     case "check":
-      return validateCheck(table, seat);
+      return validateCheck(table, seat, seatId);
 
     case "call":
       return validateCall(table, seat);
@@ -109,17 +109,32 @@ function validateFold(table: Table, seat: Seat): ActionValidation {
 /**
  * Validate check action
  */
-function validateCheck(table: Table, seat: Seat): ActionValidation {
+function validateCheck(table: Table, seat: Seat, seatId?: number): ActionValidation {
   const toCall = getToCallAmount(seat, table.currentBet);
 
-  if (toCall > 0) {
-    return {
-      valid: false,
-      error: `Cannot check with $${toCall} to call`,
-    };
+  // Standard check: no bet to call
+  if (toCall === 0) {
+    return { valid: true };
   }
 
-  return { valid: true };
+  // BB Option: BB can check preflop if no one raised
+  const actualSeatId = seatId !== undefined ? seatId : seat.id;
+  const isBBOption = (
+    table.phase === "preflop" &&
+    table.bbSeat !== undefined &&
+    actualSeatId === table.bbSeat &&
+    !table.bbHasActed &&
+    table.currentBet === table.bigBlind
+  );
+
+  if (isBBOption) {
+    return { valid: true };
+  }
+
+  return {
+    valid: false,
+    error: `Cannot check with $${toCall} to call`,
+  };
 }
 
 /**
@@ -366,8 +381,8 @@ export function getAvailableActions(
   const toCall = getToCallAmount(seat, table.currentBet);
   const actions: ActionType[] = ["fold"];
 
-  // Check
-  if (toCall === 0) {
+  // Check (including BB option)
+  if (canCheck(seat, table.currentBet, table)) {
     actions.push("check");
   }
 

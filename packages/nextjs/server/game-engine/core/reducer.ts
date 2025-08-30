@@ -337,7 +337,8 @@ function enterStreet(
 ): StateTransition {
   const newSeats = table.seats.map((seat) => ({
     ...seat,
-    streetCommitted: 0, // Reset street commitments
+    // Only reset streetCommitted for postflop streets, not preflop
+    streetCommitted: street === "preflop" ? seat.streetCommitted : 0,
   }));
 
   // Generate cards from deck if not provided
@@ -873,7 +874,7 @@ function addPlayer(
   }
 
   // Validate chips amount with buy-in limits
-  const minBuyIn = table.bigBlind * 20;  // 20 big blinds minimum
+  const minBuyIn = table.bigBlind * 1;   // 1 big blind minimum (for testing)
   const maxBuyIn = table.bigBlind * 200; // 200 big blinds maximum
   
   if (chips <= 0) {

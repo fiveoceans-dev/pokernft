@@ -236,10 +236,30 @@ export function getToCallAmount(seat: Seat, currentBet: number): number {
 }
 
 /**
- * Check if seat can check (no bet to call)
+ * Check if seat can check (no bet to call OR has BB option)
  */
-export function canCheck(seat: Seat, currentBet: number): boolean {
-  return getToCallAmount(seat, currentBet) === 0;
+export function canCheck(seat: Seat, currentBet: number, table?: Table): boolean {
+  // Standard check: no bet to call
+  if (getToCallAmount(seat, currentBet) === 0) {
+    return true;
+  }
+
+  // BB Option: BB can check preflop if no one raised (requires table context)
+  if (table) {
+    const isBBOption = (
+      table.phase === "preflop" &&
+      table.bbSeat !== undefined &&
+      seat.id === table.bbSeat &&
+      !table.bbHasActed &&
+      table.currentBet === table.bigBlind
+    );
+    
+    if (isBBOption) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**

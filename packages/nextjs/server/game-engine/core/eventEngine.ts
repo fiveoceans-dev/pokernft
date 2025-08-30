@@ -994,4 +994,17 @@ export class EventEngine extends EventEmitter {
     
     logger.info(`🧹 [EventEngine] Cleanup complete`);
   }
+
+  /**
+   * Get available actions for a specific player seat
+   * Provides server-side truth for frontend consistency
+   */
+  getPlayerAvailableActions(seatId: number): ActionType[] {
+    try {
+      return getAvailableActions(this.table, seatId);
+    } catch (error) {
+      logger.error(`❌ [EventEngine] Error getting available actions for seat ${seatId}:`, error);
+      return [];
+    }
+  }
 }

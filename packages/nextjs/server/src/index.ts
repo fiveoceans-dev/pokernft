@@ -20,6 +20,13 @@ import {
 import { randomUUID } from "crypto";
 import { SessionManager, Session } from "./sessionManager";
 import { shortAddress } from "./utils";
+
+/**
+ * Normalize player ID to lowercase for consistent comparison
+ */
+function normalizePlayerId(playerId: string): string {
+  return playerId.toLowerCase().trim();
+}
 import {
   saveSession,
   removeSession,
@@ -602,7 +609,8 @@ wss.on("connection", (ws) => {
             if (existing.roomId) {
               const engine = getEngine(existing.roomId);
               const room = engine.getState();
-              const playerId = existing.userId ?? existing.sessionId;
+              const rawPlayerId = existing.userId ?? existing.sessionId;
+              const playerId = normalizePlayerId(rawPlayerId);
               
               // Restore player to seat if they were seated before disconnecting
               if (existing.seat !== undefined && existing.chips !== undefined && existing.nickname) {
@@ -686,7 +694,8 @@ wss.on("connection", (ws) => {
               const engine = getEngine(session.roomId);
               const room = engine.getState();
               if (hadTimeout) {
-                const playerId = attached.userId ?? attached.sessionId;
+                const rawPlayerId = attached.userId ?? attached.sessionId;
+                const playerId = normalizePlayerId(rawPlayerId);
                 const map = seatMaps.get(room.id);
                 const seatIndex = map?.get(playerId);
                 if (seatIndex !== undefined) {
@@ -716,12 +725,13 @@ wss.on("connection", (ws) => {
           
           // Client wallet is authoritative - use client provided playerId or fallback to session
           const clientProvidedId = msg.playerId;
-          const playerId = clientProvidedId || session.userId || session.sessionId;
+          const rawPlayerId = clientProvidedId || session.userId || session.sessionId;
+          const playerId = normalizePlayerId(rawPlayerId);
           
           // If client provided a different wallet, update session to match client
-          if (clientProvidedId && clientProvidedId !== session.userId) {
+          if (clientProvidedId && normalizePlayerId(clientProvidedId) !== normalizePlayerId(session.userId || "")) {
             console.log(`🔄 [${clientId}] Updating server session from ${session.userId?.slice(0, 10) + "..." || "none"} to client wallet ${clientProvidedId.slice(0, 10) + "..."}`);
-            session.userId = clientProvidedId;
+            session.userId = normalizePlayerId(clientProvidedId);
             void saveSession(session);
           }
           
@@ -834,7 +844,8 @@ wss.on("connection", (ws) => {
           
           const engine = getEngine(tableIdToLeave);
           const room = engine.getState();
-          const playerId = session.userId ?? session.sessionId;
+          const rawPlayerId = session.userId ?? session.sessionId;
+          const playerId = normalizePlayerId(rawPlayerId);
           const seatIndex = seatMaps.get(room.id)?.get(playerId);
           
           console.log(`🚪 [${session.sessionId}] Player ${playerId} leaving table ${room.id} from seat ${seatIndex}`);
@@ -878,7 +889,8 @@ wss.on("connection", (ws) => {
           if (!session.roomId) break;
           const engine = getEngine(session.roomId);
           const room = engine.getState();
-          const playerId = session.userId ?? session.sessionId;
+          const rawPlayerId = session.userId ?? session.sessionId;
+          const playerId = normalizePlayerId(rawPlayerId);
           const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
           // currentTurnIndex is a seat index; players[] is filtered and not indexed by seat
           const currentPlayer = room.players.find(p => p.seat === room.currentTurnIndex);
@@ -1081,7 +1093,8 @@ wss.on("connection", (ws) => {
     console.log(`🔌 [${clientId}] WebSocket connection closed (Code: ${code}, Reason: ${reason?.toString() || 'none'}) (Remaining connections: ${wss.clients.size - 1})`);
     sessions.handleDisconnect(session, (s: Session) => {
       if (!s.roomId) return;
-      const playerId = s.userId ?? s.sessionId;
+      const rawPlayerId = s.userId ?? s.sessionId;
+      const playerId = normalizePlayerId(rawPlayerId);
       const seatIndex = seatMaps.get(s.roomId)?.get(playerId);
       if (seatIndex !== undefined) {
         broadcast(s.roomId, {
