@@ -2,47 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useGameStore } from "./useGameStore";
 import useIsMobile from "./useIsMobile";
 import { useWalletGameSync } from "./useWalletGameSync";
+import {
+  DESKTOP_SEAT_POSITIONS,
+  MOBILE_SEAT_POSITIONS,
+  type SeatPos,
+} from "../utils/seatPositions";
 
-interface SeatPos {
-  x: string;
-  y: string;
-  t: string;
-  r: number;
-}
-
-const DESKTOP_POSITIONS = [
-  { x: 75, y: 10 },
-  { x: 92, y: 35 },
-  { x: 95, y: 65 },
-  { x: 80, y: 90 },
-  { x: 50, y: 95 },
-  { x: 20, y: 90 },
-  { x: 5, y: 65 },
-  { x: 8, y: 35 },
-  { x: 25, y: 10 },
-];
-
-const MOBILE_POSITIONS = [
-  { x: 85, y: 8 },
-  { x: 100, y: 30 },
-  { x: 100, y: 72 },
-  { x: 88, y: 88 },
-  { x: 50, y: 98 },
-  { x: 12, y: 88 },
-  { x: 0, y: 72 },
-  { x: 0, y: 30 },
-  { x: 15, y: 8 },
-];
-
-const buildLayout = (isMobile: boolean): SeatPos[] => {
-  const positions = isMobile ? MOBILE_POSITIONS : DESKTOP_POSITIONS;
-  return positions.map((p) => ({
-    x: `${p.x}%`,
-    y: `${p.y}%`,
-    t: "-50%,-50%",
-    r: 0, // keep seats upright
-  }));
-};
+const buildLayout = (isMobile: boolean): SeatPos[] =>
+  isMobile ? MOBILE_SEAT_POSITIONS : DESKTOP_SEAT_POSITIONS;
 
 export function useTableViewModel(_timer?: number | null) {
   const {

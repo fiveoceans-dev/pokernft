@@ -20,20 +20,20 @@ import { PlayerState } from "../../game-engine";
 export default function PlayPage() {
   const searchParams = useSearchParams();
   const tableId = searchParams.get("table");
-  const { 
-    joinTable, 
-    leaveSeat, 
-    sitOut, 
-    sitIn, 
-    playerAction, 
-    connectionState, 
-    playerStates, 
-    currentWalletId, 
+  const {
+    joinTable,
+    leaveSeat,
+    sitOut,
+    sitIn,
+    playerAction,
+    connectionState,
+    playerStates,
+    currentWalletId,
     playerIds,
     currentTurn,
     chips,
     playerBets,
-    minRaise
+    minRaise,
   } = useGameStore();
   const { isConnected, address } = useWalletGameSync();
   const { walletSeatIdx } = useTableViewModel();
@@ -41,14 +41,15 @@ export default function PlayPage() {
   const isMobile = useIsMobile();
 
   // Check if current player is sitting out based on game state
-  const mySeatIndex = playerIds.findIndex(id => id === currentWalletId);
-  const isSittingOut = mySeatIndex >= 0 && playerStates[mySeatIndex] === PlayerState.SITTING_OUT;
-  
+  const mySeatIndex = playerIds.findIndex((id) => id === currentWalletId);
+  const isSittingOut =
+    mySeatIndex >= 0 && playerStates[mySeatIndex] === PlayerState.SITTING_OUT;
+
   // Calculate action button props
   const isMyTurn = currentTurn !== null && currentTurn === mySeatIndex;
   const myChips = mySeatIndex >= 0 ? chips[mySeatIndex] : 0;
   const myCommitted = mySeatIndex >= 0 ? playerBets[mySeatIndex] : 0;
-  const currentBet = Math.max(...playerBets.filter(bet => bet !== null));
+  const currentBet = Math.max(...playerBets.filter((bet) => bet !== null));
   // Debug logging for action button visibility
   console.log(`🎮 [PlayPage] Action button calculation:`, {
     currentTurn,
@@ -57,9 +58,9 @@ export default function PlayPage() {
     isSittingOut,
     shouldShowButtons: isMyTurn && !isSittingOut,
     myChips,
-    currentBet
+    currentBet,
   });
-  
+
   const { timer } = usePlayViewModel();
 
   useEffect(() => {
@@ -166,10 +167,10 @@ export default function PlayPage() {
       {/* Main Game Content - Centered */}
       <div className="game-container flex-1 flex items-center justify-center">
         {/* Table Section - Contains table, gap, and controls as unified unit */}
-        <div className="table-section flex flex-col">
+        <div className="table-section flex flex-col w-full">
           {/* Table Wrapper - Horizontally centered */}
-          <div className="table-area flex items-center justify-center">
-            <div className="table-wrapper">
+          <div className="table-area flex items-center justify-center w-full">
+            <div className="table-wrapper mx-auto">
               <Table timer={timer} />
             </div>
           </div>
@@ -178,14 +179,14 @@ export default function PlayPage() {
           <div className="table-gap"></div>
 
           {/* Control Panel - Unified responsive layout */}
-          <div className="control-panel flex-shrink-0 responsive-controls">
+          <div className="control-panel flex-shrink-0 responsive-controls w-full px-2">
             {/* Dealer Window */}
             <div className="control-dealer">
               <DealerWindow isMobile={isMobile} />
             </div>
-            
+
             {/* Action Buttons */}
-            <div className="control-actions">
+            <div className="control-actions w-full">
               {walletSeatIdx >= 0 && (
                 <PlayerActionButtons
                   isPlayerTurn={isMyTurn && !isSittingOut}
@@ -197,7 +198,7 @@ export default function PlayPage() {
                 />
               )}
             </div>
-            
+
             {/* Chat */}
             <div className="control-chat">
               <div className="w-full h-full text-xs flex flex-col">
@@ -206,10 +207,10 @@ export default function PlayPage() {
                   placeholder="Send message"
                   className="w-full px-2 py-1 text-white rounded text-xs border border-black/40 placeholder-gray-300 font-bold focus:border-black/60 focus:outline-none bg-transparent mb-2"
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       // TODO: Implement chat message sending
-                      console.log('Chat message:', e.currentTarget.value);
-                      e.currentTarget.value = '';
+                      console.log("Chat message:", e.currentTarget.value);
+                      e.currentTarget.value = "";
                     }
                   }}
                 />
@@ -218,7 +219,7 @@ export default function PlayPage() {
                 </div>
               </div>
             </div>
-        </div>
+          </div>
         </div>
       </div>
 
@@ -236,83 +237,100 @@ export default function PlayPage() {
           --min-table-height: 400px; /* Minimum usable table height */
           padding: 8px;
         }
-        
+
         .table-section {
           /* Centered content with card visibility */
-          max-height: calc(100vh - var(--main-header-height) - var(--game-header-height) - var(--footer-height));
+          max-height: calc(
+            100vh - var(--main-header-height) - var(--game-header-height) - var(
+                --footer-height
+              )
+          );
           overflow: visible; /* Allow cards to show */
           display: flex;
           flex-direction: column;
           justify-content: center;
         }
-        
+
         .table-area {
           /* Auto height with padding for card overflow */
           flex-shrink: 0;
           padding: 20px 10px;
           overflow: visible;
         }
-        
+
         .table-wrapper {
           /* Dynamic viewport-aware scaling with preserved aspect ratio */
-          transform: scale(min(
-            1, 
-            (100vw - 40px) / 820px,  /* Width constraint */
-            (100vh - var(--main-header-height) - var(--game-header-height) - var(--footer-height) - var(--controls-height) - var(--gap-size) - 80px) / 520px /* Height constraint with buffer */
-          ));
+          transform: scale(
+            min(
+              1,
+              (100vw - 40px) / 820px,
+              /* Width constraint */
+                (
+                  100vh - var(--main-header-height) - var(
+                      --game-header-height
+                    ) - var(--footer-height) - var(--controls-height) - var(
+                      --gap-size
+                    ) -
+                    80px
+                ) /
+                520px /* Height constraint with buffer */
+            )
+          );
           transform-origin: center center;
           transition: transform 0.3s ease;
         }
-        
+
         .table-gap {
           height: var(--gap-size);
           flex-shrink: 0;
         }
-        
+
         .control-panel {
           height: var(--controls-height);
           width: 100%;
           position: relative;
           z-index: 11; /* Above other elements */
         }
-        
+
         /* Z-index layering */
         header {
           position: relative;
           z-index: 1;
         }
-        
+
         .game-container {
           position: relative;
           z-index: 10;
           max-height: 100vh;
           overflow: hidden;
         }
-        
-        
+
         /* Simplified Responsive Layout System */
         .responsive-controls {
           display: flex;
           gap: 1rem;
           justify-content: center;
         }
-        
+
         /* Components handle their own styling now */
-        
+
         /* Ensure all components have consistent heights */
-        .control-dealer, .control-actions, .control-chat {
+        .control-dealer,
+        .control-actions,
+        .control-chat {
           min-height: var(--controls-height);
           height: var(--controls-height);
           overflow: hidden;
         }
-        
+
         /* Desktop/Tablet (>= 768px) */
         @media (min-width: 768px) {
           .responsive-controls {
             flex-direction: row;
             width: 100%;
           }
-          .control-dealer, .control-chat {
+          .control-dealer,
+          .control-chat {
             flex: 1;
             height: var(--controls-height);
           }
@@ -324,7 +342,7 @@ export default function PlayPage() {
             justify-content: center;
           }
         }
-        
+
         /* Mobile layout - STACKED: Controls → Dealer → Chat */
         @media (max-width: 767px), (max-height: 700px) {
           .responsive-controls {
@@ -348,10 +366,24 @@ export default function PlayPage() {
           }
           .table-wrapper {
             /* Smaller scale to accommodate stacked layout with footer */
-            transform: scale(min(1, min((100vw - 20px) / 600px, (100vh - var(--main-header-height) - var(--game-header-height) - var(--footer-height) - 200px) / 400px))) !important;
+            transform: scale(
+              min(
+                1,
+                min(
+                  (100vw - 20px) / 600px,
+                  (
+                      100vh - var(--main-header-height) - var(
+                          --game-header-height
+                        ) - var(--footer-height) -
+                        200px
+                    ) /
+                    400px
+                )
+              )
+            ) !important;
           }
         }
-        
+
         /* Ultra-compact for very short screens */
         @media (max-height: 500px) {
           .game-container {
@@ -360,17 +392,19 @@ export default function PlayPage() {
             --controls-height: 80px;
             --gap-size: 10px;
           }
-          .control-dealer, .control-actions, .control-chat {
+          .control-dealer,
+          .control-actions,
+          .control-chat {
             height: 80px !important;
           }
         }
-        
+
         @media (min-width: 1024px) {
           .game-container {
             --controls-height: 180px;
           }
         }
-        
+
         @media (max-width: 767px) {
           .game-container {
             --main-header-height: 56px; /* Smaller main header on mobile */
@@ -380,14 +414,14 @@ export default function PlayPage() {
             padding: 4px;
           }
         }
-        
+
         @media (max-width: 639px) {
           .game-container {
             --controls-height: 180px; /* Compact for mobile stacked layout */
             --min-table-height: 300px; /* Reduced minimum for small screens */
           }
         }
-        
+
         @media (max-width: 480px) {
           .game-container {
             --controls-height: 200px; /* Optimized for small screens */
