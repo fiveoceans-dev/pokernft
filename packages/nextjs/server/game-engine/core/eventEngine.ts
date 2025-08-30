@@ -72,6 +72,8 @@ export class EventEngine extends EventEmitter {
   private processing = false;
   private processingPromise?: Promise<void>;
   private timerManager?: any; // Will be injected
+  private waitingPlayers = new Set<string>(); // Players waiting for next hand
+  private gameStartTimer?: NodeJS.Timeout; // Active countdown timer
   // Note: Transition logic now handled by reducer through side effects
 
   constructor(tableId: string, smallBlind: number, bigBlind: number) {
@@ -344,9 +346,35 @@ export class EventEngine extends EventEmitter {
     // Execute side effects returned by the reducer
     await this.executeSideEffects(transition.sideEffects);
 
-    // Check if game should start after player join/leave events
-    if (event.t === "PlayerJoin" || event.t === "PlayerLeave") {
+    // Handle player join/leave events with countdown logic
+    if (event.t === "PlayerJoin") {
+      // If countdown is active, mark new player as waiting for next hand
+      if (this.gameStartTimer && this.table.phase === "waiting") {
+        this.waitingPlayers.add(event.pid);
+        logger.info(
+          `⏰ [EventEngine] Player ${event.pid} joined during countdown - will wait for next hand`,
+        );
+        this.emit("playerWaitingForNextHand", { pid: event.pid });
+      } else {
+        // Normal join - check if game should start
+        await this.checkGameStart();
+      }
+    }
+    
+    if (event.t === "PlayerLeave") {
+      // Remove from waiting players if they were waiting
+      this.waitingPlayers.delete(event.pid);
       await this.checkGameStart();
+    }
+    
+    // Clean up waiting players when hand ends
+    if (event.t === "HandEnd") {
+      const waitingCount = this.waitingPlayers.size;
+      if (waitingCount > 0) {
+        logger.info(`🧹 [EventEngine] Hand ended - clearing ${waitingCount} waiting players for next hand`);
+        this.waitingPlayers.clear();
+        this.emit("waitingPlayersCleared", { count: waitingCount });
+      }
     }
 
     // Log actor state for debugging (transitions now handled by reducer)
@@ -417,14 +445,27 @@ export class EventEngine extends EventEmitter {
     if (playersInHand.length === 1) {
       // Only one player left - they win without showing cards
       const winner = playersInHand[0];
-      logger.info(`🏆 [EventEngine] ${winner.pid} wins by elimination`);
+      logger.info(`🏆 [EventEngine] ${winner.pid} wins by elimination (fold-to-one scenario)`);
       
-      const distributions = [{
-        pid: winner.pid!,
-        amount: this.table.pots.reduce((sum, pot) => sum + pot.amount, 0),
-        potIndex: 0,
-        reason: "win" as const
-      }];
+      // Handle uncalled bets properly using potManager logic
+      const distributions = handleUncalledBet(this.table);
+      
+      if (distributions.length === 0) {
+        // No uncalled bet scenario - winner gets all pots
+        const totalPotAmount = this.table.pots.reduce((sum, pot) => sum + pot.amount, 0);
+        distributions.push({
+          pid: winner.pid!,
+          amount: totalPotAmount,
+          potIndex: 0,
+          reason: "win" as const
+        });
+        logger.info(`💰 [EventEngine] ${winner.pid} wins ${totalPotAmount} chips (no uncalled bet)`);
+      } else {
+        logger.info(`💰 [EventEngine] Uncalled bet handling: ${distributions.length} distributions`);
+        distributions.forEach(dist => {
+          logger.info(`   ${dist.pid}: ${dist.amount} chips (${dist.reason})`);
+        });
+      }
       
       await this.dispatch({ t: "Payout", distributions });
       return;
@@ -580,26 +621,40 @@ export class EventEngine extends EventEmitter {
 
   /**
    * Check if game should start and initiate countdown
+   * Only counts active (non-waiting) players
    */
   private async checkGameStart(): Promise<void> {
-    const playerCount = this.table.seats.filter((s) => s.pid).length;
+    // Count only active players (not in waiting state)
+    const activeSeats = this.table.seats.filter(s => 
+      s.pid && !this.waitingPlayers.has(s.pid)
+    );
+    const activePlayerCount = activeSeats.length;
+    const totalPlayerCount = this.table.seats.filter(s => s.pid).length;
 
     console.log(
-      `🎮 [EventEngine] Checking game start: ${playerCount}/${MIN_PLAYERS_TO_START} players`,
+      `🎮 [EventEngine] Checking game start: ${activePlayerCount}/${MIN_PLAYERS_TO_START} active players (${totalPlayerCount} total)`,
     );
 
-    if (playerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
+    // Only start if we have enough active players and game is waiting
+    if (activePlayerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
+      // Don't start multiple countdowns
+      if (this.gameStartTimer) {
+        console.log(`⏰ [EventEngine] Game countdown already in progress`);
+        return;
+      }
+
       console.log(
         `🚀 [EventEngine] Starting game countdown: ${GAME_START_COUNTDOWN_MS}ms`,
       );
 
-      // Emit countdown event for clients
+      // Mark the countdown as started and emit events
       this.emit("gameStartCountdown", {
         seconds: GAME_START_COUNTDOWN_MS / 1000,
-        playerCount,
+        activePlayerCount,
+        totalPlayerCount,
       });
 
-      // Use async countdown - don't block other operations
+      // From now on, new players joining will be marked as waiting
       this.scheduleGameStart();
     }
   }
@@ -607,30 +662,65 @@ export class EventEngine extends EventEmitter {
   /**
    * Schedule game start with countdown (runs in background)
    */
-  private async scheduleGameStart(): Promise<void> {
+  private scheduleGameStart(): void {
     console.log(
-      `⏰ [EventEngine] Waiting ${GAME_START_COUNTDOWN_MS}ms before starting game...`,
+      `⏰ [EventEngine] Starting ${GAME_START_COUNTDOWN_MS / 1000}s countdown...`,
     );
-    await this.delay(GAME_START_COUNTDOWN_MS);
-
-    const currentPlayerCount = this.table.seats.filter((s) => s.pid).length;
-    if (
-      currentPlayerCount >= MIN_PLAYERS_TO_START &&
-      this.table.phase === "waiting"
-    ) {
-      console.log(
-        `✅ [EventEngine] Countdown complete, starting hand with ${currentPlayerCount} players`,
-      );
-      await this.dispatch({
-        t: "StartHand",
-        handNumber: this.table.handNumber + 1,
-        timestamp: Date.now(),
-      });
-    } else {
-      console.log(
-        `❌ [EventEngine] Countdown cancelled - insufficient players or game already started`,
-      );
+    
+    // Clear any existing timer
+    if (this.gameStartTimer) {
+      clearTimeout(this.gameStartTimer);
     }
+    
+    this.gameStartTimer = setTimeout(async () => {
+      try {
+        // Count active players at countdown end
+        const activeSeats = this.table.seats.filter(s => 
+          s.pid && !this.waitingPlayers.has(s.pid)
+        );
+        const activePlayerCount = activeSeats.length;
+        
+        if (activePlayerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
+          console.log(
+            `✅ [EventEngine] Countdown complete, starting hand with ${activePlayerCount} active players`,
+          );
+          
+          // Clear the timer
+          this.gameStartTimer = undefined;
+          
+          // Start the hand with active players only
+          await this.dispatch({
+            t: "StartHand",
+            handNumber: this.table.handNumber + 1,
+            timestamp: Date.now(),
+          });
+          
+          // Emit game started event
+          this.emit("gameStarted", { activePlayerCount });
+        } else {
+          console.log(
+            `❌ [EventEngine] Countdown cancelled - insufficient players (${activePlayerCount}) or game already started`,
+          );
+          
+          // Clear the timer
+          this.gameStartTimer = undefined;
+          
+          // If still waiting but insufficient players, may need to restart countdown when more join
+          if (this.table.phase === "waiting") {
+            console.log(`⏰ [EventEngine] Will restart countdown when more players join`);
+          }
+        }
+      } catch (error) {
+        console.error(`❌ [EventEngine] Error in game start countdown:`, error);
+        this.gameStartTimer = undefined;
+      }
+    }, GAME_START_COUNTDOWN_MS);
+    
+    // Emit countdown started event
+    this.emit("countdownStarted", { 
+      countdownMs: GAME_START_COUNTDOWN_MS,
+      activePlayerCount: this.table.seats.filter(s => s.pid && !this.waitingPlayers.has(s.pid)).length
+    });
   }
 
   /**
@@ -828,5 +918,31 @@ export class EventEngine extends EventEmitter {
         console.warn(`⚠️ [EventEngine] Unknown side effect type:`, effect);
         break;
     }
+  }
+
+  /**
+   * Cleanup method for proper resource management
+   */
+  cleanup(): void {
+    // Clear game start timer if active
+    if (this.gameStartTimer) {
+      clearTimeout(this.gameStartTimer);
+      this.gameStartTimer = undefined;
+      logger.info(`🧹 [EventEngine] Cleaned up game start timer`);
+    }
+    
+    // Clear waiting players
+    if (this.waitingPlayers.size > 0) {
+      this.waitingPlayers.clear();
+      logger.info(`🧹 [EventEngine] Cleared waiting players`);
+    }
+    
+    // Clear timer manager if available
+    if (this.timerManager) {
+      this.timerManager.clearAllTimers("engine-cleanup");
+      logger.info(`🧹 [EventEngine] Cleared all action timers`);
+    }
+    
+    logger.info(`🧹 [EventEngine] Cleanup complete`);
   }
 }

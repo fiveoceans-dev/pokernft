@@ -77,7 +77,7 @@ const config: Config = {
           "--rounded-btn": "9999rem",
           ".tooltip": {
             "--tooltip-tail": "6px",
-            "--tooltip-color": "oklch(var(--p))",
+            "--tooltip-color": "#5c4fe5",
           },
           ".link": {
             textUnderlineOffset: "2px",

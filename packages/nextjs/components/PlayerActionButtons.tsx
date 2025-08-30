@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useGameStore } from "../hooks/useGameStore";
 import useIsMobile from "../hooks/useIsMobile";
+import { captureAndDownloadScreen } from "../utils/screenCapture";
 
 interface Props {
   isPlayerTurn: boolean;
@@ -55,6 +56,14 @@ export default function PlayerActionButtons({
   };
 
   const showActions = isPlayerTurn && connectionState !== "disconnected";
+
+  const handleScreenCapture = async () => {
+    try {
+      await captureAndDownloadScreen();
+    } catch (error) {
+      console.error('Failed to capture screen:', error);
+    }
+  };
 
   return (
     <div
@@ -175,20 +184,36 @@ export default function PlayerActionButtons({
         </div>
       </div>
 
-      {/* Row 2 - Quick Bet Buttons */}
+      {/* Row 2 - Camera Button + Quick Bet Buttons */}
       <div
-        className={`flex items-center gap-1 mb-2 ${
-          isMobile ? "justify-center flex-wrap" : "justify-end"
-        }`}
+        className="flex items-center justify-between gap-1 mb-2"
         style={{ minHeight: "32px" }}
       >
+        {/* Camera Capture Button - Left Side */}
+        <button
+          onClick={handleScreenCapture}
+          className="w-8 h-8 flex items-center justify-center rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60"
+          title="Capture Screenshot"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M12 15.5c1.93 0 3.5-1.57 3.5-3.5S13.93 8.5 12 8.5 8.5 10.07 8.5 12s1.57 3.5 3.5 3.5zM17.5 9c.28 0 .5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5zM20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+          </svg>
+        </button>
+
+        {/* Quick Bet Buttons - Right Side */}
         {showActions && canRaise && maxRaise > effectiveMinRaise ? (
           <div className="flex items-center gap-1">
             <button
               onClick={() =>
                 setRaiseAmount(Math.min(effectiveMinRaise * 2, maxRaise))
               }
-              className="min-w-[50px] px-2 py-1 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+              className="min-w-[50px] h-8 px-2 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center"
               disabled={effectiveMinRaise * 2 > maxRaise}
             >
               2BB
@@ -197,14 +222,14 @@ export default function PlayerActionButtons({
               onClick={() =>
                 setRaiseAmount(Math.min(effectiveMinRaise * 3, maxRaise))
               }
-              className="min-w-[50px] px-2 py-1 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+              className="min-w-[50px] h-8 px-2 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center"
               disabled={effectiveMinRaise * 3 > maxRaise}
             >
               3BB
             </button>
             <button
               onClick={() => setRaiseAmount(maxRaise)}
-              className="min-w-[60px] px-2 py-1 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+              className="min-w-[60px] h-8 px-2 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center"
               disabled={maxRaise <= effectiveMinRaise}
             >
               All-in
@@ -212,9 +237,9 @@ export default function PlayerActionButtons({
           </div>
         ) : (
           <div className="opacity-0 pointer-events-none flex items-center gap-1">
-            <div className="min-w-[50px] px-2 py-1 text-xs">2BB</div>
-            <div className="min-w-[50px] px-2 py-1 text-xs">3BB</div>
-            <div className="min-w-[60px] px-2 py-1 text-xs">All-in</div>
+            <div className="min-w-[50px] h-8 px-2 text-xs flex items-center justify-center">2BB</div>
+            <div className="min-w-[50px] h-8 px-2 text-xs flex items-center justify-center">3BB</div>
+            <div className="min-w-[60px] h-8 px-2 text-xs flex items-center justify-center">All-in</div>
           </div>
         )}
       </div>
@@ -236,7 +261,7 @@ export default function PlayerActionButtons({
                 setRaiseAmount(newAmount);
               }}
               disabled={raiseAmount <= effectiveMinRaise}
-              className="w-7 h-7 flex items-center justify-center rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-8 h-8 flex items-center justify-center rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               -
             </button>
@@ -261,7 +286,7 @@ export default function PlayerActionButtons({
                 setRaiseAmount(newAmount);
               }}
               disabled={raiseAmount >= maxRaise}
-              className="w-7 h-7 flex items-center justify-center rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-8 h-8 flex items-center justify-center rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               +
             </button>
@@ -273,15 +298,15 @@ export default function PlayerActionButtons({
               max={maxRaise}
               value={raiseAmount}
               onChange={handleRaiseAmountChange}
-              className={`${isMobile ? 'w-12' : 'w-16'} px-1 py-1 bg-black/40 text-white rounded text-center hover:bg-black/60 transition-colors text-xs flex-shrink-0`}
+              className={`${isMobile ? 'w-12' : 'w-16'} h-8 px-1 bg-black/40 text-white rounded text-center hover:bg-black/60 transition-colors text-xs flex-shrink-0`}
             />
           </>
         ) : (
           <div className={`opacity-0 pointer-events-none flex items-center ${isMobile ? 'gap-0.5' : 'gap-1'} w-full`}>
-            <div className="w-7 h-7">-</div>
+            <div className="w-8 h-8">-</div>
             <div className="flex-1 h-2">slider</div>
-            <div className="w-7 h-7">+</div>
-            <div className={`${isMobile ? 'w-12' : 'w-16'} px-1 py-1`}>input</div>
+            <div className="w-8 h-8">+</div>
+            <div className={`${isMobile ? 'w-12' : 'w-16'} h-8 px-1`}>input</div>
           </div>
         )}
       </div>

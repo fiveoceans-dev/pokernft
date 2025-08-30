@@ -11,15 +11,15 @@ import { shortAddress } from "../utils/address";
 
 /** Map Stage strings to numeric street indices used by the UI */
 const stageToStreet: Record<string, number> = {
-  waiting: 0,
-  deal: 0,        // New EventEngine phase
-  preflop: 0,
-  flop: 1,
-  turn: 2,
-  river: 3,
-  showdown: 4,
-  payout: 4,      // New EventEngine phase
-  handEnd: 0      // New EventEngine phase
+  waiting: -1,    // Not in active play
+  deal: -1,       // Cards being dealt, no street yet
+  preflop: 0,     // Preflop betting round
+  flop: 1,        // Flop betting round
+  turn: 2,        // Turn betting round  
+  river: 3,       // River betting round
+  showdown: 4,    // Showdown phase
+  payout: 4,      // Payout phase (maintain showdown display)
+  handEnd: -1     // Hand complete, back to waiting
 };
 
 let socket: WebSocket | null = null;
