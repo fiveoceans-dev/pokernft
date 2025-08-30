@@ -1,4 +1,4 @@
-import type { Rank, Suit } from "./types";
+import type { Rank, Suit, Street } from "./types";
 
 /** Card ordering (low → high) */
 export const RANKS: Rank[] = [
@@ -33,12 +33,10 @@ export const MAX_PLAYERS_PER_TABLE = parseInt(process.env.MAX_PLAYERS_PER_TABLE 
 export const STREET_DEAL_DELAY_MS = (parseInt(process.env.STREET_DEAL_DELAY_SECONDS || "3") * 1000);
 export const NEW_HAND_DELAY_MS = (parseInt(process.env.NEW_HAND_DELAY_SECONDS || "5") * 1000);
 
-/** Streets in order */
-export const STREETS = [
+/** Streets in order (betting streets only) */
+export const STREETS: Street[] = [
   "preflop",
   "flop",
   "turn",
   "river",
-  "showdown",
-] as const;
-export type Street = (typeof STREETS)[number];
+];

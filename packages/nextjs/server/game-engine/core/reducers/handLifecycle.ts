@@ -1,0 +1,290 @@
+/**
+ * Hand Lifecycle Reducer
+ * 
+ * Handles the lifecycle events of a poker hand:
+ * - StartHand: Initialize new hand with deck and button
+ * - PostBlinds: Post blinds and prepare for betting
+ * - HandEnd: Clean up hand and prepare for next
+ */
+
+import {
+  Table,
+  SeatStatus,
+  Phase,
+  StateTransition,
+  SideEffect,
+} from "../types";
+import { countActivePlayers } from "../../utils/ringOrder";
+import {
+  getBlindPositions,
+  getFirstActor,
+  calculateNextButton,
+  validateAndFixButton,
+} from "../../logic/gameRules";
+import { createDeck, generateDeckSeed } from "../../logic/deckManager";
+
+/**
+ * Initialize a new poker hand
+ */
+export function startHand(
+  table: Table,
+  handNumber: number,
+  timestamp: number,
+): StateTransition {
+  // Randomize first dealer (button) deterministically on first hand using timestamp
+  let button = table.button;
+  if (table.handNumber === 0) {
+    const eligible = table.seats
+      .filter((s) => s.pid && s.chips > 0)
+      .map((s) => s.id);
+    if (eligible.length > 1) {
+      const idx = timestamp % eligible.length;
+      button = eligible[idx];
+      console.log(`🎲 [Reducer] Randomized initial button to seat ${button} from eligible ${eligible.join(',')}`);
+    }
+  }
+
+  // Generate deck seed and create shuffled deck
+  const deckSeed = generateDeckSeed(handNumber, timestamp);
+  const deck = createDeck(deckSeed);
+  console.log(`🎰 [Reducer] Created shuffled deck with seed: ${deckSeed}`);
+
+  const nextState = {
+    ...table,
+    phase: "deal" as Phase,
+    handNumber,
+    timestamp,
+    button,
+    street: undefined,
+    actor: undefined,
+    lastAggressor: undefined,
+    currentBet: 0,
+    lastRaiseSize: table.bigBlind,
+    pots: [],
+    communityCards: [],
+    // Deck management
+    deck,
+    deckIndex: 0,
+    deckSeed,
+    // Reset all seats for new hand
+    seats: table.seats.map((seat) => ({
+      ...seat,
+      committed: 0,
+      streetCommitted: 0,
+      status: (seat.pid ? "active" : "empty") as SeatStatus,
+      holeCards: undefined,
+    })),
+  };
+
+  // Side effects: automatically post blinds and deal hole cards
+  const sideEffects: SideEffect[] = [
+    {
+      type: "DISPATCH_EVENT",
+      payload: {
+        event: { t: "PostBlinds", sb: table.smallBlind, bb: table.bigBlind },
+      },
+    },
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "dealer_selected" } },
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "hand_started" } },
+  ];
+
+  return { nextState, sideEffects };
+}
+
+/**
+ * Post blinds and set initial betting state
+ */
+export function postBlinds(
+  table: Table,
+  sb: number,
+  bb: number,
+  ante?: number,
+): StateTransition {
+  const newSeats = [...table.seats];
+  const activePlayers = newSeats.filter((seat) => seat.status === "active");
+
+  if (activePlayers.length < 2) {
+    return { nextState: table, sideEffects: [] }; // Need at least 2 players
+  }
+
+  // Validate and fix button position using game rules
+  const validButton = validateAndFixButton(newSeats, table.button);
+
+  // Get correct blind positions according to poker rules
+  const blindPositions = getBlindPositions(newSeats, validButton);
+
+  if (!blindPositions) {
+    console.error(`❌ [Reducer] Could not determine blind positions`);
+    return { nextState: table, sideEffects: [] };
+  }
+
+  const { sb: sbIndex, bb: bbIndex } = blindPositions;
+  const activeCount = countActivePlayers(newSeats);
+  const isHeadsUp = activeCount === 2;
+
+  console.log(
+    `🃏 [Reducer] Posting blinds - ${isHeadsUp ? "Heads-up" : "Multi-way"} (${activeCount} players)`,
+  );
+  console.log(`   SB: seat ${sbIndex} (${newSeats[sbIndex]?.pid})`);
+  console.log(`   BB: seat ${bbIndex} (${newSeats[bbIndex]?.pid})`);
+
+  // Post small blind
+  if (sbIndex !== -1) {
+    const sbSeat = newSeats[sbIndex];
+    const sbAmount = Math.min(sb, sbSeat.chips);
+    newSeats[sbIndex] = {
+      ...sbSeat,
+      chips: sbSeat.chips - sbAmount,
+      committed: sbAmount,
+      streetCommitted: sbAmount,
+      status: sbSeat.chips === sbAmount ? "allin" : "active",
+    };
+  }
+
+  // Post big blind
+  if (bbIndex !== -1) {
+    const bbSeat = newSeats[bbIndex];
+    const bbAmount = Math.min(bb, bbSeat.chips);
+    newSeats[bbIndex] = {
+      ...bbSeat,
+      chips: bbSeat.chips - bbAmount,
+      committed: bbAmount,
+      streetCommitted: bbAmount,
+      status: bbSeat.chips === bbAmount ? "allin" : "active",
+    };
+  }
+
+  // Post antes if specified
+  if (ante && ante > 0) {
+    for (let i = 0; i < newSeats.length; i++) {
+      const seat = newSeats[i];
+      if (seat.status === "active") {
+        const anteAmount = Math.min(ante, seat.chips);
+        newSeats[i] = {
+          ...seat,
+          chips: seat.chips - anteAmount,
+          committed: seat.committed + anteAmount,
+          streetCommitted: seat.streetCommitted + anteAmount,
+        };
+      }
+    }
+  }
+
+  // Calculate first actor using game rules
+  const tableWithSeats = { ...table, seats: newSeats, button: validButton };
+  const actionOrder = getFirstActor(tableWithSeats, true);
+
+  const nextState = {
+    ...table,
+    button: validButton, // Use corrected button position
+    phase: "deal" as Phase, // Stay in deal phase - preflop will be set by EnterStreet
+    seats: newSeats,
+    blinds: { sb, bb, ante },
+    bbSeat: bbIndex, // Track BB position for option logic
+    bbHasActed: false, // BB hasn't acted yet
+  };
+
+  console.log(
+    `💰 [Reducer] Blinds posted - BB: ${bb} at seat ${bbIndex}, SB: ${sb} at seat ${sbIndex}`,
+  );
+
+  // Side effects: deal hole cards, then enter preflop betting round
+  const sideEffects: SideEffect[] = [
+    {
+      type: "DISPATCH_EVENT",
+      payload: {
+        event: { t: "DealHole", cards: {} }, // Cards will be generated by reducer
+      },
+    },
+    {
+      type: "DISPATCH_EVENT", 
+      payload: {
+        event: { t: "EnterStreet", street: "preflop" }, // Proper FSM transition
+      },
+    },
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "blinds_posted" } },
+  ];
+
+  // Emit heads-up detection for UI/logging
+  if (isHeadsUp) {
+    sideEffects.push({
+      type: "EMIT_STATE_CHANGE",
+      payload: { reason: "heads_up_detected" },
+    });
+  }
+
+  return { nextState, sideEffects };
+}
+
+/**
+ * End the current hand and prepare for next
+ */
+export function endHand(table: Table): StateTransition {
+  // Remove broke players (0 chips) from the table
+  const newSeats = table.seats.map((seat) => {
+    if (seat.pid && seat.chips === 0) {
+      console.log(`💸 [Reducer] Removing broke player ${seat.pid} from seat ${seat.id}`);
+      return {
+        id: seat.id,
+        chips: 0,
+        committed: 0,
+        streetCommitted: 0,
+        status: "empty" as SeatStatus,
+      };
+    }
+    return seat;
+  });
+
+  // Calculate next button using game rules
+  const nextButton = calculateNextButton(newSeats, table.button);
+  const buttonMoved = nextButton !== table.button;
+
+  console.log(
+    `🔄 [Reducer] Button ${buttonMoved ? "advanced" : "stayed"}: ${table.button} → ${nextButton}`,
+  );
+
+  // Count remaining players with chips
+  const playersWithChips = newSeats.filter(seat => seat.pid && seat.chips > 0).length;
+  console.log(`👥 [Reducer] ${playersWithChips} players remaining with chips`);
+
+  const nextState = {
+    ...table,
+    phase: "waiting" as Phase,
+    street: undefined,
+    actor: undefined,
+    lastAggressor: undefined,
+    currentBet: 0,
+    lastRaiseSize: table.bigBlind,
+    communityCards: [],
+    button: nextButton,
+    seats: newSeats,
+    bbSeat: undefined, // Reset BB tracking
+    bbHasActed: false, // Reset BB action tracking
+  };
+
+  const sideEffects: SideEffect[] = [
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "hand_ended" } },
+  ];
+
+  // Emit button movement notification
+  if (buttonMoved) {
+    sideEffects.push({
+      type: "EMIT_STATE_CHANGE",
+      payload: { reason: "button_moved" },
+    });
+  }
+
+  // Emit notification if players were removed
+  const brokePlayersRemoved = table.seats.filter((seat, index) => 
+    seat.pid && newSeats[index].status === "empty"
+  ).length;
+  
+  if (brokePlayersRemoved > 0) {
+    sideEffects.push({
+      type: "EMIT_STATE_CHANGE",
+      payload: { reason: "broke_players_removed" },
+    });
+  }
+
+  return { nextState, sideEffects };
+}

@@ -1,0 +1,124 @@
+/**
+ * Table Management Reducer
+ * 
+ * Handles player management events in the poker engine:
+ * - PlayerJoin: Add player to table with validation
+ * - PlayerLeave: Remove player from table
+ */
+
+import {
+  Table,
+  SeatStatus,
+  StateTransition,
+  SideEffect,
+} from "../types";
+
+/**
+ * Add player to table with proper validation
+ */
+export function addPlayer(
+  table: Table,
+  seatId: number,
+  pid: string,
+  chips: number,
+  nickname?: string,
+): StateTransition {
+  // Validate seat index
+  if (seatId < 0 || seatId >= table.seats.length) {
+    console.error(`❌ [Reducer] Invalid seat index: ${seatId}`);
+    return { nextState: table, sideEffects: [] }; // Invalid seat
+  }
+
+  // Check if seat is already occupied
+  if (table.seats[seatId].pid) {
+    console.error(
+      `❌ [Reducer] Seat ${seatId} is already occupied by ${table.seats[seatId].pid}`,
+    );
+    return { nextState: table, sideEffects: [] }; // Seat taken
+  }
+
+  // Check if player is already seated elsewhere
+  const existingSeat = table.seats.find((seat) => seat.pid === pid);
+  if (existingSeat) {
+    console.error(
+      `❌ [Reducer] Player ${pid} is already seated at seat ${existingSeat.id}`,
+    );
+    return { nextState: table, sideEffects: [] }; // Player already seated
+  }
+
+  // Validate chips amount with buy-in limits
+  const minBuyIn = table.bigBlind * 1;   // 1 big blind minimum (for testing)
+  const maxBuyIn = table.bigBlind * 200; // 200 big blinds maximum
+  
+  if (chips <= 0) {
+    console.error(`❌ [Reducer] Invalid chips amount: ${chips} (must be > 0)`);
+    return { nextState: table, sideEffects: [] }; // Invalid chips
+  }
+  
+  if (chips < minBuyIn) {
+    console.error(`❌ [Reducer] Buy-in too small: ${chips} (minimum: ${minBuyIn})`);
+    return { nextState: table, sideEffects: [] }; // Buy-in too small
+  }
+  
+  if (chips > maxBuyIn) {
+    console.error(`❌ [Reducer] Buy-in too large: ${chips} (maximum: ${maxBuyIn})`);
+    return { nextState: table, sideEffects: [] }; // Buy-in too large
+  }
+
+  const newSeats = [...table.seats];
+  newSeats[seatId] = {
+    id: seatId,
+    pid,
+    chips,
+    committed: 0,
+    streetCommitted: 0,
+    status: "active",
+    nickname,
+  };
+
+  console.log(
+    `✅ [Reducer] Added player ${pid} to seat ${seatId} with ${chips} chips`,
+  );
+
+  const nextState = {
+    ...table,
+    seats: newSeats,
+  };
+
+  const sideEffects: SideEffect[] = [
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "player_joined" } },
+  ];
+
+  return { nextState, sideEffects };
+}
+
+/**
+ * Remove player from table
+ */
+export function removePlayer(
+  table: Table,
+  seatId: number,
+  pid: string,
+): StateTransition {
+  const newSeats = [...table.seats];
+  if (newSeats[seatId]?.pid === pid) {
+    newSeats[seatId] = {
+      id: seatId,
+      chips: 0,
+      committed: 0,
+      streetCommitted: 0,
+      status: "empty",
+    };
+  }
+
+  const nextState = {
+    ...table,
+    seats: newSeats,
+  };
+
+  const sideEffects: SideEffect[] = [
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "player_left" } },
+  ];
+
+  return { nextState, sideEffects };
+}

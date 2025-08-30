@@ -1,4 +1,5 @@
 import { getRecentHighlights } from "../data/highlights";
+import { FaTwitter, FaDiscord, FaInstagram } from "react-icons/fa";
 
 /**
  * StayTunedSection – social‑follow banner with neon glow + diagonal separator.
@@ -18,6 +19,11 @@ export default function StayTunedSection() {
         <h2 className="text-3xl md:text-4xl font-extrabold tracking-wide text-accent">
           Highlights & Community
         </h2>
+          <div className="flex items-center justify-center gap-3 whitespace-nowrap text-sm">
+          <a href="https://twitter.com/pokernfts" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="hover:text-accent transition-colors"><FaTwitter size={24} /></a>
+          <a href="" target="" rel="noopener noreferrer" aria-label="Discord" className="hover:text-accent transition-colors"><FaDiscord size={24} /></a>
+          <a href="" target="" rel="noopener noreferrer" aria-label="Instagram" className="hover:text-accent transition-colors"><FaInstagram size={24} /></a>
+        </div>
         <p className="max-w-xl mx-auto mt-4 text-slate-300">
           Highlight reels, testimonials and more. Join our community to keep the
           action going.

@@ -17,8 +17,8 @@ export const Footer = () => {
         {/* right-aligned links + socials (single line) */}
         <div className="flex items-center justify-end gap-3 whitespace-nowrap text-sm">
           <a href="https://twitter.com/pokernfts" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="hover:text-accent transition-colors"><FaTwitter size={16} /></a>
-          <a href="https://discord.gg/jW43eTwe6J" target="_blank" rel="noopener noreferrer" aria-label="Discord" className="hover:text-accent transition-colors"><FaDiscord size={16} /></a>
-          <a href="#" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="hover:text-accent transition-colors"><FaInstagram size={16} /></a>
+          <a href="" target="_blank" rel="noopener noreferrer" aria-label="Discord" className="hover:text-accent transition-colors"><FaDiscord size={16} /></a>
+          <a href="" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="hover:text-accent transition-colors"><FaInstagram size={16} /></a>
         </div>
       </div>
     </footer>
