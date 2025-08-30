@@ -192,12 +192,12 @@ export default function PlayerActionButtons({
         {/* Camera Capture Button - Left Side */}
         <button
           onClick={handleScreenCapture}
-          className="w-8 h-8 flex items-center justify-center rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60"
+          className="w-8 h-8 flex items-center justify-center rounded font-medium transition-all duration-200 text-black shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60"
           title="Capture Screenshot"
         >
           <svg
-            width="16"
-            height="16"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="currentColor"
             xmlns="http://www.w3.org/2000/svg"
