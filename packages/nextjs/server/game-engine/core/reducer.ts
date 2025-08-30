@@ -369,6 +369,7 @@ function enterStreet(
       currentBet = table.bigBlind || 0; // Big blind is the current bet
       lastRaiseSize = table.bigBlind || 0; // Minimum raise is BB
       console.log(`🎯 [Reducer] Preflop first actor: seat ${actor} (${actor !== undefined ? newSeats[actor]?.pid : "none"}), BB: ${currentBet}`);
+      console.log(`   Active players: ${newSeats.filter(s => s.status === 'active' && s.pid).map(s => `${s.pid}(${s.id})`).join(', ')}`);
     } else {
       // Postflop: Reset betting and get first actor
       const actionOrder = getFirstActor(tableWithSeats, false); // false = postflop
@@ -456,22 +457,33 @@ function applyAction(
   amount: number = 0,
 ): StateTransition {
   const seat = table.seats[seatId];
+  
+  // Comprehensive validation logging for debugging
+  console.log(`🎯 [Reducer] Action validation - Phase: ${table.phase}, Actor: ${table.actor}, Action: seat ${seatId} ${action} ${amount || ''}`);
+  console.log(`   Player: ${seat?.pid || 'EMPTY'} (status: ${seat?.status || 'N/A'}, chips: ${seat?.chips || 0})`);
+  console.log(`   Game State: currentBet=${table.currentBet}, streetCommitted=${seat?.streetCommitted || 0}`);
+  
   if (!seat || seat.status !== "active") {
+    console.warn(`❌ [Reducer] Invalid player state - seat ${seatId}: ${!seat ? 'NO SEAT' : `status=${seat.status}`}`);
     return { nextState: table, sideEffects: [] }; // Invalid action
   }
 
   // VALIDATE: Is it this player's turn?
   if (table.actor !== seatId) {
     console.warn(
-      `❌ [Reducer] Seat ${seatId} acted out of turn (current actor: ${table.actor})`,
+      `❌ [Reducer] Out of turn action - seat ${seatId} (${seat.pid}) acted, but current actor is seat ${table.actor}`,
     );
+    const actorSeat = table.actor !== undefined ? table.seats[table.actor] : null;
+    console.warn(`   Current actor details: ${actorSeat?.pid || 'none'} at seat ${table.actor}`);
     return { nextState: table, sideEffects: [] }; // State unchanged - invalid action
   }
 
   // Enforce action validity (min bet/raise, to-call, phase)
   const validation = validatePokerAction(table, seatId, action, amount);
   if (!validation.valid) {
-    console.warn(`❌ [Reducer] Action validation failed: ${validation.error}`);
+    console.error(`❌ [Reducer] Action validation failed: ${validation.error}`);
+    console.error(`   Validation context: ${action} action by ${seat.pid} for ${amount || 'default'} chips`);
+    console.error(`   Table context: phase=${table.phase}, currentBet=${table.currentBet}, playerChips=${seat.chips}`);
     return { nextState: table, sideEffects: [] };
   }
 
