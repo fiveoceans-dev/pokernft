@@ -393,6 +393,8 @@ export default function PlayPage() {
           min-height: ${isMobile ? '120px' : '100px'};
           padding: 5px;
           height: ${isMobile ? 'auto' : '100%'};
+          max-width: 600px;
+          margin: 0 auto;
         }
 
         .control-chat {
