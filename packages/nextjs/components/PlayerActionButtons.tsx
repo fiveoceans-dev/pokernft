@@ -221,11 +221,7 @@ export default function PlayerActionButtons({
 
       {/* Row 3 - Betting Controls (Full width) */}
       <div
-        className={`w-full ${
-          isMobile
-            ? "flex flex-col items-stretch gap-1"
-            : "flex items-center gap-1"
-        }`}
+        className={`w-full flex items-center ${isMobile ? 'gap-0.5' : 'gap-1'}`}
         style={{ minHeight: "32px" }}
       >
         {showActions && canRaise && maxRaise > effectiveMinRaise ? (
@@ -277,15 +273,15 @@ export default function PlayerActionButtons({
               max={maxRaise}
               value={raiseAmount}
               onChange={handleRaiseAmountChange}
-              className="w-16 px-2 py-1 bg-black/40 text-white rounded text-center hover:bg-black/60 transition-colors text-sm"
+              className={`${isMobile ? 'w-12' : 'w-16'} px-1 py-1 bg-black/40 text-white rounded text-center hover:bg-black/60 transition-colors text-xs flex-shrink-0`}
             />
           </>
         ) : (
-          <div className="opacity-0 pointer-events-none flex items-center gap-1 w-full">
+          <div className={`opacity-0 pointer-events-none flex items-center ${isMobile ? 'gap-0.5' : 'gap-1'} w-full`}>
             <div className="w-7 h-7">-</div>
             <div className="flex-1 h-2">slider</div>
             <div className="w-7 h-7">+</div>
-            <div className="w-16 px-2 py-1">input</div>
+            <div className={`${isMobile ? 'w-12' : 'w-16'} px-1 py-1`}>input</div>
           </div>
         )}
       </div>

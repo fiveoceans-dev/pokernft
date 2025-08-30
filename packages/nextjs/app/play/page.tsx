@@ -280,8 +280,8 @@ export default function PlayPage() {
         }
 
         .action-btn {
-          padding: 8px 16px;
-          font-size: 12px;
+          padding: 4px 8px;
+          font-size: 10px;
           border: 2px solid;
           border-radius: 50px;
           background: rgba(0, 0, 0, 0.3);
