@@ -52,16 +52,6 @@ export default function PlayPage() {
   const myChips = mySeatIndex >= 0 ? chips[mySeatIndex] : 0;
   const myCommitted = mySeatIndex >= 0 ? playerBets[mySeatIndex] : 0;
   const currentBet = Math.max(...playerBets.filter((bet) => bet !== null));
-  // Debug logging for action button visibility
-  console.log(`🎮 [PlayPage] Action button calculation:`, {
-    currentTurn,
-    mySeatIndex,
-    isMyTurn,
-    isSittingOut,
-    shouldShowButtons: isMyTurn && !isSittingOut,
-    myChips,
-    currentBet,
-  });
 
   const { timer } = usePlayViewModel();
 
@@ -73,14 +63,6 @@ export default function PlayPage() {
       joinTable("demo");
     }
   }, [tableId, joinTable]);
-
-  // Add body class for styling and cleanup on unmount
-  useEffect(() => {
-    document.body.classList.add('play-page');
-    return () => {
-      document.body.classList.remove('play-page');
-    };
-  }, []);
 
   // Calculate optimal table scale to fit viewport with controls
   useEffect(() => {
@@ -104,12 +86,12 @@ export default function PlayPage() {
       const scaleByHeight = availableHeight / baseH;
       const optimalScale = Math.min(scaleByWidth, scaleByHeight, 1); // Never scale above 1
       
-      // Set minimum scale for usability
-      const minScale = isMobile ? 0.4 : 0.5;
-      const finalScale = Math.max(optimalScale, minScale);
+      // Set minimum scale for usability - make mobile 10% smaller
+      const minScale = isMobile ? 0.36 : 0.5;
+      const mobileReduction = isMobile ? 0.9 : 1;
+      const finalScale = Math.max(optimalScale * mobileReduction, minScale);
       
       setTableScale(finalScale);
-      setTablePixelHeight(baseH * finalScale);
       setUiScale(Math.max(0.7, Math.min(1, finalScale))); // Keep controls readable
     };
 
@@ -128,13 +110,10 @@ export default function PlayPage() {
         await playerAction({ type: "fold" });
       } catch (error) {
         // Ignore fold errors - player might not be in turn
-        console.log("No fold needed or not player's turn");
       }
 
       // Leave the table
       await leaveSeat();
-
-      console.log("✅ Successfully left the table");
     } catch (error) {
       console.error("❌ Failed to leave table:", error);
       // Show error to user but don't prevent leaving
@@ -153,10 +132,8 @@ export default function PlayPage() {
     try {
       if (isSittingOut) {
         await sitIn();
-        console.log("✅ Returned to active play");
       } else {
         await sitOut();
-        console.log("✅ Sitting out");
       }
       // Don't manually toggle state - let the server response update it
     } catch (error) {
@@ -249,21 +226,23 @@ export default function PlayPage() {
             </div>
 
             <div className="control-chat">
-              <input
-                type="text"
-                placeholder="Send message"
-                className="chat-input"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    console.log("Chat message:", e.currentTarget.value);
-                    e.currentTarget.value = "";
-                  }
-                }}
-              />
-              <div className="chat-messages">
-                <div className="text-gray-400 italic">No messages yet...</div>
+              <div className="chat-card">
+                <input
+                  type="text"
+                  placeholder="Type message..."
+                  className="chat-input"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.currentTarget.value = "";
+                    }
+                  }}
+                />
+                <div className="chat-messages">
+                  <div className="text-gray-400 italic text-xs">No messages yet...</div>
+                </div>
               </div>
             </div>
+
           </div>
         </div>
       </div>
@@ -275,7 +254,7 @@ export default function PlayPage() {
           height: 100vh;
           overflow: hidden;
           display: grid;
-          grid-template-rows: auto 1fr auto;
+          grid-template-rows: auto minmax(0, 4fr) minmax(0, 1fr);
           grid-template-areas: 
             "header"
             "table"
@@ -292,8 +271,6 @@ export default function PlayPage() {
           align-items: center;
           padding: 12px 16px;
           height: 48px;
-          background: rgba(0, 0, 0, 0.3);
-          backdrop-filter: blur(10px);
           z-index: 20;
         }
 
@@ -303,14 +280,15 @@ export default function PlayPage() {
         }
 
         .action-btn {
-          padding: 6px 12px;
+          padding: 8px 16px;
           font-size: 12px;
-          border: 1px solid transparent;
-          border-radius: 4px;
-          background: transparent;
+          border: 2px solid;
+          border-radius: 50px;
+          background: rgba(0, 0, 0, 0.3);
           color: white;
           cursor: pointer;
           transition: all 0.2s ease;
+          font-weight: 500;
         }
 
         .action-btn.sit-in {
@@ -351,43 +329,60 @@ export default function PlayPage() {
           padding: ${isMobile ? '60px 16px 20px' : '80px 32px 20px'};
           overflow: visible;
           position: relative;
+          width: 100%;
+          max-width: 100vw;
         }
 
         .table-container {
           position: relative;
           transition: transform 0.3s ease;
+          width: 100%;
+          max-width: 100%;
+          display: flex;
+          justify-content: center;
         }
 
         /* Control Panel - Fixed at bottom */
         .control-panel {
           grid-area: controls;
-          background: rgba(0, 0, 0, 0.4);
-          backdrop-filter: blur(10px);
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 12px;
+          padding: ${isMobile ? '8px' : '12px'};
           z-index: 15;
           overflow: hidden;
+          display: flex;
+          justify-content: center;
+          align-items: stretch;
+          height: 100%;
+          width: 100%;
+          max-width: 100vw;
         }
 
         .control-panel-inner {
           max-width: 100%;
           margin: 0 auto;
           transition: transform 0.3s ease;
+          width: 100%;
+          height: 100%;
         }
 
         .control-sections {
           display: grid;
           gap: 12px;
-          align-items: center;
-          grid-template-columns: ${isMobile ? '1fr' : '1fr 2fr 1fr'};
+          align-items: stretch;
+          grid-template-columns: ${isMobile ? '1fr 1fr' : '1fr 2fr 1fr'};
           grid-template-areas: ${isMobile 
-            ? '"dealer" "actions" "chat"' 
+            ? '"actions actions" "dealer chat"' 
             : '"dealer actions chat"'};
+          height: 100%;
         }
 
         .control-dealer {
           grid-area: dealer;
-          min-height: ${isMobile ? '40px' : '60px'};
+          min-height: ${isMobile ? '50px' : '60px'};
+          padding: 5px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          height: ${isMobile ? 'auto' : '100%'};
         }
 
         .control-actions {
@@ -395,26 +390,35 @@ export default function PlayPage() {
           display: flex;
           justify-content: center;
           align-items: center;
-          min-height: ${isMobile ? '60px' : '80px'};
+          min-height: ${isMobile ? '120px' : '100px'};
+          padding: 5px;
+          height: ${isMobile ? 'auto' : '100%'};
         }
 
         .control-chat {
           grid-area: chat;
-          min-height: ${isMobile ? '40px' : '60px'};
+          min-height: ${isMobile ? '50px' : '60px'};
+          height: ${isMobile ? 'auto' : '100%'};
+        }
+
+        .chat-card {
+          padding: 5px;
+          height: 100%;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 8px;
         }
 
         .chat-input {
           width: 100%;
-          padding: 6px 8px;
+          padding: 8px 12px;
           font-size: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 4px;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
           background: rgba(0, 0, 0, 0.3);
           color: white;
           outline: none;
+          transition: border-color 0.2s ease;
         }
 
         .chat-input::placeholder {
@@ -422,7 +426,7 @@ export default function PlayPage() {
         }
 
         .chat-input:focus {
-          border-color: rgba(255, 255, 255, 0.6);
+          border-color: rgba(255, 255, 255, 0.4);
         }
 
         .chat-messages {
@@ -430,7 +434,9 @@ export default function PlayPage() {
           font-size: 11px;
           overflow-y: auto;
           overflow-x: hidden;
+          min-height: 40px;
         }
+
 
         /* Responsive breakpoints */
         @media (max-width: 768px) {
@@ -439,11 +445,78 @@ export default function PlayPage() {
           }
           
           .control-panel {
-            padding: 8px;
+            padding: 5px;
           }
           
           .control-sections {
             gap: 8px;
+          }
+          
+          .control-actions {
+            min-height: 140px;
+          }
+        }
+
+        /* Short screens - maintain 80/20 ratio but ensure minimum control panel */
+        @media (max-height: 600px) {
+          .play-page-container {
+            grid-template-rows: auto minmax(0, 3fr) minmax(120px, 1fr);
+          }
+          
+          .table-area {
+            padding: 40px 16px 16px;
+          }
+          
+          .control-panel {
+            padding: 8px;
+          }
+        }
+
+        /* Very short screens */
+        @media (max-height: 480px) {
+          .play-page-container {
+            grid-template-rows: auto minmax(0, 2fr) minmax(100px, 1fr);
+          }
+          
+          .table-area {
+            padding: 20px 8px 8px;
+          }
+          
+          .control-dealer {
+            height: 40px !important;
+          }
+          
+          .control-chat {
+            height: 40px !important;
+          }
+        }
+
+        /* Very narrow screens */
+        @media (max-width: 480px) {
+          .control-sections {
+            gap: 6px;
+          }
+          
+          .control-dealer, 
+          .control-actions, 
+          .control-chat {
+            padding: 5px;
+          }
+          
+          .control-actions {
+            min-height: 160px;
+          }
+          
+          .control-dealer {
+            min-height: 45px;
+          }
+          
+          .control-chat {
+            min-height: 45px;
+          }
+          
+          .chat-card {
+            padding: 5px;
           }
         }
 

@@ -14,10 +14,12 @@ export default function DealerWindow({ isMobile: propIsMobile }: Props = {}) {
 
   return (
     <div className="w-full h-full text-xs flex flex-col">
-      {/* Header */}
-      <div className="text-gray-300 font-bold mb-2 border-b border-gray-600/30 pb-1 flex-shrink-0">
-        DEALER
-      </div>
+      {/* Header - Hidden on mobile */}
+      {!isMobile && (
+        <div className="text-gray-300 font-bold mb-2 border-b border-gray-600/30 pb-1 flex-shrink-0">
+          DEALER
+        </div>
+      )}
       
       {/* Scrollable logs - Newest at top */}
       <div 
