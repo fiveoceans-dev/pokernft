@@ -1,8 +1,12 @@
+import { getRecentHighlights } from "../data/highlights";
+
 /**
  * StayTunedSection – social‑follow banner with neon glow + diagonal separator.
  * TailwindCSS utilities and react‑icons assumed.
  */
 export default function StayTunedSection() {
+  const recentHighlights = getRecentHighlights(9);
+
   return (
     <section
       id="community"
@@ -21,14 +25,24 @@ export default function StayTunedSection() {
 
         {/* 3x3 photo gallery */}
         <div className="mt-10 grid grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-          {Array.from({ length: 9 }).map((_, i) => (
-            <div key={i} className="w-full aspect-square overflow-hidden rounded-lg bg-black/30 border border-white/10">
+          {recentHighlights.map((highlight) => (
+            <div 
+              key={highlight.id} 
+              className="w-full aspect-square overflow-hidden rounded-lg bg-black/30 border border-white/10 group cursor-pointer hover:border-accent/50 transition-all duration-300 relative"
+              title={highlight.description}
+            >
               <img
-                src="/debug-image.png"
-                alt={`Community highlight ${i + 1}`}
-                className="w-full h-full object-cover"
+                src={highlight.image}
+                alt={highlight.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 loading="lazy"
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                <div className="text-left">
+                  <h3 className="text-sm font-semibold text-white mb-1">{highlight.title}</h3>
+                  <p className="text-xs text-gray-300 capitalize">{highlight.type}</p>
+                </div>
+              </div>
             </div>
           ))}
         </div>
