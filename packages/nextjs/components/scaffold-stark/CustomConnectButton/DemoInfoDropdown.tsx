@@ -26,12 +26,12 @@ export const DemoInfoDropdown = ({ address }: { address: string }) => {
 
   return (
     <details ref={dropdownRef} className="dropdown dropdown-end leading-3">
-      <summary className="btn bg-transparent btn-sm px-2 py-[0.35rem] gap-0 !h-auto border border-[#5c4fe5] dropdown-toggle">
-        <BlockieAvatar address={address} size={28} />
+      <summary className="btn bg-transparent btn-sm px-2 py-1 gap-0 !h-auto border border-[#5c4fe5] dropdown-toggle">
+        <BlockieAvatar address={address} size={12} />
         <span className="ml-2 mr-2 text-sm">
           {address.slice(0, 6)}...{address.slice(-4)}
         </span>
-        <ChevronDownIcon className="h-6 w-4 ml-2 sm:ml-0 sm:block hidden" />
+        <ChevronDownIcon className="h-4 w-4 ml-2 sm:ml-0 sm:block hidden" />
       </summary>
       <ul
         tabIndex={0}

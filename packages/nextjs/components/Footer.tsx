@@ -1,43 +1,26 @@
-import { Cog8ToothIcon, CurrencyDollarIcon } from "@heroicons/react/24/outline";
-import { useTargetNetwork } from "~~/hooks/scaffold-stark/useTargetNetwork";
-import { useGlobalState } from "~~/services/store/store";
-import { devnet, sepolia, mainnet } from "@starknet-react/chains";
-import { Faucet } from "~~/components/scaffold-stark/Faucet";
-import { FaucetSepolia } from "~~/components/scaffold-stark/FaucetSepolia";
-import { BlockExplorerSepolia } from "./scaffold-stark/BlockExplorerSepolia";
-import { BlockExplorer } from "./scaffold-stark/BlockExplorer";
-import Link from "next/link";
-
 /**
- * Site footer
+ * Minimal footer pinned at the bottom by layout flex.
+ * - Centered text, inherits body font and size
+ * - Subtle top border to keep the footer visually light
  */
+import Link from "next/link";
+import { FaTwitter, FaDiscord, FaInstagram } from "react-icons/fa";
+
 export const Footer = () => {
-  const nativeCurrencyPrice = useGlobalState(
-    (state) => state.nativeCurrencyPrice,
-  );
-  const { targetNetwork } = useTargetNetwork();
-
-  // NOTE: workaround - check by name also since in starknet react devnet and sepolia has the same chainId
-  const isLocalNetwork =
-    targetNetwork.id === devnet.id && targetNetwork.network === devnet.network;
-  const isSepoliaNetwork =
-    targetNetwork.id === sepolia.id &&
-    targetNetwork.network === sepolia.network;
-  const isMainnetNetwork =
-    targetNetwork.id === mainnet.id &&
-    targetNetwork.network === mainnet.network;
-
   return (
-    <div className="min-h-0 py-5 px-1 mb-11 lg:mb-0 bg-base-100">
-      <div className="w-full">
-        <ul className="menu menu-horizontal w-full">
-          <div className="flex justify-center items-center gap-2 text-sm w-full">
-            <div className="text-center">
-              <p>All rights reserved © 2025</p>
-            </div>
-          </div>
-        </ul>
+    <footer className="shrink-0 w-full border-t border-white/10 dark:border-white/10 py-1">
+      <div className="max-w-7xl mx-auto px-3 grid grid-cols-3 items-center text-current">
+        {/* left spacer to keep center text truly centered */}
+        <div />
+        {/* centered brand text inherits body font/size */}
+        <div className="text-center whitespace-nowrap">PokerNFTs © 2025</div>
+        {/* right-aligned links + socials (single line) */}
+        <div className="flex items-center justify-end gap-3 whitespace-nowrap text-sm">
+          <a href="https://twitter.com/pokernfts" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="hover:text-accent transition-colors"><FaTwitter size={16} /></a>
+          <a href="https://discord.gg/jW43eTwe6J" target="_blank" rel="noopener noreferrer" aria-label="Discord" className="hover:text-accent transition-colors"><FaDiscord size={16} /></a>
+          <a href="#" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="hover:text-accent transition-colors"><FaInstagram size={16} /></a>
+        </div>
       </div>
-    </div>
+    </footer>
   );
 };

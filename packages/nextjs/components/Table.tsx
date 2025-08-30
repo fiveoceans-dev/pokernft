@@ -272,7 +272,7 @@ export default function Table({ timer }: { timer?: number | null }) {
         style={{
           width: baseW,
           height: baseH,
-          transform: `scale(${tableScale})`,
+          transform: `scale(1)`,
           transformOrigin: "center",
         }}
       >

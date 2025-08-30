@@ -1,5 +1,3 @@
-import { FaTwitter, FaInstagram, FaDiscord } from "react-icons/fa";
-
 /**
  * StayTunedSection – social‑follow banner with neon glow + diagonal separator.
  * TailwindCSS utilities and react‑icons assumed.
@@ -21,50 +19,22 @@ export default function StayTunedSection() {
           action going.
         </p>
 
-        {/* social icons */}
-        <div className="mt-10 flex justify-center gap-8 text-4xl">
-          <SocialIcon
-            href="https://twitter.com/pokernfts"
-            label="Twitter"
-            className="hover:text-sky-400"
-          >
-            <FaTwitter />
-          </SocialIcon>
-          <SocialIcon
-            href="#"
-            label="Instagram"
-            className="hover:text-pink-400"
-          >
-            <FaInstagram />
-          </SocialIcon>
-          <SocialIcon
-            href="https://discord.gg/jW43eTwe6J"
-            label="Discord"
-            className="hover:text-indigo-400"
-          >
-            <FaDiscord />
-          </SocialIcon>
+        {/* 3x3 photo gallery */}
+        <div className="mt-10 grid grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={i} className="w-full aspect-square overflow-hidden rounded-lg bg-black/30 border border-white/10">
+              <img
+                src="/debug-image.png"
+                alt={`Community highlight ${i + 1}`}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-/* ------------------ helper ------------------ */
-interface IconProps {
-  href: string;
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}
-const SocialIcon = ({ href, label, children, className = "" }: IconProps) => (
-  <a
-    href={href}
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label={label}
-    className={`transition-colors duration-200 ${className}`}
-  >
-    {children}
-  </a>
-);
+/* No social links; gallery uses placeholder images */
