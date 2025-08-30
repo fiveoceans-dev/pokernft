@@ -82,7 +82,7 @@ export default function PlayerActionButtons({
         <div className="flex justify-center" style={{ minWidth: "70px" }}>
           {showActions ? (
             <button
-              onClick={() => handleAction("fold")}
+              onClick={() => handleAction("FOLD")}
               disabled={isActionPending}
               className={`min-w-[70px] px-3 py-1.5 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 ${
                 isActionPending
@@ -103,7 +103,7 @@ export default function PlayerActionButtons({
         <div className="flex justify-center" style={{ minWidth: "70px" }}>
           {showActions && canCheck ? (
             <button
-              onClick={() => handleAction("check")}
+              onClick={() => handleAction("CHECK")}
               disabled={isActionPending}
               className={`min-w-[70px] px-3 py-1.5 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 ${
                 isActionPending
@@ -124,7 +124,7 @@ export default function PlayerActionButtons({
         <div className="flex justify-center" style={{ minWidth: "70px" }}>
           {showActions && canCall ? (
             <button
-              onClick={() => handleAction("call")}
+              onClick={() => handleAction("CALL")}
               disabled={isActionPending}
               className={`min-w-[70px] px-3 py-1.5 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 ${
                 isActionPending
@@ -145,7 +145,7 @@ export default function PlayerActionButtons({
         <div className="flex justify-center" style={{ minWidth: "70px" }}>
           {showActions && canRaise && toCall === 0 ? (
             <button
-              onClick={() => handleAction("raise", raiseAmount)}
+              onClick={() => handleAction("BET", raiseAmount)}
               disabled={isActionPending}
               className={`min-w-[70px] px-3 py-1.5 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 ${
                 isActionPending
@@ -166,7 +166,7 @@ export default function PlayerActionButtons({
         <div className="flex justify-center" style={{ minWidth: "70px" }}>
           {showActions && canRaise && toCall > 0 ? (
             <button
-              onClick={() => handleAction("raise", raiseAmount)}
+              onClick={() => handleAction("RAISE", raiseAmount)}
               disabled={isActionPending}
               className={`min-w-[70px] px-3 py-1.5 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 ${
                 isActionPending
@@ -179,6 +179,27 @@ export default function PlayerActionButtons({
           ) : (
             <div className="min-w-[70px] px-3 py-1.5 opacity-0 pointer-events-none">
               Raise
+            </div>
+          )}
+        </div>
+
+        {/* All-in - Position 6 */}
+        <div className="flex justify-center" style={{ minWidth: "70px" }}>
+          {showActions && playerChips > 0 ? (
+            <button
+              onClick={() => handleAction("ALLIN")}
+              disabled={isActionPending}
+              className={`min-w-[70px] px-3 py-1.5 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 ${
+                isActionPending
+                  ? "bg-purple-600 hover:bg-purple-700 cursor-not-allowed"
+                  : "bg-purple-600 hover:bg-purple-700"
+              }`}
+            >
+              All-in
+            </button>
+          ) : (
+            <div className="min-w-[70px] px-3 py-1.5 opacity-0 pointer-events-none">
+              All-in
             </div>
           )}
         </div>
@@ -227,19 +248,11 @@ export default function PlayerActionButtons({
             >
               3BB
             </button>
-            <button
-              onClick={() => setRaiseAmount(maxRaise)}
-              className="min-w-[60px] h-8 px-2 rounded font-medium transition-all duration-200 text-white shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center"
-              disabled={maxRaise <= effectiveMinRaise}
-            >
-              All-in
-            </button>
           </div>
         ) : (
           <div className="opacity-0 pointer-events-none flex items-center gap-1">
             <div className="min-w-[50px] h-8 px-2 text-xs flex items-center justify-center">2BB</div>
             <div className="min-w-[50px] h-8 px-2 text-xs flex items-center justify-center">3BB</div>
-            <div className="min-w-[60px] h-8 px-2 text-xs flex items-center justify-center">All-in</div>
           </div>
         )}
       </div>

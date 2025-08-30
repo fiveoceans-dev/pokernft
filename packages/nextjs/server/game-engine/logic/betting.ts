@@ -76,18 +76,18 @@ export function applyAction(
 
   // Apply action to seat
   switch (action) {
-    case "fold":
+    case "FOLD":
       newSeats[seatId] = {
         ...seat,
         status: "folded" as SeatStatus,
       };
       break;
 
-    case "check":
+    case "CHECK":
       // No state changes needed for check
       break;
 
-    case "call": {
+    case "CALL": {
       const callAmount = finalAmount;
 
       newSeats[seatId] = {
@@ -100,8 +100,8 @@ export function applyAction(
       break;
     }
 
-    case "bet":
-    case "raise": {
+    case "BET":
+    case "RAISE": {
       const betAmount = Math.min(finalAmount, seat.chips);
       const newStreetCommitted = seat.streetCommitted + betAmount;
 
@@ -120,7 +120,7 @@ export function applyAction(
       break;
     }
 
-    case "allin": {
+    case "ALLIN": {
       const allInAmount = seat.chips;
       const newStreetCommitted = seat.streetCommitted + allInAmount;
 

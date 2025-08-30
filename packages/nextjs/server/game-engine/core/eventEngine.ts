@@ -19,6 +19,7 @@ import {
   StateTransition,
   SideEffect,
 } from "./types";
+import { getSitOutManager } from "../managers/sitOutManager";
 import { reduce } from "./reducer";
 import { validateAction, getAvailableActions } from "../logic/validation";
 import { getBettingRoundState } from "../utils/ringOrder";
@@ -670,18 +671,27 @@ export class EventEngine extends EventEmitter {
 
   /**
    * Check if game should start and initiate countdown
-   * Only counts active (non-waiting) players
+   * Only counts active (non-waiting, non-sitting-out) players
    */
   private async checkGameStart(): Promise<void> {
-    // Count only active players (not in waiting state)
-    const activeSeats = this.table.seats.filter(s => 
-      s.pid && !this.waitingPlayers.has(s.pid)
-    );
-    const activePlayerCount = activeSeats.length;
+    const sitOutManager = getSitOutManager(this.table.id);
+    
+    // Count only active players (not in waiting state and not sitting out)
+    const eligibleSeats = this.table.seats.filter(s => {
+      if (!s.pid) return false; // Empty seat
+      if (this.waitingPlayers.has(s.pid)) return false; // Waiting for next hand
+      if (sitOutManager.isPlayerSittingOut(s.pid)) return false; // Sitting out
+      return s.chips > 0; // Has chips to play
+    });
+    
+    const activePlayerCount = eligibleSeats.length;
     const totalPlayerCount = this.table.seats.filter(s => s.pid).length;
+    const sittingOutCount = this.table.seats.filter(s => 
+      s.pid && sitOutManager.isPlayerSittingOut(s.pid)
+    ).length;
 
     console.log(
-      `🎮 [EventEngine] Checking game start: ${activePlayerCount}/${MIN_PLAYERS_TO_START} active players (${totalPlayerCount} total)`,
+      `🎮 [EventEngine] Checking game start: ${activePlayerCount}/${MIN_PLAYERS_TO_START} active players (${totalPlayerCount} total, ${sittingOutCount} sitting out)`,
     );
 
     // Only start if we have enough active players and game is waiting
@@ -701,6 +711,7 @@ export class EventEngine extends EventEmitter {
         seconds: GAME_START_COUNTDOWN_MS / 1000,
         activePlayerCount,
         totalPlayerCount,
+        sittingOutCount,
       });
 
       // From now on, new players joining will be marked as waiting
@@ -723,11 +734,16 @@ export class EventEngine extends EventEmitter {
     
     this.gameStartTimer = setTimeout(async () => {
       try {
-        // Count active players at countdown end
-        const activeSeats = this.table.seats.filter(s => 
-          s.pid && !this.waitingPlayers.has(s.pid)
-        );
-        const activePlayerCount = activeSeats.length;
+        const sitOutManager = getSitOutManager(this.table.id);
+        
+        // Count eligible players at countdown end (not waiting and not sitting out)
+        const eligibleSeats = this.table.seats.filter(s => {
+          if (!s.pid) return false; // Empty seat
+          if (this.waitingPlayers.has(s.pid)) return false; // Waiting for next hand
+          if (sitOutManager.isPlayerSittingOut(s.pid)) return false; // Sitting out
+          return s.chips > 0; // Has chips to play
+        });
+        const activePlayerCount = eligibleSeats.length;
         
         if (activePlayerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
           console.log(
@@ -765,10 +781,18 @@ export class EventEngine extends EventEmitter {
       }
     }, GAME_START_COUNTDOWN_MS);
     
+    const sitOutManager = getSitOutManager(this.table.id);
+    const currentEligibleCount = this.table.seats.filter(s => 
+      s.pid && 
+      !this.waitingPlayers.has(s.pid) && 
+      !sitOutManager.isPlayerSittingOut(s.pid) &&
+      s.chips > 0
+    ).length;
+    
     // Emit countdown started event
     this.emit("countdownStarted", { 
       countdownMs: GAME_START_COUNTDOWN_MS,
-      activePlayerCount: this.table.seats.filter(s => s.pid && !this.waitingPlayers.has(s.pid)).length
+      activePlayerCount: currentEligibleCount
     });
   }
 

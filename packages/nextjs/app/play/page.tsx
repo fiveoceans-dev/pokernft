@@ -2,7 +2,7 @@
 
 // Play poker interface with wallet connect
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Table from "../../components/Table";
 import AnimatedTitle from "../../components/AnimatedTitle";
@@ -38,6 +38,7 @@ export default function PlayPage() {
   const { isConnected, address } = useWalletGameSync();
   const { walletSeatIdx, baseW, baseH } = useTableViewModel();
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isActionPending, setIsActionPending] = useState(false);
   const isMobile = useIsMobile();
   const [tableScale, setTableScale] = useState(1);
   const [uiScale, setUiScale] = useState(1);
@@ -100,46 +101,57 @@ export default function PlayPage() {
     return () => window.removeEventListener('resize', calculateLayout);
   }, [baseW, baseH, isMobile]);
 
-  const handleLeaveTable = async () => {
-    if (walletSeatIdx < 0) return;
-
+  const handleLeaveTable = useCallback(async () => {
+    if (walletSeatIdx < 0 || isLeaving) return;
+    
     setIsLeaving(true);
+    
     try {
-      // Auto-fold if it's the player's turn
-      try {
-        await playerAction({ type: "fold" });
-      } catch (error) {
-        // Ignore fold errors - player might not be in turn
+      // Auto-fold if in hand (following existing pattern)
+      if (isMyTurn) {
+        try {
+          await playerAction({ type: "FOLD" });
+          console.log("✅ Auto-folded before leaving");
+        } catch (error) {
+          console.log("ℹ️ Could not auto-fold (expected if not in turn):", error);
+        }
       }
-
-      // Leave the table
+      
       await leaveSeat();
+      console.log("✅ Successfully left table");
     } catch (error) {
       console.error("❌ Failed to leave table:", error);
-      // Show error to user but don't prevent leaving
+      // Show error to user but don't prevent leaving in future
     } finally {
       setIsLeaving(false);
     }
-  };
+  }, [walletSeatIdx, isLeaving, isMyTurn, playerAction, leaveSeat]);
 
   const handleLeaveClick = () => {
     handleLeaveTable();
   };
 
-  const handleSitOutToggle = async () => {
-    if (walletSeatIdx < 0) return;
-
+  const handleSitOutToggle = useCallback(async () => {
+    if (walletSeatIdx < 0 || isActionPending) return;
+    
+    setIsActionPending(true);
+    
     try {
       if (isSittingOut) {
         await sitIn();
+        console.log("✅ Successfully sat in");
       } else {
         await sitOut();
+        console.log("✅ Successfully sat out");
       }
       // Don't manually toggle state - let the server response update it
     } catch (error) {
       console.error("❌ Failed to toggle sit out:", error);
+      // Could add toast notification here in future
+    } finally {
+      setIsActionPending(false);
     }
-  };
+  }, [walletSeatIdx, isSittingOut, sitIn, sitOut, isActionPending]);
 
   return (
     <div
@@ -158,26 +170,31 @@ export default function PlayPage() {
           <div className="header-actions">
             <button
               onClick={handleSitOutToggle}
-              disabled={connectionState === "disconnected"}
+              disabled={connectionState === "disconnected" || isActionPending}
               className={`action-btn ${
-                connectionState === "disconnected"
+                connectionState === "disconnected" || isActionPending
                   ? "disabled"
                   : isSittingOut
                     ? "sit-in"
                     : "sit-out"
               }`}
+              title={isSittingOut ? "Return to active play" : "Sit out next hand"}
             >
-              {isSittingOut ? "Sit In" : "Sit Out"}
+              {isActionPending 
+                ? (isSittingOut ? "Sitting In..." : "Sitting Out...")
+                : (isSittingOut ? "🪑 Sit In" : "😴 Sit Out")
+              }
             </button>
 
             <button
               onClick={handleLeaveClick}
-              disabled={isLeaving || connectionState === "disconnected"}
+              disabled={isLeaving || connectionState === "disconnected" || isMyTurn}
               className={`action-btn leave ${
-                isLeaving || connectionState === "disconnected" ? "disabled" : ""
+                isLeaving || connectionState === "disconnected" || isMyTurn ? "disabled" : ""
               }`}
+              title={isMyTurn ? "Cannot leave during your turn" : "Leave this table"}
             >
-              {isLeaving ? "Leaving..." : "Leave Table"}
+              {isLeaving ? "🚶 Leaving..." : "🚪 Leave Table"}
             </button>
           </div>
         )}

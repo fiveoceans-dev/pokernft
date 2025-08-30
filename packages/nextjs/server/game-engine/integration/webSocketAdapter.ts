@@ -176,7 +176,7 @@ export class WebSocketAdapter extends EventEmitter {
     switch (status) {
       case "active": return "ACTIVE";
       case "folded": return "FOLDED";
-      case "allin": return "ALL_IN";
+      case "allin": return "ALLIN";
       case "empty": return "EMPTY";
       default: return "ACTIVE";
     }
@@ -192,6 +192,13 @@ export class WebSocketAdapter extends EventEmitter {
   getState(): GameRoom {
     const table = this.eventEngine.getState();
     return this.toWebSocketFormat(table);
+  }
+
+  /**
+   * Get internal table state (for internal operations like SitOutManager)
+   */
+  getTableState(): Table {
+    return this.eventEngine.getState();
   }
 
   /**
@@ -285,7 +292,7 @@ export class WebSocketAdapter extends EventEmitter {
     await this.eventEngine.processCommand({
       type: "action",
       seatId: seat.id,
-      action: action.type.toLowerCase() as any,
+      action: action.type as any,
       amount: action.amount
     });
 

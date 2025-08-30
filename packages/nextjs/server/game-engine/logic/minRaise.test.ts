@@ -46,14 +46,14 @@ describe.each([10, 50])("minimum raise calculation with big blind %d", (bb) => {
 
   it("rejects raises below last raise size", () => {
     const table = createTable();
-    const result = validateAction(table, 1, "raise", lastRaise - sb);
+    const result = validateAction(table, 1, "RAISE", lastRaise - sb);
     expect(result.valid).toBe(false);
     expect(result.error).toContain(`Minimum raise is $${lastRaise}`);
   });
 
   it("accepts raises meeting last raise size", () => {
     const table = createTable();
-    const result = validateAction(table, 1, "raise", lastRaise);
+    const result = validateAction(table, 1, "RAISE", lastRaise);
     expect(result.valid).toBe(true);
   });
 });

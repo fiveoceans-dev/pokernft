@@ -83,7 +83,7 @@ interface GameStoreState {
   sitOut: (tableId?: string) => Promise<void>;
   sitIn: (tableId?: string) => Promise<void>;
   playerAction: (action: {
-    type: "fold" | "call" | "raise" | "check";
+    type: "FOLD" | "CALL" | "RAISE" | "CHECK" | "BET" | "ALLIN";
     amount?: number;
   }) => Promise<void>;
   startHand: () => Promise<void>;
@@ -394,7 +394,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   break;
                 case "BET":
                 case "RAISE":
-                case "ALL_IN":
+                case "ALLIN":
                   text = `${name} ${msg.action.toLowerCase()} ${
                     msg.amount ?? ""
                   }`.trim();
@@ -811,7 +811,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           (async () => {
             try {
               // Try to fold first if it's this player's turn
-              await get().playerAction({ type: "fold" });
+              await get().playerAction({ type: "FOLD" });
             } catch (error) {
               // Ignore fold errors - player might not be on turn
               console.log("Failed to auto-fold (expected if not on turn):", error);
@@ -1022,17 +1022,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
 
       try {
-        const map: Record<string, string> = {
-          fold: "FOLD",
-          call: "CALL",
-          raise: "RAISE",
-          check: "CHECK",
-        };
-        
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
           type: "ACTION",
-          action: map[action.type] as any,
+          action: action.type,
           amount: action.amount,
         };
         

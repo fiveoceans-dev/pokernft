@@ -5,16 +5,16 @@ import type { Table } from '../../core/types';
 function makeTable(): Table {
   const seats = Array.from({ length: 9 }, (_, i) => ({
     id: i,
-    chips: 1000,
+    chips: i >= 1 && i <= 3 ? 1000 : 0, // Only seats 1,2,3 have chips
     committed: 0,
     streetCommitted: 0,
     status: 'empty' as const,
   }));
 
   // Button at 0, SB at 1, BB at 2, UTG at 3
-  seats[1] = { ...seats[1], pid: 'SB', status: 'active', streetCommitted: 5, committed: 5 };
-  seats[2] = { ...seats[2], pid: 'BB', status: 'active', streetCommitted: 10, committed: 10 };
-  seats[3] = { ...seats[3], pid: 'UTG', status: 'active', streetCommitted: 10, committed: 10 };
+  seats[1] = { ...seats[1], pid: 'SB', status: 'active' as const, streetCommitted: 5, committed: 5 };
+  seats[2] = { ...seats[2], pid: 'BB', status: 'active' as const, streetCommitted: 10, committed: 10 };
+  seats[3] = { ...seats[3], pid: 'UTG', status: 'active' as const, streetCommitted: 10, committed: 10 };
 
   return {
     id: 't1',

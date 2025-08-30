@@ -20,6 +20,7 @@ import {
 import { randomUUID } from "crypto";
 import { SessionManager, Session } from "./sessionManager";
 import { shortAddress } from "./utils";
+import { getSitOutManager, removeSitOutManager } from "../game-engine/managers/sitOutManager";
 
 /**
  * Normalize player ID to lowercase for consistent comparison
@@ -355,9 +356,8 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
         });
       }
       
-      // Start countdown for next hand when 2+ players remain with chips
-      console.log(`🔄 Hand ended, starting new game countdown for room ${id}`);
-      startGameCountdown(id);
+      // EventEngine automatically handles new game countdown through checkGameStart() 
+      console.log(`🔄 Hand ended - EventEngine will manage game countdown based on active players`);
     });
 
     engine!.on("turnChanged", (turnInfo: any) => {
@@ -391,6 +391,54 @@ function getEngine(id: string, snapshot?: GameRoom): GameEngine {
       console.log(`⚠️ [WebSocket] Timer warning for ${data.playerId}: ${countdown}s remaining`);
       broadcast(id, { type: "TIMER", countdown });
       console.log(`📡 [WebSocket] Timer warning broadcasted to clients for room ${id}`);
+    });
+
+    // Game countdown event listeners - forward EventEngine countdown events to clients
+    engine!.on("gameStartCountdown", (data: { seconds: number, activePlayerCount: number, totalPlayerCount?: number, sittingOutCount?: number }) => {
+      console.log(`🎮 [WebSocket] Game start countdown initiated: ${data.seconds}s with ${data.activePlayerCount} active players`);
+      
+      // Clear any existing WebSocket-managed timer since EventEngine is now controlling countdown
+      const existingTimer = gameStartTimers.get(id);
+      if (existingTimer) {
+        clearInterval(existingTimer);
+        gameStartTimers.delete(id);
+        console.log(`🧹 [WebSocket] Cleared WebSocket countdown timer - EventEngine taking control`);
+      }
+      
+      // Start broadcasting countdown from EventEngine-controlled value
+      let countdown = Math.ceil(data.seconds);
+      broadcast(id, { type: "TIMER", countdown });
+      
+      // Set up interval to broadcast countdown updates
+      const timer = setInterval(() => {
+        countdown--;
+        broadcast(id, { type: "TIMER", countdown });
+        
+        if (countdown <= 0) {
+          clearInterval(timer);
+          gameStartTimers.delete(id);
+          console.log(`⏰ [WebSocket] EventEngine countdown completed for ${id}`);
+        }
+      }, 1000);
+      
+      gameStartTimers.set(id, timer);
+    });
+
+    engine!.on("countdownStarted", (data: { countdownMs: number, activePlayerCount: number }) => {
+      console.log(`⏰ [WebSocket] EventEngine countdown started: ${data.countdownMs}ms with ${data.activePlayerCount} active players`);
+      // Initial countdown broadcast is handled by gameStartCountdown event
+    });
+
+    engine!.on("gameStarted", (data: { activePlayerCount: number }) => {
+      console.log(`🎯 [WebSocket] EventEngine started game with ${data.activePlayerCount} active players`);
+      broadcast(id, { type: "HAND_START" });
+      
+      // Clear any remaining countdown timer
+      const existingTimer = gameStartTimers.get(id);
+      if (existingTimer) {
+        clearInterval(existingTimer);
+        gameStartTimers.delete(id);
+      }
     });
   }
   return engine;
@@ -438,39 +486,68 @@ function broadcast(roomId: string, event: any) {
   }
 }
 
-function startGameCountdown(roomId: string) {
-  // Clear existing timer
+/**
+ * Enhanced game countdown with sit-out awareness
+ * Follows existing countdown pattern with proper state checks
+ */
+function startGameCountdown(roomId: string): void {
+  // Clear any existing timer using existing pattern
   const existingTimer = gameStartTimers.get(roomId);
   if (existingTimer) {
     clearInterval(existingTimer);
+    gameStartTimers.delete(roomId);
   }
-
+  
+  const engine = getEngine(roomId);
+  const tableState = engine.getTableState(); // New: get Table format for internal operations
+  const room = engine.getState(); // Keep for legacy broadcast compatibility
+  
+  // Use SitOutManager for active player check
+  const sitOutManager = getSitOutManager(roomId);
+  if (!sitOutManager.canStartGame(tableState)) {
+    const activeCount = sitOutManager.getActivePlayerCount(tableState);
+    console.log(`⏸️ [GameCountdown] Not enough active players for ${roomId} (${activeCount}/2 needed)`);
+    broadcast(roomId, { 
+      type: "TIMER", 
+      countdown: -1  // Signal no countdown
+    });
+    return;
+  }
+  
+  const activePlayerCount = sitOutManager.getActivePlayerCount(tableState);
+  console.log(`⏱️ [GameCountdown] Starting 10s countdown for ${roomId} (${activePlayerCount} active players)`);
+  
   let countdown = 10;
   broadcast(roomId, { type: "TIMER", countdown });
-
+  
   const timer = setInterval(async () => {
     countdown--;
     broadcast(roomId, { type: "TIMER", countdown });
-
+    
     if (countdown <= 0) {
       clearInterval(timer);
       gameStartTimers.delete(roomId);
       
-      // Start the hand
-      const engine = getEngine(roomId);
-      const room = engine.getState();
-      if (room.players.length >= 2 && room.stage === "waiting") {
+      // Final check before starting
+      const currentTableState = engine.getTableState();
+      if (sitOutManager.canStartGame(currentTableState)) {
         try {
           await engine.startHand();
           broadcast(roomId, { type: "HAND_START" });
-          console.log(`🎯 [GameCountdown] Hand started successfully for ${roomId}`);
+          console.log(`🎯 [GameCountdown] Hand started for ${roomId} with ${sitOutManager.getActivePlayerCount(currentTableState)} active players`);
         } catch (error) {
           console.error(`❌ [GameCountdown] Failed to start hand for ${roomId}:`, error);
         }
+      } else {
+        console.log(`⚠️ [GameCountdown] Aborted for ${roomId} - not enough active players`);
+        broadcast(roomId, { 
+          type: "TIMER", 
+          countdown: -1  // Signal countdown stopped
+        });
       }
     }
   }, 1000);
-
+  
   gameStartTimers.set(roomId, timer);
 }
 
@@ -827,12 +904,7 @@ wss.on("connection", (ws) => {
           console.log(`📊 [${clientId}] Table now has ${updatedRoom.players.length} players, stage: ${updatedRoom.stage}`);
           
           // GameEngine automatically broadcasts TABLE_SNAPSHOT via stateChanged event - no manual broadcast needed
-          
-          // Start countdown when we have 2+ players
-          if (updatedRoom.players.length >= 2 && updatedRoom.stage === "waiting") {
-            console.log(`🎮 [${clientId}] Starting game countdown - ${updatedRoom.players.length} players ready`);
-            startGameCountdown(room.id);
-          }
+          // EventEngine automatically handles game countdown through checkGameStart() when players join
           
           void saveRoom(updatedRoom);
           break;
@@ -849,6 +921,10 @@ wss.on("connection", (ws) => {
           const seatIndex = seatMaps.get(room.id)?.get(playerId);
           
           console.log(`🚪 [${session.sessionId}] Player ${playerId} leaving table ${room.id} from seat ${seatIndex}`);
+          
+          // Clean up sit out tracking
+          const sitOutManager = getSitOutManager(room.id);
+          sitOutManager.clearPlayer(playerId);
           
           // Remove from GameEngine (single source of truth)
           if (engine.removePlayer(playerId)) {
@@ -891,7 +967,7 @@ wss.on("connection", (ws) => {
           const room = engine.getState();
           const rawPlayerId = session.userId ?? session.sessionId;
           const playerId = normalizePlayerId(rawPlayerId);
-          const action: PlayerAction = msg.action.toUpperCase() as PlayerAction;
+          const action: PlayerAction = msg.action as PlayerAction;
           // currentTurnIndex is a seat index; players[] is filtered and not indexed by seat
           const currentPlayer = room.players.find(p => p.seat === room.currentTurnIndex);
           if (!currentPlayer || currentPlayer.id !== playerId) {
@@ -911,7 +987,7 @@ wss.on("connection", (ws) => {
             
             // Action timer is now managed by GameController/TimerManager
             const actionResult = await engine.handleAction(playerId, {
-              type: action.toLowerCase() as any,
+              type: action as any,
               amount: msg.amount,
             });
             
@@ -1004,51 +1080,88 @@ wss.on("connection", (ws) => {
         }
         case "SIT_OUT": {
           if (!session.roomId) break;
+          
           const engine = getEngine(session.roomId);
-          const room = engine.getState();
-          const playerId = session.userId ?? session.sessionId;
+          const tableState = engine.getTableState(); // New: get Table format for internal operations
+          const room = engine.getState(); // Keep for legacy broadcast compatibility
+          const rawPlayerId = session.userId ?? session.sessionId;
+          const playerId = normalizePlayerId(rawPlayerId);
           const seatIndex = seatMaps.get(room.id)?.get(playerId);
           
-          if (seatIndex !== undefined) {
-            console.log(`😴 [${session.sessionId}] Player ${playerId} voluntarily sitting out from seat ${seatIndex}`);
-            
-            // Mark player as sitting out voluntarily
-            sitOutPlayers.set(playerId, Date.now());
-            
-            // Reset timeout count since they voluntarily sat out
-            timeoutCounts.delete(playerId);
-            
-            broadcast(session.roomId, {
-              type: "PLAYER_SAT_OUT",
-              seat: seatIndex,
-              playerId,
-              reason: "voluntary"
-            });
+          if (seatIndex === undefined) {
+            console.warn(`⚠️ [SIT_OUT] Player ${playerId} not found at table ${room.id}`);
+            break;
           }
+          
+          const sitOutManager = getSitOutManager(room.id);
+          
+          console.log(`😴 [${session.sessionId}] Player ${playerId} sitting out from seat ${seatIndex}`);
+          
+          // Execute sit out with proper state management
+          const sideEffects = sitOutManager.markSitOut(playerId, "voluntary");
+          
+          // Auto-fold if it's player's turn (following existing pattern)
+          const currentPlayer = room.players.find(p => p.seat === room.currentTurnIndex);
+          if (currentPlayer?.id === playerId && room.stage !== "waiting") {
+            try {
+              await engine.handleAction(playerId, { type: "FOLD" });
+              console.log(`🃏 [SIT_OUT] Auto-folded player ${playerId}`);
+            } catch (error) {
+              console.error(`❌ [SIT_OUT] Failed to auto-fold player ${playerId}:`, error);
+            }
+          }
+          
+          // Check game continuation using Table format
+          if (!sitOutManager.canStartGame(tableState) && tableState.phase !== "waiting") {
+            console.log(`⚠️ [SIT_OUT] Not enough active players (${sitOutManager.getActivePlayerCount(tableState)}), game will end after hand`);
+          }
+          
+          // Broadcast following existing event pattern
+          broadcast(session.roomId, {
+            type: "PLAYER_SAT_OUT",
+            seat: seatIndex,
+            playerId,
+            reason: "voluntary"
+          });
+          
           break;
         }
         case "SIT_IN": {
           if (!session.roomId) break;
+          
           const engine = getEngine(session.roomId);
-          const room = engine.getState();
-          const playerId = session.userId ?? session.sessionId;
+          const tableState = engine.getTableState(); // New: get Table format for internal operations
+          const room = engine.getState(); // Keep for legacy broadcast compatibility
+          const rawPlayerId = session.userId ?? session.sessionId;
+          const playerId = normalizePlayerId(rawPlayerId);
           const seatIndex = seatMaps.get(room.id)?.get(playerId);
           
-          if (seatIndex !== undefined && sitOutPlayers.has(playerId)) {
-            console.log(`🪑 [${session.sessionId}] Player ${playerId} returning to active play at seat ${seatIndex}`);
-            
-            // Remove from sit-out tracking
-            sitOutPlayers.delete(playerId);
-            
-            // Reset timeout count
-            timeoutCounts.delete(playerId);
-            
-            broadcast(session.roomId, {
-              type: "PLAYER_SAT_IN",
-              seat: seatIndex,
-              playerId
-            });
+          if (seatIndex === undefined) {
+            console.warn(`⚠️ [SIT_IN] Player ${playerId} not found at table ${room.id}`);
+            break;
           }
+          
+          const sitOutManager = getSitOutManager(room.id);
+          
+          if (!sitOutManager.isPlayerSittingOut(playerId)) {
+            console.log(`ℹ️ [SIT_IN] Player ${playerId} already active`);
+            break;
+          }
+          
+          console.log(`🪑 [${session.sessionId}] Player ${playerId} sitting in at seat ${seatIndex}`);
+          
+          // Execute sit in with proper state management
+          const sideEffects = sitOutManager.markSitIn(playerId);
+          
+          // Broadcast state change
+          broadcast(session.roomId, {
+            type: "PLAYER_SAT_IN",
+            seat: seatIndex,
+            playerId
+          });
+          
+          // EventEngine automatically handles game countdown when players sit in through checkGameStart()
+          
           break;
         }
         case "POST_BLIND": {

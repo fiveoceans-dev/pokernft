@@ -128,17 +128,17 @@ export function useTableViewModel(_timer?: number | null) {
   const handleActionClick = (action: string) => {
     switch (action) {
       case "Fold":
-        playerAction({ type: "fold" });
+        playerAction({ type: "FOLD" });
         break;
       case "Check":
-        playerAction({ type: "check" });
+        playerAction({ type: "CHECK" });
         break;
       case "Call":
-        playerAction({ type: "call" });
+        playerAction({ type: "CALL" });
         break;
       case "Bet":
       case "Raise":
-        playerAction({ type: "raise", amount: bet });
+        playerAction({ type: "RAISE", amount: bet });
         break;
     }
   };

@@ -38,22 +38,22 @@ export function validateAction(
 
   // Action-specific validation
   switch (action) {
-    case "fold":
+    case "FOLD":
       return validateFold(table, seat);
 
-    case "check":
+    case "CHECK":
       return validateCheck(table, seat, seatId);
 
-    case "call":
+    case "CALL":
       return validateCall(table, seat);
 
-    case "bet":
+    case "BET":
       return validateBet(table, seat, amount);
 
-    case "raise":
+    case "RAISE":
       return validateRaise(table, seat, amount);
 
-    case "allin":
+    case "ALLIN":
       return validateAllIn(table, seat);
 
     default:
@@ -196,7 +196,7 @@ function validateRaise(
 }
 
 /**
- * Validate all-in action
+ * Validate all-in action with proper short all-in handling
  */
 function validateAllIn(table: Table, seat: Seat): ActionValidation {
   if (seat.chips === 0) {
@@ -206,7 +206,24 @@ function validateAllIn(table: Table, seat: Seat): ActionValidation {
     };
   }
 
-  return { valid: true };
+  // All-in is always allowed - player commits all chips
+  const allInAmount = seat.chips;
+  const toCall = getToCallAmount(seat, table.currentBet);
+  
+  // Determine if this all-in qualifies as a full raise
+  const raiseIncrement = Math.max(0, allInAmount - toCall);
+  const minRaise = calculateMinimumRaise(table);
+  const isFullRaise = raiseIncrement >= minRaise;
+  
+  if (!isFullRaise && raiseIncrement > 0) {
+    console.log(`🎯 [Validation] Short all-in: $${raiseIncrement} raise (min: $${minRaise}) - does not reopen betting`);
+  }
+
+  return { 
+    valid: true, 
+    normalizedAmount: allInAmount,
+    isAllIn: true 
+  };
 }
 
 /**
@@ -350,9 +367,9 @@ export function validateActionFromString(
   amountStr: string = "0",
 ): ActionValidation {
   // Normalize action string
-  const action = actionStr.toLowerCase().trim() as ActionType;
+  const action = actionStr.toUpperCase().trim() as ActionType;
 
-  if (!["fold", "check", "call", "bet", "raise", "allin"].includes(action)) {
+  if (!["FOLD", "CHECK", "CALL", "BET", "RAISE", "ALLIN"].includes(action)) {
     return { valid: false, error: `Invalid action: ${actionStr}` };
   }
 
@@ -379,34 +396,34 @@ export function getAvailableActions(
 
   const seat = table.seats[seatId];
   const toCall = getToCallAmount(seat, table.currentBet);
-  const actions: ActionType[] = ["fold"];
+  const actions: ActionType[] = ["FOLD"];
 
   // Check (including BB option)
   if (canCheck(seat, table.currentBet, table)) {
-    actions.push("check");
+    actions.push("CHECK");
   }
 
   // Call
   if (toCall > 0 && seat.chips > 0) {
-    actions.push("call");
+    actions.push("CALL");
   }
 
   // Bet
   if (table.currentBet === 0 && seat.chips >= getMinimumBet(table)) {
-    actions.push("bet");
+    actions.push("BET");
   }
 
   // Raise
   if (table.currentBet > 0 && seat.chips > toCall) {
     const minRaise = calculateMinimumRaise(table);
     if (seat.chips >= toCall + minRaise) {
-      actions.push("raise");
+      actions.push("RAISE");
     }
   }
 
   // All-in (always available if player has chips)
   if (seat.chips > 0) {
-    actions.push("allin");
+    actions.push("ALLIN");
   }
 
   return actions;

@@ -21,7 +21,7 @@ export type Phase =
 
 export type Street = "preflop" | "flop" | "turn" | "river";
 
-export type ActionType = "fold" | "check" | "call" | "bet" | "raise" | "allin";
+export type ActionType = "FOLD" | "CHECK" | "CALL" | "BET" | "RAISE" | "ALLIN";
 
 export type SeatStatus = "active" | "folded" | "allin" | "empty";
 
@@ -38,6 +38,7 @@ export interface Seat {
   status: SeatStatus; // current seat state
   holeCards?: [number, number]; // card indices if dealt
   nickname?: string; // display name
+  sittingOut?: boolean; // player is sitting out (optional for backwards compatibility)
 }
 
 /**
@@ -96,6 +97,10 @@ export interface Table {
   // Big blind option tracking
   bbSeat?: number; // big blind position
   bbHasActed?: boolean; // track if BB has used option
+
+  // Action sequence tracking for proper round completion
+  playersActedThisRound?: Set<number>; // seat IDs that have acted in current round
+  roundStartActor?: number; // first actor of the current round
 }
 
 /**
@@ -125,7 +130,11 @@ export type PokerEvent =
       chips: number;
       nickname?: string;
     }
-  | { t: "PlayerLeave"; seat: number; pid: string };
+  | { t: "PlayerLeave"; seat: number; pid: string }
+  | { t: "PlayerSitOut"; seat: number; pid: string; reason: "voluntary" | "timeout" | "busted" }
+  | { t: "PlayerSitIn"; seat: number; pid: string }
+  | { t: "GameCountdownStart"; countdown: number }
+  | { t: "GameCountdownStop"; reason: string };
 
 /**
  * Supporting types for complex events
@@ -320,7 +329,7 @@ export enum PlayerAction {
   CALL = "CALL",
   BET = "BET",
   RAISE = "RAISE",
-  ALL_IN = "ALL_IN",
+  ALLIN = "ALLIN",
 }
 
 export enum TableState {

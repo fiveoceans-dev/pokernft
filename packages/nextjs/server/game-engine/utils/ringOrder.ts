@@ -121,10 +121,11 @@ export function getNextActor(table: Table): NextActorResult {
 }
 
 /**
- * Check if betting round is complete based on next actor position
+ * Check if betting round is complete based on action sequence tracking
+ * This is the improved version that tracks who has acted vs amount-based logic
  */
 function isBettingRoundComplete(table: Table, nextActorIndex: number): boolean {
-  const { seats, lastAggressor, currentBet } = table;
+  const { seats, lastAggressor, currentBet, playersActedThisRound, roundStartActor } = table;
   
   // BB OPTION: Special preflop logic via canonical rules
   if (shouldGiveBBOption(table, nextActorIndex)) {
@@ -132,11 +133,51 @@ function isBettingRoundComplete(table: Table, nextActorIndex: number): boolean {
     return false; // Round not complete - BB can act
   }
   
+  // Get all players who can act (active or all-in but still in hand)
+  const playersInHand = seats.filter(seat => 
+    seat.status === "active" || seat.status === "allin"
+  ).map(seat => seat.id);
+  
+  const activePlayers = seats.filter(isActionable).map(seat => seat.id);
+  
+  // If using new action tracking system
+  if (playersActedThisRound && roundStartActor !== undefined) {
+    // All active players must have acted at least once
+    const allActiveHaveActed = activePlayers.every(seatId => 
+      playersActedThisRound.has(seatId)
+    );
+    
+    if (!allActiveHaveActed) {
+      return false;
+    }
+    
+    // If there's been betting, action must return to the last aggressor
+    if (lastAggressor !== undefined) {
+      // If next actor would be the last aggressor and others have matched, we're done
+      if (nextActorIndex === lastAggressor) {
+        const othersMatched = activePlayers
+          .filter(seatId => seatId !== lastAggressor)
+          .every(seatId => {
+            const seat = seats[seatId];
+            return seat.streetCommitted === currentBet || seat.status === "allin";
+          });
+        return othersMatched;
+      }
+      return false; // Not back to aggressor yet
+    }
+    
+    // No aggressor means no betting - just check if everyone has acted
+    return allActiveHaveActed;
+  }
+  
+  // FALLBACK: Old amount-based logic for backward compatibility
+  console.warn("⚠️  [RingOrder] Using fallback amount-based completion logic");
+  
   // If everyone has matching streetCommitted amounts or is all-in/folded
-  const activePlayers = seats.filter(isActionable);
-  const allMatched = activePlayers.every(seat => 
-    seat.streetCommitted === currentBet || seat.status === "allin"
-  );
+  const allMatched = activePlayers.every(seatId => {
+    const seat = seats[seatId];
+    return seat.streetCommitted === currentBet || seat.status === "allin";
+  });
   
   if (allMatched) {
     return true;
@@ -144,10 +185,12 @@ function isBettingRoundComplete(table: Table, nextActorIndex: number): boolean {
   
   // If action would return to the last aggressor and others have called
   if (lastAggressor !== undefined && nextActorIndex === lastAggressor) {
-    const otherPlayers = activePlayers.filter(seat => seat.id !== lastAggressor);
-    const othersMatched = otherPlayers.every(seat => 
-      seat.streetCommitted === currentBet || seat.status === "allin"
-    );
+    const othersMatched = activePlayers
+      .filter(seatId => seatId !== lastAggressor)
+      .every(seatId => {
+        const seat = seats[seatId];
+        return seat.streetCommitted === currentBet || seat.status === "allin";
+      });
     return othersMatched;
   }
   

@@ -14,6 +14,7 @@ import {
   StateTransition,
   SideEffect,
 } from "../types";
+import { getSitOutManager } from "../../managers/sitOutManager";
 import { countActivePlayers } from "../../utils/ringOrder";
 import {
   getBlindPositions,
@@ -31,11 +32,14 @@ export function startHand(
   handNumber: number,
   timestamp: number,
 ): StateTransition {
+  const sitOutManager = getSitOutManager(table.id);
+  
   // Randomize first dealer (button) deterministically on first hand using timestamp
   let button = table.button;
   if (table.handNumber === 0) {
+    // Only consider players who are not sitting out for initial button
     const eligible = table.seats
-      .filter((s) => s.pid && s.chips > 0)
+      .filter((s) => s.pid && s.chips > 0 && !sitOutManager.isPlayerSittingOut(s.pid))
       .map((s) => s.id);
     if (eligible.length > 1) {
       const idx = timestamp % eligible.length;
@@ -66,15 +70,36 @@ export function startHand(
     deck,
     deckIndex: 0,
     deckSeed,
-    // Reset all seats for new hand
-    seats: table.seats.map((seat) => ({
-      ...seat,
-      committed: 0,
-      streetCommitted: 0,
-      status: (seat.pid ? "active" : "empty") as SeatStatus,
-      holeCards: undefined,
-    })),
+    // Reset all seats for new hand - only active players participate
+    seats: table.seats.map((seat) => {
+      if (!seat.pid) {
+        return {
+          ...seat,
+          committed: 0,
+          streetCommitted: 0,
+          status: "empty" as SeatStatus,
+          holeCards: undefined,
+        };
+      }
+      
+      // Check if player is sitting out
+      const isPlayerSittingOut = sitOutManager.isPlayerSittingOut(seat.pid);
+      
+      return {
+        ...seat,
+        committed: 0,
+        streetCommitted: 0,
+        // Players sitting out stay in their seats but don't participate
+        status: (isPlayerSittingOut ? "empty" : "active") as SeatStatus,
+        holeCards: undefined,
+        sittingOut: isPlayerSittingOut, // Update seat state for UI
+      };
+    }),
   };
+  
+  // Count eligible players for logging
+  const eligiblePlayers = nextState.seats.filter(s => s.status === "active").length;
+  console.log(`🏁 [Reducer] Starting hand ${handNumber} with ${eligiblePlayers} eligible players`);
 
   // Side effects: automatically post blinds and deal hole cards
   const sideEffects: SideEffect[] = [
@@ -100,10 +125,20 @@ export function postBlinds(
   bb: number,
   ante?: number,
 ): StateTransition {
+  const sitOutManager = getSitOutManager(table.id);
   const newSeats = [...table.seats];
-  const activePlayers = newSeats.filter((seat) => seat.status === "active");
+  
+  // Only count players who are not sitting out as active
+  const activePlayers = newSeats.filter((seat) => 
+    seat.status === "active" && 
+    seat.pid &&
+    !sitOutManager.isPlayerSittingOut(seat.pid)
+  );
+
+  console.log(`🎲 [Reducer] PostBlinds: ${activePlayers.length} active players (excluding sitting out)`);
 
   if (activePlayers.length < 2) {
+    console.log(`⚠️ [Reducer] Insufficient active players for hand: ${activePlayers.length}`);
     return { nextState: table, sideEffects: [] }; // Need at least 2 players
   }
 

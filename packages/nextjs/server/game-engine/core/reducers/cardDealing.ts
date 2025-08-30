@@ -127,6 +127,9 @@ export function enterStreet(
     actor, // Will be undefined for all-in scenarios
     communityCards,
     deckIndex: nextDeckIndex, // Update deck position after dealing cards
+    // Reset action tracking for new street
+    playersActedThisRound: new Set<number>(),
+    roundStartActor: actor, // First actor of this new street
     // Preserve BB option state for preflop
     ...(street === "preflop" && {
       bbSeat: table.bbSeat,

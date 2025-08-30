@@ -93,7 +93,7 @@ export type ClientCommand =
   | {
       cmdId: string;
       type: "ACTION";
-      action: "Fold" | "Check" | "Call" | "Bet" | "Raise" | "AllIn";
+      action: "FOLD" | "CHECK" | "CALL" | "BET" | "RAISE" | "ALLIN";
       amount?: number;
     }
   | { cmdId: string; type: "REBUY"; amount: number };

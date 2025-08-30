@@ -65,18 +65,18 @@ export function applyAction(
   const finalAmount = validation.normalizedAmount ?? amount;
 
   switch (action) {
-    case "fold":
+    case "FOLD":
       newSeats[seatId] = { ...seat, status: "folded" };
       break;
 
-    case "check":
+    case "CHECK":
       // Check only valid if no bet to call
       if (table.currentBet > seat.streetCommitted) {
         return { nextState: table, sideEffects: [] }; // Invalid check
       }
       break;
 
-    case "call":
+    case "CALL":
       const toCall = table.currentBet - seat.streetCommitted;
       const callAmount = Math.min(toCall, seat.chips);
       newSeats[seatId] = {
@@ -88,7 +88,7 @@ export function applyAction(
       };
       break;
 
-    case "bet": {
+    case "BET": {
       // No existing bet: commit the bet amount
       const betAmount = Math.min(finalAmount, seat.chips);
       const newStreetCommitted = seat.streetCommitted + betAmount;
@@ -104,7 +104,7 @@ export function applyAction(
       newLastRaiseSize = betAmount;
       break;
     }
-    case "raise": {
+    case "RAISE": {
       // Must first call up to currentBet, then add raise increment
       const toCall = Math.max(0, table.currentBet - seat.streetCommitted);
       const raiseInc = Math.min(finalAmount, Math.max(0, seat.chips - toCall));
@@ -123,7 +123,7 @@ export function applyAction(
       break;
     }
 
-    case "allin":
+    case "ALLIN":
       const allInAmount = seat.chips;
       const allInStreetCommitted = seat.streetCommitted + allInAmount;
       newSeats[seatId] = {
@@ -133,10 +133,23 @@ export function applyAction(
         streetCommitted: allInStreetCommitted,
         status: "allin",
       };
+      
+      // Handle all-in bet/raise logic with proper short all-in rules
       if (allInStreetCommitted > table.currentBet) {
-        newLastRaiseSize = allInStreetCommitted - table.currentBet;
+        const raiseIncrement = allInStreetCommitted - table.currentBet;
+        const minRaise = table.lastRaiseSize || table.bigBlind;
+        
+        // Only count as full raise if it meets minimum raise requirement
+        if (raiseIncrement >= minRaise) {
+          newLastRaiseSize = raiseIncrement;
+          newLastAggressor = seatId;
+          console.log(`🎯 [Reducer] All-in qualifies as full raise: $${raiseIncrement} (min: $${minRaise})`);
+        } else {
+          console.log(`🎯 [Reducer] Short all-in: $${raiseIncrement} raise (min: $${minRaise}) - no aggressor change`);
+          // Don't change lastRaiseSize or lastAggressor for short all-ins
+        }
+        
         newCurrentBet = allInStreetCommitted;
-        newLastAggressor = seatId;
       }
       break;
   }
@@ -148,6 +161,15 @@ export function applyAction(
     console.log(`💰 [Reducer] BB (seat ${seatId}) has now acted`);
   }
 
+  // Track action sequence for proper round completion logic
+  const playersActedThisRound = new Set(table.playersActedThisRound || []);
+  playersActedThisRound.add(seatId);
+  
+  // Set round start actor if not already set (first action of the round)
+  const roundStartActor = table.roundStartActor ?? seatId;
+  
+  console.log(`🎯 [Reducer] Player ${seatId} acted (${playersActedThisRound.size} players acted this round)`);
+
   // Create intermediate table state to check betting round completion
   const updatedTable = {
     ...table,
@@ -156,6 +178,8 @@ export function applyAction(
     lastAggressor: newLastAggressor,
     lastRaiseSize: newLastRaiseSize,
     bbHasActed,
+    playersActedThisRound,
+    roundStartActor,
   };
 
   // Use proper state machine logic for next actor
@@ -257,7 +281,7 @@ export function handleTimeoutAutoFold(table: Table, seatId: number): StateTransi
   console.log(`⏰ [Reducer] Auto-folding ${seat.pid} at seat ${seatId}`);
 
   // Apply fold for current actor - this will handle timer cleanup
-  const foldResult = applyAction(table, seatId, "fold");
+  const foldResult = applyAction(table, seatId, "FOLD");
 
   // Add timeout-specific side effects
   const timeoutSideEffects: SideEffect[] = [

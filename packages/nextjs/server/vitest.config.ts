@@ -5,11 +5,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['**/__tests__/**/*.test.ts'],
+    include: ['**/__tests__/**/*.test.ts', '**/test/**/*.test.ts'],
     exclude: [
       'dist/**',
       'node_modules/**',
-      'game-engine/dist/**'
+      'game-engine/dist/**',
+      'backup/**', // Exclude broken backup tests
     ],
   },
   resolve: {
