@@ -29,9 +29,9 @@
   },
   "files": [
     "src/index.ts",
-    "src/lobby.ts", 
+    "src/pokerWebSocketServer.ts",
     "src/sessionManager.ts",
-    "src/persistence.ts",
+    "src/persistence.ts", 
     "src/user.ts",
     "src/utils.ts"
   ],

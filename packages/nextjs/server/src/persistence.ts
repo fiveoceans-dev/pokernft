@@ -1,11 +1,11 @@
 import type { Session } from "./sessionManager";
-import type { GameRoom } from "../game-engine";
+import type { Table } from "../game-engine";
 
 type RedisClientType = import("redis").RedisClientType;
 
 let client: RedisClientType | null;
 const memorySessions = new Map<string, Omit<Session, "socket" | "timeout">>();
-const memoryRooms = new Map<string, GameRoom>();
+const memoryRooms = new Map<string, Table>();
 
 let redisConnectionAttempted = false;
 
@@ -68,7 +68,7 @@ export async function removeSession(id: string) {
   memorySessions.delete(id);
 }
 
-export async function saveRoom(room: GameRoom) {
+export async function saveRoom(room: Table) {
   const c = await getClient();
   if (c) await c.set(`room:${room.id}`, JSON.stringify(room));
   memoryRooms.set(room.id, room);
@@ -78,16 +78,16 @@ export async function loadRoom(id: string) {
   const c = await getClient();
   if (c) {
     const raw = await c.get(`room:${id}`);
-    if (raw) return JSON.parse(raw) as GameRoom;
+    if (raw) return JSON.parse(raw) as Table;
   }
   return memoryRooms.get(id);
 }
 
-export async function loadAllRooms(): Promise<GameRoom[]> {
+export async function loadAllRooms(): Promise<Table[]> {
   const c = await getClient();
   if (c) {
     const keys = await c.keys("room:*");
-    const rooms: GameRoom[] = [];
+    const rooms: Table[] = [];
     for (const key of keys) {
       const raw = await c.get(key);
       if (raw) rooms.push(JSON.parse(raw));

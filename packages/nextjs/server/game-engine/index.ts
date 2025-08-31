@@ -1,72 +1,70 @@
 /**
- * Main Game Engine Exports - Event-Driven Poker Architecture
+ * Pure Event-Driven FSM Poker Engine
  * 
- * Single entry point for the poker game engine featuring:
- * - Event-sourced state management
- * - WebSocket integration adapter
- * - Pure functional game logic
+ * Professional production architecture featuring:
+ * - Event-sourced state management with complete audit trail
+ * - Pure functional state transitions via reducer pattern
+ * - Single source of truth through EventEngine
+ * - Deterministic replay and testing capabilities
  */
 
-// Core event-driven architecture
+// Core Event-Driven FSM Architecture
 export { EventEngine } from './core/eventEngine';
 export { reduce } from './core/reducer';
-export * from './core/types';
 
-// Game logic modules
+// Import for type annotations
+import { EventEngine } from './core/eventEngine';
+
+// Pure FSM Types (Table is single source of truth)
+export type {
+  Table,
+  Seat,
+  Pot,
+  Phase,
+  Street,
+  ActionType,
+  SeatStatus,
+  PokerEvent,
+  StateTransition,
+  SideEffect,
+  TimerEvent,
+  GameSnapshot,
+  ActionValidation,
+  Card,
+  Suit,
+  Rank
+} from './core/types';
+
+// Game Logic Modules
 export * from './logic/betting';
 export * from './logic/potManager';
-export { validateAction as validatePokerAction, getAvailableActions, getBettingLimits } from './logic/validation';
+export { validateAction, getAvailableActions, getBettingLimits } from './logic/validation';
 
-// Utility functions
+// Utility Functions
 export * from './utils/ringOrder';
 export { indexToCard, cardToIndex } from "./utils/utils";
 export * from "./utils/hashEvaluator";
 export * from "./utils/rng";
 
-// Timer system
+// Timer System
 export * from './managers/timerEvents';
 
-// WebSocket integration adapter
-export { WebSocketAdapter, createGameEngine } from './integration/webSocketAdapter';
-import { WebSocketAdapter } from './integration/webSocketAdapter';
-
-// Legacy types for backward compatibility
-export { PlayerState, TableState, Round } from "./core/types";
-export type {
-  Suit,
-  Rank,
-  Card,
-  Stage,
-  PlayerSession,
-  GameRoom,
-  UiPlayer,
-  GameState as EngineGameState,
-  CardShape,
-  PlayerAction,
-  Player,
-  LegacyPot as Pot,
-  RakeConfig,
-  LegacyTable as Table,
-  HandAction,
-  HandLog,
-} from "./core/types";
-
-// Export networking types
+// Networking Types (Table format only)
 export type { ServerEvent, ClientCommand, LobbyTable } from "./network/networking";
 
-// Export hash tables for hand evaluation
+// Hand Evaluation
 export * from "./hashTables";
 
 /**
- * Factory function to create the event-driven game engine
+ * Create EventEngine instance for direct integration
+ * NO ADAPTER LAYER - Pure FSM integration
  */
-export function createEventDrivenEngine(
+export function createEventEngine(
   tableId: string,
   smallBlind = 5,
-  bigBlind = 10,
-  actionTimeoutSeconds = 30
-) {
-  return new WebSocketAdapter(tableId, bigBlind, actionTimeoutSeconds);
+  bigBlind = 10
+): EventEngine {
+  return new EventEngine(tableId, smallBlind, bigBlind);
 }
 
-console.log('🎮 [GameEngine] Event-driven poker engine loaded successfully');
+console.log('🎮 [FSM Engine] Pure event-driven poker engine loaded');

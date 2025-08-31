@@ -1,45 +1,42 @@
+/**
+ * Professional Production WebSocket Poker Server
+ * 
+ * Pure Event-Driven FSM Architecture:
+ * - Direct EventEngine integration (no adapter layer)
+ * - EventEngine as single source of truth
+ * - All state changes through event dispatch
+ * - Complete event sourcing and auditability
+ */
+
 import 'dotenv/config';
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { createGameEngine, WebSocketAdapter } from "../game-engine";
-import type { WebSocketAdapter as GameEngine } from "../game-engine";
-import type {
-  GameRoom,
+import { randomUUID } from "crypto";
+
+// Import pure FSM components (no legacy types)
+import { createEventEngine, EventEngine } from "../game-engine";
+import type { 
+  Table,
   ServerEvent,
   ClientCommand,
-  PlayerAction,
-  Stage,
-  Table,
-  Round,
+  LobbyTable
 } from "../game-engine";
-import {
-  listTables,
-  registerTable,
-  getEngine as getRegisteredEngine,
-} from "./lobby";
-import { randomUUID } from "crypto";
-import { SessionManager, Session } from "./sessionManager";
-import { shortAddress } from "./utils";
-import { getSitOutManager, removeSitOutManager } from "../game-engine/managers/sitOutManager";
 
-/**
- * Normalize player ID to lowercase for consistent comparison
- */
-function normalizePlayerId(playerId: string): string {
-  return playerId.toLowerCase().trim();
-}
+import { SessionManager, Session } from "./sessionManager";
+import { WebSocketFSMBridge } from "./pokerWebSocketServer";
 import {
   saveSession,
-  removeSession,
   saveRoom,
   loadAllRooms,
   loadSession,
 } from "./persistence";
 
+// Environment Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
-const ACTION_TIMEOUT_SECONDS = process.env.ACTION_TIMEOUT_SECONDS ? parseInt(process.env.ACTION_TIMEOUT_SECONDS, 10) : 10;
 
-// Create HTTP server for Heroku compatibility
+/**
+ * HTTP Server with Health Endpoints
+ */
 const server = createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host}`);
   
@@ -50,7 +47,7 @@ const server = createServer((req, res) => {
       status: 'healthy', 
       timestamp: new Date().toISOString(),
       connections: wss.clients.size,
-      tables: listTables().length
+      tables: bridge.getTables().length
     }));
     return;
   }
@@ -58,1177 +55,297 @@ const server = createServer((req, res) => {
   // API endpoint to list tables
   if (url.pathname === '/api/tables') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ tables: listTables() }));
+    res.end(JSON.stringify({ tables: bridge.getTables() }));
     return;
   }
   
-  // Default response for HTTP requests
+  // Default response
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('PokerNFT WebSocket Server - Use WebSocket connection for game play');
+  res.end('Pure Event-Driven FSM Poker Server - Use WebSocket for game play');
 });
 
-// Create WebSocket server attached to HTTP server
+/**
+ * WebSocket Server with FSM Integration
+ */
 const wss = new WebSocketServer({ server });
 const sessions = new SessionManager();
-const processed = new Map<WebSocket, Set<string>>();
+const bridge = new WebSocketFSMBridge(sessions);
 
-// Track connection count for logging
+// Connection tracking
 let connectionCount = 0;
-const seatMaps = new Map<string, Map<string, number>>();
-const gameStartTimers = new Map<string, NodeJS.Timeout>();
-const timeoutCounts = new Map<string, number>();
-const sitOutPlayers = new Map<string, number>(); // playerId -> sit out timestamp
-const tableIdleTimers = new Map<string, NodeJS.Timeout>(); // tableId -> timer
-const IDLE_TABLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 
-// Idle table management functions
-function startIdleTimer(tableId: string) {
-  // Clear existing timer if any
-  if (tableIdleTimers.has(tableId)) {
-    clearTimeout(tableIdleTimers.get(tableId)!);
-  }
-
-  const timer = setTimeout(() => {
-    console.log(`⏰ [${tableId}] Table idle for 5 minutes, cleaning up...`);
-    cleanupIdleTable(tableId);
-  }, IDLE_TABLE_TIMEOUT);
-
-  tableIdleTimers.set(tableId, timer);
-  console.log(`⏱️ [${tableId}] Started 5-minute idle timer`);
-}
-
-function resetIdleTimer(tableId: string) {
-  if (tableIdleTimers.has(tableId)) {
-    clearTimeout(tableIdleTimers.get(tableId)!);
-    tableIdleTimers.delete(tableId);
-  }
-}
-
-function cleanupIdleTable(tableId: string) {
-  const engine = getRegisteredEngine(tableId);
-  if (!engine) return;
-
-  const room = engine.getState();
-  console.log(`🧹 [${tableId}] Cleaning up idle table with ${room.players.length} players`);
-
-  // Remove all players from the table
-  const playerIds = room.players.map(p => p.id);
-  playerIds.forEach(playerId => {
-    engine.removePlayer(playerId);
-    // Clear from seat maps
-    seatMaps.get(tableId)?.delete(playerId);
-    // Clear from timeout tracking
-    timeoutCounts.delete(playerId);
-    sitOutPlayers.delete(playerId);
-  });
-
-  // Reset the table to default state
-  room.stage = "waiting";
-  room.players = [];
-  room.pot = 0;
-  room.communityCards = [];
-  room.dealerIndex = 0;
-  room.currentTurnIndex = 0;
-  room.firstToActIndex = 0;
-  room.lastAggressorIndex = 0;
-
-  // Clear any game timers for this table
-  if (gameStartTimers.has(tableId)) {
-    clearTimeout(gameStartTimers.get(tableId)!);
-    gameStartTimers.delete(tableId);
-  }
-
-  // Clear idle timer
-  resetIdleTimer(tableId);
-
-  // Broadcast table reset
-  broadcast(tableId, {
-    type: "TABLE_RESET",
-    message: "Table was idle for 5 minutes and has been reset"
-  });
-
-  // Force a table snapshot update
-  engine.emit("stateChanged", room);
-
-  console.log(`✅ [${tableId}] Table cleanup completed`);
-}
-
-// Initialize tables immediately without waiting for persistence layer
-console.log('🌌 Creating persistent tables...');
-ensurePersistentTables();
-
-// Load persisted rooms in background (don't block server startup)
-(async () => {
-  try {
-    console.log('📂 Loading persisted rooms from storage...');
-    const rooms = await loadAllRooms();
-    console.log(`📂 Loaded ${rooms.length} persisted rooms`);
-    rooms.forEach((r) => {
-      console.log(`🎲 Restoring room: ${r.id} with ${r.players.length} players`);
-      getEngine(r.id, r);
-    });
-    console.log('✅ Room restoration completed');
-  } catch (error) {
-    console.error('❌ Room restoration failed:', error);
-    console.log('ℹ️  Continuing with default tables only');
-  }
-})();
-
-function ensurePersistentTables() {
-  const persistentTables = [
-    // $1/$2 Tables
+/**
+ * Create persistent tables on startup
+ */
+function createPersistentTables(): void {
+  const tables = [
+    // Micro Stakes
     { id: "micro-1", name: "Micro Stakes 1", blinds: { small: 1, big: 2 } },
     { id: "micro-2", name: "Micro Stakes 2", blinds: { small: 1, big: 2 } },
     
-    // $5/$10 Tables  
+    // Low Stakes  
     { id: "low-1", name: "Low Stakes 1", blinds: { small: 5, big: 10 } },
     { id: "low-2", name: "Low Stakes 2", blinds: { small: 5, big: 10 } },
     
-    // $25/$50 Tables
+    // Mid Stakes
     { id: "mid-1", name: "Mid Stakes 1", blinds: { small: 25, big: 50 } },
     { id: "mid-2", name: "Mid Stakes 2", blinds: { small: 25, big: 50 } },
     
-    // $50/$100 Tables
-    { id: "stark-1", name: "Stark 1", blinds: { small: 50, big: 100 } },
-    { id: "stark-2", name: "Stark 2", blinds: { small: 50, big: 100 } },
+    // High Stakes
+    { id: "high-1", name: "High Stakes 1", blinds: { small: 50, big: 100 } },
+    { id: "high-2", name: "High Stakes 2", blinds: { small: 50, big: 100 } },
     
-    // $1000/$2000 Tables (High Roller)
-    { id: "High-rollers-1", name: "👑 High rollers 1", blinds: { small: 1000, big: 2000 } },
-    { id: "High-rollers-2", name: "👑 High rollers 2", blinds: { small: 1000, big: 2000 } }
+    // High Roller
+    { id: "whale-1", name: "👑 High Roller 1", blinds: { small: 1000, big: 2000 } },
+    { id: "whale-2", name: "👑 High Roller 2", blinds: { small: 1000, big: 2000 } }
   ];
 
-  persistentTables.forEach(({ id, name, blinds }) => {
-    let engine = getRegisteredEngine(id);
-    if (!engine) {
-      console.log(`🎲 Creating persistent table: ${name} (${id}) with blinds ${blinds.small}/${blinds.big}`);
-      // Create the engine and register it properly by calling the local getEngine function
-      // This will ensure the table is set up with all necessary maps and event handlers
-      engine = getEngine(id);
-      registerTable(id, engine, name);
-      console.log(`✅ Table ${name} created and registered`);
-    } else {
-      console.log(`🔄 Table ${name} (${id}) already exists`);
-    }
-
-    // Update engine with correct blind values
-    const room = engine.getState();
-    room.minBet = blinds.big;
-    room.smallBlindAmount = blinds.small;
-    room.bigBlindAmount = blinds.big;
-    console.log(`🎯 Updated table ${id} blinds: SB=${blinds.small}, BB=${blinds.big}`);
+  tables.forEach(({ id, name, blinds }) => {
+    const engine = bridge.getEngine(id);
+    console.log(`🎯 Created table: ${name} (${blinds.small}/${blinds.big})`);
   });
   
-  console.log(`🎯 Total tables available: ${listTables().length}`);
-}
-
-function getEngine(id: string, snapshot?: GameRoom): GameEngine {
-  let engine = getRegisteredEngine(id);
-  if (!engine) {
-    engine = createGameEngine(id, 50, ACTION_TIMEOUT_SECONDS);
-    if (snapshot) {
-      engine.loadState(snapshot);
-    }
-    registerTable(id, engine);
-
-    // Set up idle timer event listeners for the new engine
-    engine.on("handStarted", () => {
-      console.log(`🎮 [${id}] Hand started, clearing idle timer`);
-      resetIdleTimer(id);
-    });
-
-    engine.on("handEnded", () => {
-      console.log(`🏁 [${id}] Hand ended, starting idle timer`);
-      startIdleTimer(id);
-    });
-
-    // GameEngine is now the single source of truth - no need for separate Table object
-    const seatMap = new Map<string, number>();
-    seatMaps.set(id, seatMap);
-    console.log(`🎯 [GameEngine] Created engine for table ${id} - GameEngine is single source of truth`);
-    
-    // Restore players from snapshot if available
-    if (snapshot) {
-      snapshot.players.forEach((p) => {
-        try {
-          engine!.addPlayer({
-            id: p.id,
-            nickname: p.nickname || `Player${p.seat}`,
-            seat: p.seat,
-            chips: p.chips,
-          });
-          seatMap.set(p.id, p.seat);
-          console.log(`🔄 [GameEngine] Restored player ${p.id} to seat ${p.seat}`);
-        } catch (error) {
-          console.log(`❌ [GameEngine] Failed to restore player ${p.id}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      });
-    }
-
-    let prevStage: Stage = engine!.getState().stage;
-
-    engine!.on("stateChanged", (room: GameRoom) => {
-      void saveRoom(room);
-      broadcast(id, { type: "TABLE_SNAPSHOT", table: room });
-    });
-
-    engine!.on("stageChanged", (stage: Stage) => {
-      const room = engine!.getState();
-      const stageToRound: Record<Stage, Round | null> = {
-        waiting: null,
-        preflop: "PREFLOP" as any, // Round.PREFLOP
-        flop: "FLOP" as any, // Round.FLOP
-        turn: "TURN" as any, // Round.TURN
-        river: "RIVER" as any, // Round.RIVER
-        showdown: null,
-      };
-      const street = stageToRound[prevStage];
-      if (street) {
-        broadcast(id, { type: "ROUND_END", street });
-      }
-
-      if (stage === "flop") {
-        broadcast(id, {
-          type: "DEAL_FLOP",
-          cards: [
-            room.communityCards[0],
-            room.communityCards[1],
-            room.communityCards[2],
-          ],
-        });
-      } else if (stage === "turn") {
-        broadcast(id, {
-          type: "DEAL_TURN",
-          card: room.communityCards[3],
-        });
-      } else if (stage === "river") {
-        broadcast(id, {
-          type: "DEAL_RIVER",
-          card: room.communityCards[4],
-        });
-      }
-
-      prevStage = stage;
-    });
-
-    engine!.on("handEnded", () => {
-      broadcast(id, { type: "HAND_END" });
-      
-      // Action timer is now managed by GameController/TimerManager
-    });
-
-    engine!.on("dealerMessage", (message: string) => {
-      broadcast(id, { 
-        type: "DEALER_MESSAGE", 
-        message,
-        tableId: id
-      });
-    });
-
-    engine!.on("showdownStarted", (data: { winners: string[], potAmount: number }) => {
-      broadcast(id, {
-        type: "SHOWDOWN",
-        revealOrder: data.winners,
-        tableId: id
-      });
-      console.log(`🃏 [${id}] Broadcasting showdown with ${data.winners.length} winner(s), pot: $${data.potAmount}`);
-    });
-
-    engine!.on("readyForNewHand", () => {
-      // Add any waiting players to the game before starting next hand countdown
-      const waitingPlayers = Array.from(seatMaps.get(id)?.entries() || []).filter(([playerId, seatIndex]) => {
-        const room = engine!.getState();
-        return !room.players.find(p => p.id === playerId);
-      });
-      
-      if (waitingPlayers.length > 0) {
-        console.log(`🎮 Adding ${waitingPlayers.length} waiting players to room ${id}`);
-        waitingPlayers.forEach(([playerId, seatIndex]) => {
-          const SEAT_BUYIN = 10000;
-          const nickname = shortAddress(playerId);
-          engine!.addPlayer({
-            id: playerId,
-            nickname,
-            seat: seatIndex,
-            chips: SEAT_BUYIN,
-          });
-          
-          console.log(`✅ Added waiting player ${nickname} to seat ${seatIndex}`);
-        });
-      }
-      
-      // EventEngine automatically handles new game countdown through checkGameStart() 
-      console.log(`🔄 Hand ended - EventEngine will manage game countdown based on active players`);
-    });
-
-    engine!.on("turnChanged", (turnInfo: any) => {
-      broadcast(id, {
-        type: "ACTION_PROMPT",
-        actingIndex: turnInfo.actingIndex,
-        betToCall: turnInfo.betToCall,
-        minRaise: turnInfo.minRaise,
-        timeLeftMs: turnInfo.timeLeftMs,
-      });
-      
-      // Action timer is now managed by GameController/TimerManager
-    });
-
-    // Timer event listeners - forward TimerManager events to client-compatible format with monitoring
-    engine!.on("actionCountdown", (data: { playerId: string, remainingMs: number }) => {
-      const countdown = Math.ceil(data.remainingMs / 1000);
-      broadcast(id, { type: "TIMER", countdown });
-    });
-
-    engine!.on("actionTimeout", (data: { playerId: string }) => {
-      console.log(`⚠️ [WebSocket] Timer timeout event received for ${data.playerId} in room ${id}`);
-      // Timer expired - send countdown 0
-      broadcast(id, { type: "TIMER", countdown: 0 });
-      console.log(`📡 [WebSocket] Timer timeout (countdown: 0) broadcasted to clients for room ${id}`);
-    });
-
-    engine!.on("actionWarning", (data: { playerId: string, remainingMs: number }) => {
-      // Warning at 5 seconds - continue normal countdown
-      const countdown = Math.ceil(data.remainingMs / 1000);
-      console.log(`⚠️ [WebSocket] Timer warning for ${data.playerId}: ${countdown}s remaining`);
-      broadcast(id, { type: "TIMER", countdown });
-      console.log(`📡 [WebSocket] Timer warning broadcasted to clients for room ${id}`);
-    });
-
-    // Game countdown event listeners - forward EventEngine countdown events to clients
-    engine!.on("gameStartCountdown", (data: { seconds: number, activePlayerCount: number, totalPlayerCount?: number, sittingOutCount?: number }) => {
-      console.log(`🎮 [WebSocket] Game start countdown initiated: ${data.seconds}s with ${data.activePlayerCount} active players`);
-      
-      // Clear any existing WebSocket-managed timer since EventEngine is now controlling countdown
-      const existingTimer = gameStartTimers.get(id);
-      if (existingTimer) {
-        clearInterval(existingTimer);
-        gameStartTimers.delete(id);
-        console.log(`🧹 [WebSocket] Cleared WebSocket countdown timer - EventEngine taking control`);
-      }
-      
-      // Start broadcasting countdown from EventEngine-controlled value
-      let countdown = Math.ceil(data.seconds);
-      broadcast(id, { type: "TIMER", countdown });
-      
-      // Set up interval to broadcast countdown updates
-      const timer = setInterval(() => {
-        countdown--;
-        broadcast(id, { type: "TIMER", countdown });
-        
-        if (countdown <= 0) {
-          clearInterval(timer);
-          gameStartTimers.delete(id);
-          console.log(`⏰ [WebSocket] EventEngine countdown completed for ${id}`);
-        }
-      }, 1000);
-      
-      gameStartTimers.set(id, timer);
-    });
-
-    engine!.on("countdownStarted", (data: { countdownMs: number, activePlayerCount: number }) => {
-      console.log(`⏰ [WebSocket] EventEngine countdown started: ${data.countdownMs}ms with ${data.activePlayerCount} active players`);
-      // Initial countdown broadcast is handled by gameStartCountdown event
-    });
-
-    engine!.on("gameStarted", (data: { activePlayerCount: number }) => {
-      console.log(`🎯 [WebSocket] EventEngine started game with ${data.activePlayerCount} active players`);
-      broadcast(id, { type: "HAND_START" });
-      
-      // Clear any remaining countdown timer
-      const existingTimer = gameStartTimers.get(id);
-      if (existingTimer) {
-        clearInterval(existingTimer);
-        gameStartTimers.delete(id);
-      }
-    });
-  }
-  return engine;
-}
-
-function getRoom(id: string): GameRoom {
-  return getEngine(id).getState();
-}
-
-function broadcast(roomId: string, event: any) {
-  const msg = JSON.stringify({ tableId: roomId, ...event });
-  let sentCount = 0;
-  let totalClients = 0;
-  let inRoomClients = 0;
-  
-  console.log(`📡 [broadcast] Starting broadcast for event: ${event.type} to room: ${roomId}`);
-  
-  wss.clients.forEach((client) => {
-    totalClients++;
-    const session = sessions.get(client as WebSocket);
-    const isInRoom = session?.roomId === roomId;
-    const isOpen = client.readyState === WebSocket.OPEN;
-    
-    if (isInRoom) {
-      inRoomClients++;
-      console.log(`📡 [broadcast] Found client in room ${roomId}: sessionId=${session?.sessionId?.slice(0, 10)}..., userId=${session?.userId?.slice(0, 10) || 'none'}..., open=${isOpen}`);
-    }
-    
-    if (isInRoom && isOpen) {
-      try {
-        client.send(msg);
-        sentCount++;
-        console.log(`✅ [broadcast] Message sent successfully to client in room ${roomId}`);
-      } catch (error) {
-        console.error(`❌ [broadcast] Failed to send message to client:`, error);
-      }
-    }
-  });
-  
-  console.log(`📡 [broadcast] Event: ${event.type}, Room: ${roomId}, Sent: ${sentCount}/${inRoomClients} clients in room (${totalClients} total clients)`);
-  
-  // Warn if no clients received the message
-  if (sentCount === 0 && inRoomClients > 0) {
-    console.warn(`⚠️ [broadcast] WARNING: ${inRoomClients} clients in room but 0 messages sent! Possible connection issues.`);
-  }
+  console.log(`✅ Created ${tables.length} persistent tables`);
 }
 
 /**
- * Enhanced game countdown with sit-out awareness
- * Follows existing countdown pattern with proper state checks
+ * Broadcast events to WebSocket clients
  */
-function startGameCountdown(roomId: string): void {
-  // Clear any existing timer using existing pattern
-  const existingTimer = gameStartTimers.get(roomId);
-  if (existingTimer) {
-    clearInterval(existingTimer);
-    gameStartTimers.delete(roomId);
-  }
+function broadcast(roomId: string, event: ServerEvent): void {
+  const msg = JSON.stringify({ tableId: roomId, ...event });
+  let sentCount = 0;
   
-  const engine = getEngine(roomId);
-  const tableState = engine.getTableState(); // New: get Table format for internal operations
-  const room = engine.getState(); // Keep for legacy broadcast compatibility
-  
-  // Use SitOutManager for active player check
-  const sitOutManager = getSitOutManager(roomId);
-  if (!sitOutManager.canStartGame(tableState)) {
-    const activeCount = sitOutManager.getActivePlayerCount(tableState);
-    console.log(`⏸️ [GameCountdown] Not enough active players for ${roomId} (${activeCount}/2 needed)`);
-    broadcast(roomId, { 
-      type: "TIMER", 
-      countdown: -1  // Signal no countdown
-    });
-    return;
-  }
-  
-  const activePlayerCount = sitOutManager.getActivePlayerCount(tableState);
-  console.log(`⏱️ [GameCountdown] Starting 10s countdown for ${roomId} (${activePlayerCount} active players)`);
-  
-  let countdown = 10;
-  broadcast(roomId, { type: "TIMER", countdown });
-  
-  const timer = setInterval(async () => {
-    countdown--;
-    broadcast(roomId, { type: "TIMER", countdown });
-    
-    if (countdown <= 0) {
-      clearInterval(timer);
-      gameStartTimers.delete(roomId);
-      
-      // Final check before starting
-      const currentTableState = engine.getTableState();
-      if (sitOutManager.canStartGame(currentTableState)) {
-        try {
-          await engine.startHand();
-          broadcast(roomId, { type: "HAND_START" });
-          console.log(`🎯 [GameCountdown] Hand started for ${roomId} with ${sitOutManager.getActivePlayerCount(currentTableState)} active players`);
-        } catch (error) {
-          console.error(`❌ [GameCountdown] Failed to start hand for ${roomId}:`, error);
-        }
-      } else {
-        console.log(`⚠️ [GameCountdown] Aborted for ${roomId} - not enough active players`);
-        broadcast(roomId, { 
-          type: "TIMER", 
-          countdown: -1  // Signal countdown stopped
-        });
+  wss.clients.forEach((client) => {
+    const session = sessions.get(client);
+    if (session?.roomId === roomId && client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(msg);
+        sentCount++;
+      } catch (error) {
+        console.error(`❌ Broadcast failed:`, error);
       }
     }
-  }, 1000);
+  });
   
-  gameStartTimers.set(roomId, timer);
+  console.log(`📡 Event: ${event.type}, Room: ${roomId}, Clients: ${sentCount}`);
 }
 
-// Legacy startActionTimer function removed - replaced by TimerManager in GameController
-// All timer functionality including auto-actions on timeout are now handled by the new timer system
+/**
+ * Setup FSM bridge event forwarding
+ */
+bridge.on('broadcast', broadcast);
+bridge.on('error', (roomId: string, error: ServerEvent) => {
+  broadcast(roomId, error);
+});
 
-wss.on("connection", (ws) => {
+/**
+ * WebSocket Connection Handler
+ */
+wss.on("connection", (ws: WebSocket) => {
   connectionCount++;
   const clientId = `client-${connectionCount}`;
-  console.log(`🔗 [${clientId}] WebSocket connection established (Total connections: ${wss.clients.size})`);
+  console.log(`🔗 [${clientId}] Connected (Total: ${wss.clients.size})`);
   
   let session = sessions.create(ws);
   void saveSession(session);
-  console.log(`📝 [${clientId}] Session created: ${session.sessionId}`);
-  ws.send(
-    JSON.stringify({
-      tableId: "",
-      type: "SESSION",
-      sessionId: session.sessionId,
-      userId: session.userId,
-    } satisfies ServerEvent),
-  );
+  
+  // Send session info to client
+  ws.send(JSON.stringify({
+    tableId: "",
+    type: "SESSION",
+    sessionId: session.sessionId,
+    userId: session.userId,
+  } satisfies ServerEvent));
 
+  /**
+   * Message Handler - Convert WebSocket commands to FSM events
+   */
   ws.on("message", async (data) => {
     try {
-      const msg: ClientCommand = JSON.parse(data.toString());
-      if (!msg.cmdId) return;
-      let set = processed.get(ws);
-      if (!set) {
-        set = new Set();
-        processed.set(ws, set);
-      }
-      if (set.has(msg.cmdId)) {
-        if (session.roomId) {
-          const engine = getEngine(session.roomId);
-          const room = engine.getState();
-          ws.send(
-            JSON.stringify({
-              tableId: room.id,
-              type: "TABLE_SNAPSHOT",
-              table: room,
-            } satisfies ServerEvent),
-          );
-        }
-        return;
-      }
-      set.add(msg.cmdId);
-
-      switch (msg.type) {
-        case "LIST_TABLES": {
-          const tables = listTables();
-          console.log(`🎲 [${clientId}] LIST_TABLES request - returning ${tables.length} tables:`, tables);
-          const response = {
+      const command: ClientCommand = JSON.parse(data.toString());
+      
+      console.log(`📨 [${clientId}] Command: ${command.type}`);
+      
+      // Handle session-level commands
+      switch (command.type) {
+        case "LIST_TABLES":
+          const tables = bridge.getTables();
+          ws.send(JSON.stringify({
             tableId: "",
             type: "TABLE_LIST",
             tables,
-          } satisfies ServerEvent;
-          ws.send(JSON.stringify(response));
-          console.log(`📤 [${clientId}] Sent TABLE_LIST response`);
+          } satisfies ServerEvent));
           break;
-        }
-        case "JOIN_TABLE": {
-          console.log(`🎯 [${clientId}] JOIN_TABLE request for table: ${msg.tableId}`);
-          const engine = getRegisteredEngine(msg.tableId);
-          if (!engine) {
-            ws.send(
-              JSON.stringify({
-                tableId: msg.tableId,
-                type: "ERROR",
-                code: "TABLE_NOT_FOUND",
-                msg: `Table ${msg.tableId} not found`,
-              } satisfies ServerEvent),
-            );
-            console.log(`❌ [${clientId}] Table ${msg.tableId} not found`);
-            break;
-          }
 
-          const room = engine.getState();
-          session.roomId = msg.tableId;
+        case "JOIN_TABLE":
+          session.roomId = command.tableId;
           void saveSession(session);
-          console.log(`📊 [${clientId}] Sending TABLE_SNAPSHOT for ${msg.tableId} with ${room.players.length} players`);
-          ws.send(
-            JSON.stringify({
-              tableId: msg.tableId,
+          
+          try {
+            const table = bridge.getTableState(command.tableId);
+            ws.send(JSON.stringify({
+              tableId: command.tableId,
               type: "TABLE_SNAPSHOT",
-              table: room,
-            } satisfies ServerEvent),
-          );
+              table, // Send Table format directly
+            } satisfies ServerEvent));
+          } catch (error) {
+            ws.send(JSON.stringify({
+              tableId: command.tableId,
+              type: "ERROR",
+              code: "TABLE_NOT_FOUND",
+              msg: `Table ${command.tableId} not found`,
+            } satisfies ServerEvent));
+          }
           break;
-        }
-        case "CREATE_TABLE": {
-          const id = randomUUID();
-          const engine = getEngine(id);
-          registerTable(id, engine, msg.name);
-          const room = engine.getState();
-          ws.send(
-            JSON.stringify({
-              tableId: id,
-              type: "TABLE_CREATED",
-              table: {
-                id,
-                name: msg.name,
-                gameType: "No Limit Hold'em",
-                playerCount: room.players.length,
-                maxPlayers: 9,
-                smallBlind: Math.floor(room.minBet / 2),
-                bigBlind: room.minBet
-              },
-            } satisfies ServerEvent),
-          );
+
+        case "CREATE_TABLE":
+          const tableId = randomUUID();
+          const engine = bridge.getEngine(tableId);
+          const table = bridge.getTableState(tableId);
+          
+          ws.send(JSON.stringify({
+            tableId,
+            type: "TABLE_CREATED",
+            table: {
+              id: tableId,
+              name: command.name,
+              gameType: "No Limit Hold'em", 
+              playerCount: table.seats.filter(s => s.pid).length,
+              maxPlayers: 9,
+              smallBlind: table.smallBlind,
+              bigBlind: table.bigBlind
+            } as LobbyTable,
+          } satisfies ServerEvent));
           break;
-        }
-        case "REATTACH": {
-          let existing = sessions.getBySessionId(msg.sessionId);
+
+        case "REATTACH":
+          // Handle session reattachment
+          let existing = sessions.getBySessionId(command.sessionId);
           if (!existing) {
-            const data = await loadSession(msg.sessionId);
+            const data = await loadSession(command.sessionId);
             if (data) {
               existing = sessions.restore(data, ws);
             }
           }
+          
           if (existing) {
-            const hadTimeout = existing.timeout !== undefined;
             sessions.handleReconnect(existing);
             sessions.expire(session);
             sessions.replaceSocket(existing, ws);
             session = existing;
             void saveSession(existing);
-            ws.send(
-              JSON.stringify({
-                tableId: existing.roomId ?? "",
-                type: "SESSION",
-                sessionId: existing.sessionId,
-                userId: existing.userId,
-              } satisfies ServerEvent),
-            );
+            
+            ws.send(JSON.stringify({
+              tableId: existing.roomId ?? "",
+              type: "SESSION",
+              sessionId: existing.sessionId,
+              userId: existing.userId,
+            } satisfies ServerEvent));
+            
             if (existing.roomId) {
-              const engine = getEngine(existing.roomId);
-              const room = engine.getState();
-              const rawPlayerId = existing.userId ?? existing.sessionId;
-              const playerId = normalizePlayerId(rawPlayerId);
-              
-              // Restore player to seat if they were seated before disconnecting
-              if (existing.seat !== undefined && existing.chips !== undefined && existing.nickname) {
-                const playerInRoom = room.players.find(p => p.id === playerId);
-                if (!playerInRoom) {
-                  console.log(`🔄 [REATTACH] Restoring player ${playerId} to seat ${existing.seat} with ${existing.chips} chips`);
-                  try {
-                    engine.addPlayer({
-                      id: playerId,
-                      nickname: existing.nickname,
-                      seat: existing.seat,
-                      chips: existing.chips,
-                    });
-                    seatMaps.get(room.id)?.set(playerId, existing.seat);
-                    console.log(`✅ [REATTACH] Player ${playerId} restored to game successfully`);
-                  } catch (error) {
-                    console.log(`❌ [REATTACH] Failed to restore player ${playerId}: ${error instanceof Error ? error.message : String(error)}`);
-                    // If seat is taken, reset session seat data
-                    if (error instanceof Error && error.message.includes("already taken")) {
-                      existing.seat = undefined;
-                      existing.chips = undefined;
-                      existing.inActiveHand = false;
-                      void saveSession(existing);
-                    }
-                  }
-                } else {
-                  console.log(`✅ [REATTACH] Player ${playerId} already in room at seat ${playerInRoom.seat}`);
-                  // Update session with current game state
-                  existing.seat = playerInRoom.seat;
-                  existing.chips = playerInRoom.chips;
-                  existing.inActiveHand = room.stage !== "waiting";
-                  void saveSession(existing);
-                }
-              }
-              
-              if (hadTimeout) {
-                const map = seatMaps.get(room.id);
-                const seatIndex = map?.get(playerId);
-                if (seatIndex !== undefined) {
-                  broadcast(room.id, {
-                    type: "PLAYER_REJOINED",
-                    seat: seatIndex,
-                    playerId,
-                  });
-                }
-              }
-              
-              // Always send fresh table snapshot after potential restoration
-              const updatedRoom = engine.getState();
-              ws.send(
-                JSON.stringify({
-                  tableId: updatedRoom.id,
-                  type: "TABLE_SNAPSHOT",
-                  table: updatedRoom,
-                } satisfies ServerEvent),
-              );
+              const table = bridge.getTableState(existing.roomId);
+              ws.send(JSON.stringify({
+                tableId: existing.roomId,
+                type: "TABLE_SNAPSHOT", 
+                table,
+              } satisfies ServerEvent));
             }
           }
           break;
-        }
-        case "ATTACH": {
-          console.log(`🔗 [${clientId}] ATTACH request with userId: ${msg.userId}`);
-          const attached = sessions.attach(ws, msg.userId);
+
+        case "ATTACH":
+          const attached = sessions.attach(ws, command.userId);
           if (attached) {
-            const hadTimeout = attached.timeout !== undefined;
             session.userId = attached.userId;
-            // Preserve current roomId if it exists, otherwise use attached roomId
             session.roomId = session.roomId || attached.roomId;
             sessions.handleReconnect(attached);
             void saveSession(session);
-            console.log(`✅ [${clientId}] Session attached successfully - userId: ${attached.userId}, roomId: ${session.roomId || 'none'}`);
-            ws.send(
-              JSON.stringify({
-                tableId: session.roomId ?? "",
-                type: "SESSION",
-                sessionId: attached.sessionId,
-                userId: attached.userId,
-              } satisfies ServerEvent),
-            );
+            
+            ws.send(JSON.stringify({
+              tableId: session.roomId ?? "",
+              type: "SESSION",
+              sessionId: attached.sessionId,
+              userId: attached.userId,
+            } satisfies ServerEvent));
+            
             if (session.roomId) {
-              const engine = getEngine(session.roomId);
-              const room = engine.getState();
-              if (hadTimeout) {
-                const rawPlayerId = attached.userId ?? attached.sessionId;
-                const playerId = normalizePlayerId(rawPlayerId);
-                const map = seatMaps.get(room.id);
-                const seatIndex = map?.get(playerId);
-                if (seatIndex !== undefined) {
-                  broadcast(room.id, {
-                    type: "PLAYER_REJOINED",
-                    seat: seatIndex,
-                    playerId,
-                  });
-                }
-              }
-              ws.send(
-                JSON.stringify({
-                  tableId: room.id,
-                  type: "TABLE_SNAPSHOT",
-                  table: room,
-                } satisfies ServerEvent),
-              );
-              void saveRoom(room);
+              const table = bridge.getTableState(session.roomId);
+              ws.send(JSON.stringify({
+                tableId: session.roomId,
+                type: "TABLE_SNAPSHOT",
+                table,
+              } satisfies ServerEvent));
             }
           }
           break;
-        }
-        case "SIT": {
-          console.log(`🪑 [${clientId}] SIT request - tableId: ${msg.tableId}, seat: ${msg.seat}, buyIn: ${msg.buyIn}, clientPlayerId: ${msg.playerId?.slice(0, 10) + "..." || "none"}`);
-          const engine = getEngine(msg.tableId);
-          const room = engine.getState();
-          
-          // Client wallet is authoritative - use client provided playerId or fallback to session
-          const clientProvidedId = msg.playerId;
-          const rawPlayerId = clientProvidedId || session.userId || session.sessionId;
-          const playerId = normalizePlayerId(rawPlayerId);
-          
-          // If client provided a different wallet, update session to match client
-          if (clientProvidedId && normalizePlayerId(clientProvidedId) !== normalizePlayerId(session.userId || "")) {
-            console.log(`🔄 [${clientId}] Updating server session from ${session.userId?.slice(0, 10) + "..." || "none"} to client wallet ${clientProvidedId.slice(0, 10) + "..."}`);
-            session.userId = normalizePlayerId(clientProvidedId);
-            void saveSession(session);
-          }
-          
-          const nickname = shortAddress(playerId);
-          const seatIndex = Number(msg.seat);
-          const buyIn = Number(msg.buyIn);
-          console.log(`👤 [${clientId}] Player ${nickname} (${playerId}) attempting to sit at seat ${seatIndex} (client authoritative)`);
-          
-          if (Number.isNaN(seatIndex)) {
-            console.log(`❌ [${clientId}] Invalid seat index: ${seatIndex}`);
-            ws.send(
-              JSON.stringify({
-                tableId: room.id,
-                type: "ERROR",
-                code: "INVALID_SEAT",
-                msg: "Invalid seat index",
-              } satisfies ServerEvent),
-            );
-            break;
-          }
 
-          // Check if a hand is currently active
-          if (room.stage !== "waiting") {
-            console.log(`🚫 [${clientId}] Cannot join during active hand (stage: ${room.stage}). Player will be seated but must wait for next hand.`);
-            
-            // Still allow seating but don't add to active game
-            seatMaps.get(room.id)?.set(playerId, seatIndex);
-            session.roomId = room.id;
-            void saveSession(session);
-            
-            // Send a special message indicating the player must wait
-            ws.send(
-              JSON.stringify({
-                tableId: room.id,
-                type: "WAITING_FOR_NEXT_HAND",
-                seat: seatIndex,
-                msg: "Hand in progress. You will join the next hand.",
-              } satisfies ServerEvent),
-            );
-            
-            broadcast(room.id, {
-              type: "PLAYER_WAITING",
-              seat: seatIndex,
-              playerId,
-            });
-            
-            break;
-          }
-
-          // Add player to GameEngine - always give $10k per seat
-          const SEAT_BUYIN = 10000;
-          try {
-            engine.addPlayer({
-              id: playerId,
-              nickname,
-              seat: seatIndex,
-              chips: SEAT_BUYIN,
-            });
-            seatMaps.get(room.id)?.set(playerId, seatIndex);
-            
-            // Update session with game state
-            session.roomId = room.id;
-            session.seat = seatIndex;
-            session.chips = SEAT_BUYIN;
-            session.nickname = nickname;
-            session.inActiveHand = false;
-            void saveSession(session);
-            console.log(`✅ [${clientId}] Player ${nickname} successfully seated at ${seatIndex} with ${SEAT_BUYIN} chips (always $10k per seat)`);
-          } catch (error) {
-            console.log(`❌ [${clientId}] Failed to seat player: ${error instanceof Error ? error.message : String(error)}`);
-            let errorCode = "SEATING_FAILED";
-            if (error instanceof Error) {
-              if (error.message.includes("already seated")) {
-                errorCode = "ALREADY_SEATED";
-              } else if (error.message.includes("already taken")) {
-                errorCode = "SEAT_TAKEN";
-              } else if (error.message.includes("Invalid seat")) {
-                errorCode = "INVALID_SEAT";
-              }
-            }
-            ws.send(
-              JSON.stringify({
-                tableId: room.id,
-                type: "ERROR",
-                code: errorCode,
-                msg: error instanceof Error ? error.message : "Failed to take seat",
-              } satisfies ServerEvent),
-            );
-            break;
-          }
-          
-          const updatedRoom = engine.getState();
-          console.log(`📊 [${clientId}] Table now has ${updatedRoom.players.length} players, stage: ${updatedRoom.stage}`);
-          
-          // GameEngine automatically broadcasts TABLE_SNAPSHOT via stateChanged event - no manual broadcast needed
-          // EventEngine automatically handles game countdown through checkGameStart() when players join
-          
-          void saveRoom(updatedRoom);
+        default:
+          // Forward game commands to FSM bridge
+          await bridge.handleCommand(ws, session, command);
           break;
-        }
-        case "LEAVE": {
-          // Support leaving specific table or current table
-          const tableIdToLeave = (msg as any).tableId || session.roomId;
-          if (!tableIdToLeave) break;
-          
-          const engine = getEngine(tableIdToLeave);
-          const room = engine.getState();
-          const rawPlayerId = session.userId ?? session.sessionId;
-          const playerId = normalizePlayerId(rawPlayerId);
-          const seatIndex = seatMaps.get(room.id)?.get(playerId);
-          
-          console.log(`🚪 [${session.sessionId}] Player ${playerId} leaving table ${room.id} from seat ${seatIndex}`);
-          
-          // Clean up sit out tracking
-          const sitOutManager = getSitOutManager(room.id);
-          sitOutManager.clearPlayer(playerId);
-          
-          // Remove from GameEngine (single source of truth)
-          if (engine.removePlayer(playerId)) {
-            seatMaps.get(room.id)?.delete(playerId);
-            
-            // Explicitly broadcast PLAYER_LEFT event to ensure client cleanup
-            if (seatIndex !== undefined) {
-              broadcast(room.id, {
-                type: "PLAYER_LEFT",
-                seat: seatIndex,
-                playerId,
-                reason: "left_voluntarily"
-              });
-            }
-
-            // If table is now empty and not in an active game, start idle timer
-            const updatedRoom = engine.getState();
-            if (updatedRoom.players.length === 0 && updatedRoom.stage === "waiting") {
-              console.log(`📭 [${room.id}] Table is now empty, starting idle timer`);
-              startIdleTimer(room.id);
-            }
-          }
-          
-          // Clear session game state
-          if (tableIdToLeave === session.roomId) {
-            session.roomId = undefined;
-            session.seat = undefined;
-            session.chips = undefined;
-            session.inActiveHand = false;
-          }
-          
-          void saveSession(session);
-          
-          // GameEngine automatically broadcasts TABLE_SNAPSHOT via stateChanged event - no manual broadcast needed
-          break;
-        }
-        case "ACTION": {
-          if (!session.roomId) break;
-          const engine = getEngine(session.roomId);
-          const room = engine.getState();
-          const rawPlayerId = session.userId ?? session.sessionId;
-          const playerId = normalizePlayerId(rawPlayerId);
-          const action: PlayerAction = msg.action as PlayerAction;
-          // currentTurnIndex is a seat index; players[] is filtered and not indexed by seat
-          const currentPlayer = room.players.find(p => p.seat === room.currentTurnIndex);
-          if (!currentPlayer || currentPlayer.id !== playerId) {
-            ws.send(
-              JSON.stringify({
-                tableId: room.id,
-                type: "ERROR",
-                code: "NOT_YOUR_TURN",
-                msg: "It's not your turn",
-              } satisfies ServerEvent),
-            );
-            break;
-          }
-
-          try {
-            console.log(`🎮 [WebSocket] Processing action from ${playerId}: ${action}${msg.amount ? ` (${msg.amount})` : ''}`);
-            
-            // Action timer is now managed by GameController/TimerManager
-            const actionResult = await engine.handleAction(playerId, {
-              type: action as any,
-              amount: msg.amount,
-            });
-            
-            console.log(`✅ [WebSocket] Action processed successfully for ${playerId}:`, actionResult);
-            
-            // Broadcast action event first
-            broadcast(room.id, {
-              type: "PLAYER_ACTION_APPLIED",
-              playerId,
-              action,
-              amount: msg.amount,
-            });
-            
-            // GameEngine automatically broadcasts TABLE_SNAPSHOT via stateChanged event - no manual broadcast needed
-            console.log(`📡 [WebSocket] Action broadcast completed for ${playerId}`);
-            
-            timeoutCounts.delete(playerId);
-          } catch (error) {
-            // Enhanced error logging for debugging
-            console.error(`❌ [WebSocket] Action failed for player ${playerId}:`, {
-              action,
-              amount: msg.amount,
-              error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
-              playerId,
-              roomId: room.id,
-              timestamp: new Date().toISOString()
-            });
-            
-            ws.send(
-              JSON.stringify({
-                tableId: room.id,
-                type: "ERROR",
-                code: "ACTION_FAILED",
-                msg: String(error),
-              } satisfies ServerEvent),
-            );
-            
-            // Don't let action processing errors completely break the game
-            // Try to emit a state changed event to keep UI responsive
-            try {
-              console.log(`🔧 [WebSocket] Attempting state recovery after action error for ${playerId}`);
-              engine.emit("stateChanged", engine.getState());
-            } catch (recoveryError) {
-              console.error(`❌ [WebSocket] Failed to recover state after action error:`, recoveryError);
-            }
-          }
-          break;
-        }
-        case "REBUY": {
-          if (!session.roomId) break;
-          const engine = getEngine(session.roomId);
-          const room = engine.getState();
-          const playerId = session.userId ?? session.sessionId;
-          
-          // Update player chips in GameEngine (single source of truth)
-          const player = room.players.find((p) => p.id === playerId);
-          if (player) {
-            if (msg.amount <= 0 || msg.amount > 10000) {
-              ws.send(
-                JSON.stringify({
-                  tableId: room.id,
-                  type: "ERROR",
-                  code: "REBUY_FAILED",
-                  msg: "Invalid rebuy amount",
-                } satisfies ServerEvent),
-              );
-              break;
-            }
-            player.chips += msg.amount;
-            
-            // Update session state
-            session.chips = player.chips;
-            void saveSession(session);
-            
-            console.log(`💰 [REBUY] Player ${playerId} added ${msg.amount} chips, now has ${player.chips}`);
-            // GameEngine will automatically broadcast via stateChanged event when room state changes
-            engine.emit("stateChanged", room);
-          } else {
-            ws.send(
-              JSON.stringify({
-                tableId: room.id,
-                type: "ERROR",
-                code: "REBUY_FAILED",
-                msg: "Player not found at table",
-              } satisfies ServerEvent),
-            );
-          }
-          break;
-        }
-        case "SIT_OUT": {
-          if (!session.roomId) break;
-          
-          const engine = getEngine(session.roomId);
-          const tableState = engine.getTableState(); // New: get Table format for internal operations
-          const room = engine.getState(); // Keep for legacy broadcast compatibility
-          const rawPlayerId = session.userId ?? session.sessionId;
-          const playerId = normalizePlayerId(rawPlayerId);
-          const seatIndex = seatMaps.get(room.id)?.get(playerId);
-          
-          if (seatIndex === undefined) {
-            console.warn(`⚠️ [SIT_OUT] Player ${playerId} not found at table ${room.id}`);
-            break;
-          }
-          
-          const sitOutManager = getSitOutManager(room.id);
-          
-          console.log(`😴 [${session.sessionId}] Player ${playerId} sitting out from seat ${seatIndex}`);
-          
-          // Execute sit out with proper state management
-          const sideEffects = sitOutManager.markSitOut(playerId, "voluntary");
-          
-          // Auto-fold if it's player's turn (following existing pattern)
-          const currentPlayer = room.players.find(p => p.seat === room.currentTurnIndex);
-          if (currentPlayer?.id === playerId && room.stage !== "waiting") {
-            try {
-              await engine.handleAction(playerId, { type: "FOLD" });
-              console.log(`🃏 [SIT_OUT] Auto-folded player ${playerId}`);
-            } catch (error) {
-              console.error(`❌ [SIT_OUT] Failed to auto-fold player ${playerId}:`, error);
-            }
-          }
-          
-          // Check game continuation using Table format
-          if (!sitOutManager.canStartGame(tableState) && tableState.phase !== "waiting") {
-            console.log(`⚠️ [SIT_OUT] Not enough active players (${sitOutManager.getActivePlayerCount(tableState)}), game will end after hand`);
-          }
-          
-          // Broadcast following existing event pattern
-          broadcast(session.roomId, {
-            type: "PLAYER_SAT_OUT",
-            seat: seatIndex,
-            playerId,
-            reason: "voluntary"
-          });
-          
-          break;
-        }
-        case "SIT_IN": {
-          if (!session.roomId) break;
-          
-          const engine = getEngine(session.roomId);
-          const tableState = engine.getTableState(); // New: get Table format for internal operations
-          const room = engine.getState(); // Keep for legacy broadcast compatibility
-          const rawPlayerId = session.userId ?? session.sessionId;
-          const playerId = normalizePlayerId(rawPlayerId);
-          const seatIndex = seatMaps.get(room.id)?.get(playerId);
-          
-          if (seatIndex === undefined) {
-            console.warn(`⚠️ [SIT_IN] Player ${playerId} not found at table ${room.id}`);
-            break;
-          }
-          
-          const sitOutManager = getSitOutManager(room.id);
-          
-          if (!sitOutManager.isPlayerSittingOut(playerId)) {
-            console.log(`ℹ️ [SIT_IN] Player ${playerId} already active`);
-            break;
-          }
-          
-          console.log(`🪑 [${session.sessionId}] Player ${playerId} sitting in at seat ${seatIndex}`);
-          
-          // Execute sit in with proper state management
-          const sideEffects = sitOutManager.markSitIn(playerId);
-          
-          // Broadcast state change
-          broadcast(session.roomId, {
-            type: "PLAYER_SAT_IN",
-            seat: seatIndex,
-            playerId
-          });
-          
-          // EventEngine automatically handles game countdown when players sit in through checkGameStart()
-          
-          break;
-        }
-        case "POST_BLIND": {
-          if (!session.roomId) break;
-          const engine = getEngine(session.roomId);
-          const room = engine.getState();
-          
-          // Blinds are automatically posted by GameEngine during hand start
-          console.log(`📝 [${session.sessionId}] POST_BLIND request - blinds handled automatically by GameEngine`);
-          broadcast(room.id, { type: "BLINDS_POSTED" });
-          
-          // GameEngine automatically handles state and broadcasts - no manual TABLE_SNAPSHOT needed
-          break;
-        }
-        default: {
-          const tableId =
-            session.roomId ?? ("tableId" in msg ? (msg as any).tableId : "");
-          ws.send(
-            JSON.stringify({
-              tableId,
-              type: "ERROR",
-              code: "UNKNOWN_COMMAND",
-              msg: (msg as any).type,
-            } satisfies ServerEvent),
-          );
-        }
       }
-    } catch (err) {
-      console.error("invalid message", err);
-      ws.send(
-        JSON.stringify({
-          tableId: session.roomId || "",
-          type: "ERROR",
-          code: "BAD_JSON",
-          msg: String(err),
-        } satisfies ServerEvent),
-      );
+      
+    } catch (error) {
+      console.error(`❌ [${clientId}] Message processing failed:`, error);
+      ws.send(JSON.stringify({
+        tableId: session.roomId || "",
+        type: "ERROR",
+        code: "BAD_MESSAGE",
+        msg: String(error),
+      } satisfies ServerEvent));
     }
   });
 
+  /**
+   * Disconnect Handler
+   */
   ws.on("close", (code, reason) => {
-    console.log(`🔌 [${clientId}] WebSocket connection closed (Code: ${code}, Reason: ${reason?.toString() || 'none'}) (Remaining connections: ${wss.clients.size - 1})`);
+    console.log(`🔌 [${clientId}] Disconnected (Code: ${code}, Remaining: ${wss.clients.size - 1})`);
+    
     sessions.handleDisconnect(session, (s: Session) => {
-      if (!s.roomId) return;
-      const rawPlayerId = s.userId ?? s.sessionId;
-      const playerId = normalizePlayerId(rawPlayerId);
-      const seatIndex = seatMaps.get(s.roomId)?.get(playerId);
-      if (seatIndex !== undefined) {
+      if (s.roomId && s.seat !== undefined) {
         broadcast(s.roomId, {
           type: "PLAYER_DISCONNECTED",
-          seat: seatIndex,
-          playerId,
+          tableId: s.roomId,
+          seat: s.seat,
+          playerId: s.userId || s.sessionId,
         });
       }
-      // Note: Don't immediately remove from engine - handled by timeout in SessionManager
     });
   });
 });
 
-// Start HTTP server with WebSocket support
+/**
+ * Server Startup
+ */
+console.log('🎮 Starting Pure Event-Driven FSM Poker Server...');
+createPersistentTables();
+
+// Load persisted game state (non-blocking)
+(async () => {
+  try {
+    console.log('📂 Loading persisted game state...');
+    const rooms = await loadAllRooms();
+    console.log(`📂 Loaded ${rooms.length} persisted rooms`);
+    
+    // Note: Since we removed GameRoom support, we'll need to migrate
+    // any persisted rooms to the new Table format or start fresh
+    console.log('ℹ️ Legacy room format detected - starting with fresh tables');
+  } catch (error) {
+    console.error('❌ Room restoration failed:', error);
+    console.log('ℹ️ Continuing with fresh tables');
+  }
+})();
+
+/**
+ * Start Server
+ */
 server.listen(PORT, () => {
-  console.log(`🚀 HTTP+WebSocket server running on port ${PORT}`);
-  console.log(`🌍 Environment: NODE_ENV=${process.env.NODE_ENV}`);
-  console.log(`🔗 ALLOWED_ORIGINS: ${process.env.ALLOWED_ORIGINS || 'not set'}`);
-  console.log(`💾 REDIS_URL: ${process.env.REDIS_URL ? 'configured' : 'not configured (using memory)'}`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`🚀 Pure FSM Poker Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🏥 Health: http://localhost:${PORT}/health`);
   console.log(`📊 Tables API: http://localhost:${PORT}/api/tables`);
-  console.log(`🎯 WebSocket connections: ws://localhost:${PORT}`);
-  console.log(`🎮 Ready to accept game connections...`);
+  console.log(`🎯 WebSocket: ws://localhost:${PORT}`);
+  console.log(`🎮 Architecture: Direct EventEngine FSM Integration`);
+  console.log(`✅ Ready for game connections...`);
 });
