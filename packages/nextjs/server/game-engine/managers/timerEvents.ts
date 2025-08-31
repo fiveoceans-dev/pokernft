@@ -12,6 +12,7 @@ import { EventEmitter } from "events";
 import { logger } from "../utils/logger";
 import { TimerEvent } from '../core/types';
 import { ACTION_TIMEOUT_MS } from '../core/constants';
+import { getCountdownManager, type CountdownEvent } from './countdownManager';
 
 /**
  * Timer state for active timers
@@ -56,10 +57,10 @@ export class TimerEventManager extends EventEmitter {
   }
 
   /**
-   * Start action timer for player
+   * Start action timer for player with client-driven countdown
    * Emits TurnStarted event and schedules timeout
    */
-  startActionTimer(timerData: TimerEvent): void {
+  startActionTimer(timerData: TimerEvent, tableId: string): void {
     const { pid, seat, actionTimeoutMs } = timerData;
     const timeoutMs = actionTimeoutMs || this.defaultTimeoutMs;
     const deadline = Date.now() + timeoutMs;
@@ -79,7 +80,20 @@ export class TimerEventManager extends EventEmitter {
     this.currentActorPid = pid;
     logger.debug(`⏰ [TimerEventManager] Starting timer for ${pid} at seat ${seat} (${timeoutMs}ms)`);
     
-    // Create timeout handler
+    // Create client-driven countdown using CountdownManager
+    const countdownManager = getCountdownManager(tableId);
+    const countdownEvent = countdownManager.startCountdown(
+      `action_${pid}_${Date.now()}`,
+      "action",
+      timeoutMs,
+      {
+        pid,
+        seat,
+        timeoutMs
+      }
+    );
+    
+    // Create timeout handler for server validation
     const nodeTimer = setTimeout(() => {
       this.handleTimeout(pid, seat);
     }, timeoutMs);
@@ -100,13 +114,8 @@ export class TimerEventManager extends EventEmitter {
     
     logger.debug(`⏰ [TimerEventManager] Timer stored for ${pid}, active timers: ${this.activeTimers.size}`);
     
-    // Emit turn started event
-    this.emit('timerEvent', {
-      type: "TurnStarted",
-      pid,
-      seat,
-      deadline
-    } as TimerEventType);
+    // Emit countdown event for clients (replaces TurnStarted)
+    this.emit('actionCountdown', countdownEvent);
     
     // Schedule warning if applicable
     if (timeoutMs > this.warningThresholdMs) {
@@ -323,15 +332,17 @@ export class TimerEventManager extends EventEmitter {
 export class TimerIntegration {
   private timerManager: TimerEventManager;
   private eventEngine: any; // EventEngine reference
+  private tableId: string;
 
-  constructor(eventEngine: any, timeoutMs = 30000) {
+  constructor(eventEngine: any, tableId: string, timeoutMs = 30000) {
     this.eventEngine = eventEngine;
+    this.tableId = tableId;
     this.timerManager = new TimerEventManager(timeoutMs);
     
     // Connect timer events to event engine
     this.setupEventHandlers();
     
-    logger.info(`🔗 [TimerIntegration] Connected timer manager to event engine`);
+    logger.info(`🔗 [TimerIntegration] Connected timer manager to event engine for table ${tableId}`);
   }
 
   /**
@@ -343,6 +354,11 @@ export class TimerIntegration {
       this.handleTimerEvent(timerEvent).catch(error => {
         logger.error(`❌ [TimerIntegration] Error handling timer event ${timerEvent.type}: ${error instanceof Error ? error.message : String(error)}`);
       });
+    });
+
+    // Handle action countdown events (client-driven countdown)
+    this.timerManager.on('actionCountdown', (countdownEvent: CountdownEvent) => {
+      this.eventEngine.emit('actionCountdown', countdownEvent);
     });
   }
 
@@ -397,7 +413,7 @@ export class TimerIntegration {
       actionTimeoutMs: timeoutMs || 30000
     };
     
-    this.timerManager.startActionTimer(timerData);
+    this.timerManager.startActionTimer(timerData, this.tableId);
   }
 
   /**

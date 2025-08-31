@@ -82,14 +82,15 @@ export function startHand(
         };
       }
       
-      // Respect existing seat status - only active players can participate
+      // Players participating in hand are always active
+      // Players sitting out should NOT participate in hands at all
       const shouldParticipate = seat.chips > 0 && seat.status !== "sittingOut";
       
       return {
         ...seat,
         committed: 0,
         streetCommitted: 0,
-        status: shouldParticipate ? "active" : seat.status === "sittingOut" ? "sittingOut" : "empty" as SeatStatus,
+        status: shouldParticipate ? "active" : "empty" as SeatStatus,
         holeCards: undefined,
       };
     }),

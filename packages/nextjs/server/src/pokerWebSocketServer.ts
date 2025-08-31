@@ -87,14 +87,14 @@ class WebSocketFSMBridge extends EventEmitter {
       });
     });
 
-    // Timer events
-    engine.on('turnStarted', (data: any) => {
+    // Action countdown events (client-driven model)
+    engine.on('actionCountdown', (countdownEvent: any) => {
       this.emit('broadcast', tableId, {
-        type: "ACTION_PROMPT",
-        actingIndex: data.seat,
-        betToCall: 0, // Calculate from table state
-        minRaise: 0,  // Calculate from table state
-        timeLeftMs: data.deadline - Date.now()
+        type: "COUNTDOWN_START",
+        countdownType: countdownEvent.countdownType,
+        startTime: countdownEvent.startTime,
+        duration: countdownEvent.duration,
+        metadata: countdownEvent.metadata
       });
     });
 
@@ -105,13 +105,36 @@ class WebSocketFSMBridge extends EventEmitter {
       });
     });
 
-    // Game countdown events
-    engine.on('gameStartCountdown', (data: any) => {
+    // Game countdown events - now using client-driven model
+    engine.on('gameStartCountdown', (countdownEvent: any) => {
       this.emit('broadcast', tableId, {
-        type: "GAME_START_COUNTDOWN",
-        countdown: data.seconds,
-        activePlayerCount: data.activePlayerCount,
-        totalPlayerCount: data.totalPlayerCount
+        type: "COUNTDOWN_START",
+        countdownType: countdownEvent.countdownType,
+        startTime: countdownEvent.startTime,
+        duration: countdownEvent.duration,
+        metadata: countdownEvent.metadata
+      });
+    });
+
+    // Street deal countdown events
+    engine.on('streetDealCountdown', (countdownEvent: any) => {
+      this.emit('broadcast', tableId, {
+        type: "COUNTDOWN_START",
+        countdownType: countdownEvent.countdownType,
+        startTime: countdownEvent.startTime,
+        duration: countdownEvent.duration,
+        metadata: countdownEvent.metadata
+      });
+    });
+
+    // New hand countdown events
+    engine.on('newHandCountdown', (countdownEvent: any) => {
+      this.emit('broadcast', tableId, {
+        type: "COUNTDOWN_START",
+        countdownType: countdownEvent.countdownType,
+        startTime: countdownEvent.startTime,
+        duration: countdownEvent.duration,
+        metadata: countdownEvent.metadata
       });
     });
 

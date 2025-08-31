@@ -40,6 +40,7 @@ import {
   GAME_START_COUNTDOWN_MS,
   MIN_PLAYERS_TO_START,
 } from "./constants";
+import { getCountdownManager } from "../managers/countdownManager";
 
 /**
  * Event queue entry for processing
@@ -563,9 +564,22 @@ export class EventEngine extends EventEmitter {
       `🎯 [EventEngine] Scheduling all-in showdown for streets: ${remainingStreets.join(", ")}`,
     );
 
-    // Schedule streets with proper async delays
+    // Schedule streets with proper async delays and client-driven countdowns
     for (const street of remainingStreets) {
       logger.debug(`   ⏱️ Waiting ${STREET_DEAL_DELAY_MS}ms before dealing ${street}...`);
+      
+      // Start client-driven countdown for street delay
+      const countdownManager = getCountdownManager(this.table.id);
+      const countdownEvent = countdownManager.startCountdown(
+        `street_deal_${this.table.id}_${street}_${Date.now()}`,
+        "street_deal",
+        STREET_DEAL_DELAY_MS,
+        { street }
+      );
+
+      // Emit countdown event for clients
+      this.emit("streetDealCountdown", countdownEvent);
+      
       await this.delay(STREET_DEAL_DELAY_MS);
 
       await this.dispatch({
@@ -578,6 +592,19 @@ export class EventEngine extends EventEmitter {
 
     // Schedule showdown after all streets with final delay
     logger.debug(`   ⏱️ Waiting ${STREET_DEAL_DELAY_MS}ms before showdown...`);
+    
+    // Start client-driven countdown for showdown delay
+    const countdownManager = getCountdownManager(this.table.id);
+    const showdownCountdownEvent = countdownManager.startCountdown(
+      `showdown_delay_${this.table.id}_${Date.now()}`,
+      "street_deal",
+      STREET_DEAL_DELAY_MS,
+      { phase: "showdown" }
+    );
+
+    // Emit countdown event for clients
+    this.emit("streetDealCountdown", showdownCountdownEvent);
+    
     await this.delay(STREET_DEAL_DELAY_MS);
     await this.dispatch({ t: "Showdown", results: [] });
   }
@@ -601,6 +628,18 @@ export class EventEngine extends EventEmitter {
    */
   private async processPayout(): Promise<void> {
     logger.info(`💰 [EventEngine] Payout complete, waiting ${NEW_HAND_DELAY_MS}ms before signaling ready`);
+
+    // Start client-driven countdown for new hand delay
+    const countdownManager = getCountdownManager(this.table.id);
+    const countdownEvent = countdownManager.startCountdown(
+      `new_hand_${this.table.id}_${Date.now()}`,
+      "new_hand",
+      NEW_HAND_DELAY_MS,
+      { handNumber: this.table.handNumber }
+    );
+
+    // Emit countdown event for clients
+    this.emit("newHandCountdown", countdownEvent);
 
     // Just wait for the delay - don't dispatch HandEnd here
     // HandEnd will be dispatched by the reducer when processing the Payout event
@@ -706,13 +745,21 @@ export class EventEngine extends EventEmitter {
         `🚀 [EventEngine] Starting game countdown: ${GAME_START_COUNTDOWN_MS}ms`,
       );
 
-      // Mark the countdown as started and emit events
-      this.emit("gameStartCountdown", {
-        seconds: GAME_START_COUNTDOWN_MS / 1000,
-        activePlayerCount,
-        totalPlayerCount,
-        sittingOutCount,
-      });
+      // Start client-driven countdown using CountdownManager
+      const countdownManager = getCountdownManager(this.table.id);
+      const countdownEvent = countdownManager.startCountdown(
+        `game_start_${this.table.id}_${Date.now()}`,
+        "game_start",
+        GAME_START_COUNTDOWN_MS,
+        {
+          activePlayerCount,
+          totalPlayerCount,
+          sittingOutCount
+        }
+      );
+
+      // Emit countdown event for clients
+      this.emit("gameStartCountdown", countdownEvent);
 
       // From now on, new players joining will be marked as waiting
       this.scheduleGameStart();

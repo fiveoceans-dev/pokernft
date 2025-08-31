@@ -60,8 +60,10 @@ interface GameStoreState {
   tableSeats: Map<string, number>;
   /** current table ID */
   tableId: string | null;
-  /** unified countdown timer from server */
+  /** unified countdown timer from server (legacy) */
   timer: number | null;
+  /** client-driven countdown data by type */
+  countdowns: Map<string, { startTime: number; duration: number; metadata?: any }>;
   /** track which players have revealed their cards at showdown */
   cardsRevealed: boolean[];
   /** track recent winners for sparkle effects */
@@ -141,7 +143,24 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     }
 
     const comm = Array(5).fill(null) as (number | null)[];
-    (room.communityCards ?? room.board ?? []).forEach((c: any, i: number) => {
+    const newCards = room.communityCards ?? room.board ?? [];
+    
+    // Don't overwrite existing community cards with empty array during betting
+    // Only clear cards on HAND_END or when new hand starts
+    if (newCards.length === 0) {
+      const existingCards = get().community || [];
+      const hasExistingCards = existingCards.some(c => c !== null);
+      
+      if (hasExistingCards && room.phase && 
+          !["waiting", "deal"].includes(room.phase)) {
+        // Keep existing cards during betting phases
+        console.log("📇 [useGameStore] Preserving community cards during betting phase");
+        return; // Don't update community cards
+      }
+    }
+    
+    // Update community cards with new data
+    newCards.forEach((c: any, i: number) => {
       comm[i] = cardToIndex(c);
     });
 
@@ -422,12 +441,37 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 set({ timer: null });
               }
               break;
+            case "COUNTDOWN_START":
+              // Handle new client-driven countdown system
+              set((state) => {
+                const countdowns = new Map(state.countdowns);
+                countdowns.set(msg.countdownType, {
+                  startTime: msg.startTime,
+                  duration: msg.duration,
+                  metadata: msg.metadata
+                });
+                
+                console.log(`⏱️ [useGameStore] Started ${msg.countdownType} countdown: ${msg.duration}ms`, msg.metadata);
+                
+                return { countdowns };
+              });
+              break;
             case "GAME_START_COUNTDOWN":
-              set({ timer: msg.countdown });
+              // Legacy support - convert to new format
+              set((state) => {
+                const countdowns = new Map(state.countdowns);
+                countdowns.set("game_start", {
+                  startTime: Date.now(),
+                  duration: msg.countdown * 1000,
+                  metadata: {
+                    activePlayerCount: msg.activePlayerCount,
+                    totalPlayerCount: msg.totalPlayerCount
+                  }
+                });
+                // Also set legacy timer for backward compatibility
+                return { countdowns, timer: msg.countdown };
+              });
               console.log(`🚀 Game starting in ${msg.countdown} seconds with ${msg.activePlayerCount || 0} players`);
-              if (msg.countdown === 0) {
-                set({ timer: null });
-              }
               break;
             case "TABLE_RESET":
               // Handle table reset due to idle timeout
@@ -682,6 +726,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     tableSeats: new Map<string, number>(),
     tableId: null,
     timer: null,
+    countdowns: new Map<string, { startTime: number; duration: number; metadata?: any }>(),
     connectionState: 'disconnected',
     connectionError: null,
     actionHistory: [],
