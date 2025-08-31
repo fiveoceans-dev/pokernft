@@ -2,19 +2,25 @@
 
 import clsx from "clsx";
 import Card from "./Card";
-import type { UiPlayer, Card as TCard } from "../game-engine";
-import { PlayerState } from "../game-engine";
+import type { Card as TCard, SeatStatus } from "../game-engine";
 import { shortAddress } from "../utils/address";
 import { GlowEffect } from "./GlowEffect";
 
 interface PlayerSeatProps {
-  player: UiPlayer; // player object from your Zustand store
+  player: {
+    name: string;
+    address: string;  
+    chips: number;
+    hand: [TCard, TCard] | null;
+    folded: boolean;
+    currentBet: number;
+  }; // player object from your Zustand store
   isDealer?: boolean; // show “D” marker if true
   isActive?: boolean; // highlight border when it's this player's turn
   revealCards?: boolean; // if true, show hole cards face-up
   cardSize?: "xs" | "sm" | "md" | "lg"; // size of player's hole cards
   dealerOffset?: { x: number; y: number }; // offset dealer button toward centre
-  state?: PlayerState; // player state for status labels
+  state?: SeatStatus; // player state for status labels
   isWinner?: boolean; // show sparkle effect if true
 }
 
@@ -25,7 +31,7 @@ export default function PlayerSeat({
   revealCards = false,
   cardSize = "sm",
   dealerOffset = { x: 0, y: -20 },
-  state = PlayerState.ACTIVE,
+  state = "active",
   isWinner = false,
 }: PlayerSeatProps) {
   // If `player.hand` is null, treat as not yet dealt
@@ -78,7 +84,7 @@ export default function PlayerSeat({
               "absolute inset-0 flex flex-col items-center justify-center rounded border font-semibold text-center px-1 transition-colors",
               isActive
                 ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
-                : state === PlayerState.SITTING_OUT
+                : state === "active"
                 ? "bg-gray-700/80 border-gray-400 opacity-60"
                 : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
             )}
@@ -88,17 +94,17 @@ export default function PlayerSeat({
             </span>
           </div>
         </GlowEffect>
-        {state === PlayerState.ALL_IN && (
+        {state === "allin" && (
           <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-yellow-300 font-bold">
             ALL IN
           </span>
         )}
-        {state === PlayerState.FOLDED && (
+        {state === "folded" && (
           <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-gray-300">
             Folded
           </span>
         )}
-        {state === PlayerState.SITTING_OUT && (
+        {state === "active" && (
           <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-orange-300 font-bold">
             Sitting Out
           </span>

@@ -12,6 +12,7 @@ import {
   StateTransition,
   SideEffect,
 } from "../types";
+import { getSitOutManager } from "../../managers/sitOutManager";
 
 /**
  * Add player to table with proper validation
@@ -76,6 +77,10 @@ export function addPlayer(
     nickname,
   };
 
+  // Clear any sitting out status when player joins
+  const sitOutManager = getSitOutManager(table.id);
+  sitOutManager.markSitIn(pid);
+
   console.log(
     `✅ [Reducer] Added player ${pid} to seat ${seatId} with ${chips} chips`,
   );
@@ -118,6 +123,95 @@ export function removePlayer(
 
   const sideEffects: SideEffect[] = [
     { type: "EMIT_STATE_CHANGE", payload: { reason: "player_left" } },
+  ];
+
+  return { nextState, sideEffects };
+}
+
+/**
+ * Sit out player - pure function following FSM pattern
+ */
+export function sitOutPlayer(
+  table: Table,
+  seatId: number,
+  pid: string,
+  reason: "voluntary" | "timeout" | "busted"
+): StateTransition {
+  // Validate seat
+  const seat = table.seats[seatId];
+  if (!seat || seat.pid !== pid) {
+    console.error(`❌ [Reducer] Invalid sit out: seat ${seatId} pid ${pid}`);
+    return { nextState: table, sideEffects: [] };
+  }
+
+  // Can't sit out if already sitting out or empty
+  if (seat.status === "sittingOut" || seat.status === "empty") {
+    console.warn(`⚠️ [Reducer] Player ${pid} already sitting out or empty`);
+    return { nextState: table, sideEffects: [] };
+  }
+
+  const newSeats = [...table.seats];
+  newSeats[seatId] = {
+    ...seat,
+    status: "sittingOut"
+  };
+
+  console.log(`😴 [Reducer] Player ${pid} sitting out (${reason})`);
+
+  const nextState = {
+    ...table,
+    seats: newSeats,
+  };
+
+  const sideEffects: SideEffect[] = [
+    { type: "EMIT_STATE_CHANGE", payload: { reason: `player_sit_out_${reason}` } },
+  ];
+
+  return { nextState, sideEffects };
+}
+
+/**
+ * Sit in player - pure function following FSM pattern
+ */
+export function sitInPlayer(
+  table: Table,
+  seatId: number,
+  pid: string
+): StateTransition {
+  // Validate seat
+  const seat = table.seats[seatId];
+  if (!seat || seat.pid !== pid) {
+    console.error(`❌ [Reducer] Invalid sit in: seat ${seatId} pid ${pid}`);
+    return { nextState: table, sideEffects: [] };
+  }
+
+  // Can't sit in if not sitting out
+  if (seat.status !== "sittingOut") {
+    console.warn(`⚠️ [Reducer] Player ${pid} not sitting out (status: ${seat.status})`);
+    return { nextState: table, sideEffects: [] };
+  }
+
+  // Can't sit in without chips
+  if (seat.chips <= 0) {
+    console.error(`❌ [Reducer] Player ${pid} has no chips to sit in`);
+    return { nextState: table, sideEffects: [] };
+  }
+
+  const newSeats = [...table.seats];
+  newSeats[seatId] = {
+    ...seat,
+    status: "active"
+  };
+
+  console.log(`🪑 [Reducer] Player ${pid} sitting in`);
+
+  const nextState = {
+    ...table,
+    seats: newSeats,
+  };
+
+  const sideEffects: SideEffect[] = [
+    { type: "EMIT_STATE_CHANGE", payload: { reason: "player_sit_in" } },
   ];
 
   return { nextState, sideEffects };

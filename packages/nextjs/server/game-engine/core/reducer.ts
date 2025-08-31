@@ -41,4 +41,6 @@ export {
   processPayout,
   addPlayer,
   removePlayer,
+  sitOutPlayer,
+  sitInPlayer,
 } from "./reducers";

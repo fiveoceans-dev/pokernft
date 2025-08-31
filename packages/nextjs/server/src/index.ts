@@ -24,6 +24,8 @@ import type {
 
 import { SessionManager, Session } from "./sessionManager";
 import { WebSocketFSMBridge } from "./pokerWebSocketServer";
+import { logger } from "../game-engine/utils/logger";
+import { TABLES } from "./tableConfig";
 import {
   saveSession,
   saveRoom,
@@ -78,41 +80,24 @@ let connectionCount = 0;
  * Create persistent tables on startup
  */
 function createPersistentTables(): void {
-  const tables = [
-    // Micro Stakes
-    { id: "micro-1", name: "Micro Stakes 1", blinds: { small: 1, big: 2 } },
-    { id: "micro-2", name: "Micro Stakes 2", blinds: { small: 1, big: 2 } },
+  TABLES.forEach((tableConfig) => {
+    const engine = bridge.getEngine(
+      tableConfig.id, 
+      tableConfig.blinds.small, 
+      tableConfig.blinds.big
+    );
     
-    // Low Stakes  
-    { id: "low-1", name: "Low Stakes 1", blinds: { small: 5, big: 10 } },
-    { id: "low-2", name: "Low Stakes 2", blinds: { small: 5, big: 10 } },
-    
-    // Mid Stakes
-    { id: "mid-1", name: "Mid Stakes 1", blinds: { small: 25, big: 50 } },
-    { id: "mid-2", name: "Mid Stakes 2", blinds: { small: 25, big: 50 } },
-    
-    // High Stakes
-    { id: "high-1", name: "High Stakes 1", blinds: { small: 50, big: 100 } },
-    { id: "high-2", name: "High Stakes 2", blinds: { small: 50, big: 100 } },
-    
-    // High Roller
-    { id: "whale-1", name: "👑 High Roller 1", blinds: { small: 1000, big: 2000 } },
-    { id: "whale-2", name: "👑 High Roller 2", blinds: { small: 1000, big: 2000 } }
-  ];
-
-  tables.forEach(({ id, name, blinds }) => {
-    const engine = bridge.getEngine(id);
-    console.log(`🎯 Created table: ${name} (${blinds.small}/${blinds.big})`);
+    logger.info(`🎯 Created table: ${tableConfig.name} (${tableConfig.blinds.small}/${tableConfig.blinds.big}) - Buy-in: ${tableConfig.buyIn.min}-${tableConfig.buyIn.max} chips [${tableConfig.stakeLevel}]`);
   });
   
-  console.log(`✅ Created ${tables.length} persistent tables`);
+  logger.info(`✅ Created ${TABLES.length} persistent tables across ${new Set(TABLES.map(t => t.stakeLevel)).size} stake levels`);
 }
 
 /**
  * Broadcast events to WebSocket clients
  */
 function broadcast(roomId: string, event: ServerEvent): void {
-  const msg = JSON.stringify({ tableId: roomId, ...event });
+  const msg = JSON.stringify({ ...event, tableId: roomId });
   let sentCount = 0;
   
   wss.clients.forEach((client) => {
@@ -122,12 +107,12 @@ function broadcast(roomId: string, event: ServerEvent): void {
         client.send(msg);
         sentCount++;
       } catch (error) {
-        console.error(`❌ Broadcast failed:`, error);
+        logger.error(`❌ Broadcast failed:`, error);
       }
     }
   });
   
-  console.log(`📡 Event: ${event.type}, Room: ${roomId}, Clients: ${sentCount}`);
+  logger.debug(`📡 Event: ${event.type}, Room: ${roomId}, Clients: ${sentCount}`);
 }
 
 /**
@@ -144,7 +129,7 @@ bridge.on('error', (roomId: string, error: ServerEvent) => {
 wss.on("connection", (ws: WebSocket) => {
   connectionCount++;
   const clientId = `client-${connectionCount}`;
-  console.log(`🔗 [${clientId}] Connected (Total: ${wss.clients.size})`);
+  logger.info(`🔗 [${clientId}] Connected (Total: ${wss.clients.size})`);
   
   let session = sessions.create(ws);
   void saveSession(session);
@@ -164,7 +149,7 @@ wss.on("connection", (ws: WebSocket) => {
     try {
       const command: ClientCommand = JSON.parse(data.toString());
       
-      console.log(`📨 [${clientId}] Command: ${command.type}`);
+      logger.debug(`📨 [${clientId}] Command: ${command.type}`);
       
       // Handle session-level commands
       switch (command.type) {
@@ -286,7 +271,7 @@ wss.on("connection", (ws: WebSocket) => {
       }
       
     } catch (error) {
-      console.error(`❌ [${clientId}] Message processing failed:`, error);
+      logger.error(`❌ [${clientId}] Message processing failed:`, error);
       ws.send(JSON.stringify({
         tableId: session.roomId || "",
         type: "ERROR",
@@ -300,7 +285,7 @@ wss.on("connection", (ws: WebSocket) => {
    * Disconnect Handler
    */
   ws.on("close", (code, reason) => {
-    console.log(`🔌 [${clientId}] Disconnected (Code: ${code}, Remaining: ${wss.clients.size - 1})`);
+    logger.info(`🔌 [${clientId}] Disconnected (Code: ${code}, Remaining: ${wss.clients.size - 1})`);
     
     sessions.handleDisconnect(session, (s: Session) => {
       if (s.roomId && s.seat !== undefined) {
@@ -318,34 +303,68 @@ wss.on("connection", (ws: WebSocket) => {
 /**
  * Server Startup
  */
-console.log('🎮 Starting Pure Event-Driven FSM Poker Server...');
+logger.info('🎮 Starting Pure Event-Driven FSM Poker Server...');
 createPersistentTables();
 
 // Load persisted game state (non-blocking)
 (async () => {
   try {
-    console.log('📂 Loading persisted game state...');
+    logger.info('📂 Loading persisted game state...');
     const rooms = await loadAllRooms();
-    console.log(`📂 Loaded ${rooms.length} persisted rooms`);
+    logger.info(`📂 Loaded ${rooms.length} persisted rooms`);
     
-    // Note: Since we removed GameRoom support, we'll need to migrate
-    // any persisted rooms to the new Table format or start fresh
-    console.log('ℹ️ Legacy room format detected - starting with fresh tables');
+    // Using pure Table format for persistence
+    logger.info('ℹ️ Pure FSM architecture - using Table format only');
   } catch (error) {
-    console.error('❌ Room restoration failed:', error);
-    console.log('ℹ️ Continuing with fresh tables');
+    logger.error('❌ Room restoration failed:', error);
+    logger.info('ℹ️ Continuing with fresh tables');
   }
 })();
+
+/**
+ * Graceful Shutdown Handler
+ */
+function gracefulShutdown(signal: string): void {
+  logger.info(`📶 Received ${signal}, starting graceful shutdown...`);
+  
+  // Close WebSocket server
+  wss.close(() => {
+    logger.info('🔌 WebSocket server closed');
+  });
+  
+  // Close HTTP server
+  server.close(() => {
+    logger.info('🌐 HTTP server closed');
+  });
+  
+  // Cleanup all engines
+  bridge.getTables().forEach(table => {
+    try {
+      const engine = bridge.getEngine(table.id);
+      // Engines have their own cleanup via TimerIntegration.shutdown()
+      logger.debug(`🧹 Cleaned up engine for table ${table.id}`);
+    } catch (error) {
+      logger.error(`❌ Error cleaning up table ${table.id}:`, error);
+    }
+  });
+  
+  logger.info('✅ Graceful shutdown completed');
+  process.exit(0);
+}
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 /**
  * Start Server
  */
 server.listen(PORT, () => {
-  console.log(`🚀 Pure FSM Poker Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🏥 Health: http://localhost:${PORT}/health`);
-  console.log(`📊 Tables API: http://localhost:${PORT}/api/tables`);
-  console.log(`🎯 WebSocket: ws://localhost:${PORT}`);
-  console.log(`🎮 Architecture: Direct EventEngine FSM Integration`);
-  console.log(`✅ Ready for game connections...`);
+  logger.info(`🚀 Pure FSM Poker Server running on port ${PORT}`);
+  logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`🏥 Health: http://localhost:${PORT}/health`);
+  logger.info(`📊 Tables API: http://localhost:${PORT}/api/tables`);
+  logger.info(`🎯 WebSocket: ws://localhost:${PORT}`);
+  logger.info(`🎮 Architecture: Direct EventEngine FSM Integration`);
+  logger.info(`✅ Ready for game connections...`);
 });

@@ -680,14 +680,14 @@ export class EventEngine extends EventEmitter {
     const eligibleSeats = this.table.seats.filter(s => {
       if (!s.pid) return false; // Empty seat
       if (this.waitingPlayers.has(s.pid)) return false; // Waiting for next hand
-      if (sitOutManager.isPlayerSittingOut(s.pid)) return false; // Sitting out
+      if (s.status === "sittingOut") return false; // Sitting out
       return s.chips > 0; // Has chips to play
     });
     
     const activePlayerCount = eligibleSeats.length;
     const totalPlayerCount = this.table.seats.filter(s => s.pid).length;
     const sittingOutCount = this.table.seats.filter(s => 
-      s.pid && sitOutManager.isPlayerSittingOut(s.pid)
+      s.pid && s.status === "sittingOut"
     ).length;
 
     console.log(
@@ -740,7 +740,7 @@ export class EventEngine extends EventEmitter {
         const eligibleSeats = this.table.seats.filter(s => {
           if (!s.pid) return false; // Empty seat
           if (this.waitingPlayers.has(s.pid)) return false; // Waiting for next hand
-          if (sitOutManager.isPlayerSittingOut(s.pid)) return false; // Sitting out
+          if (s.status === "sittingOut") return false; // Sitting out
           return s.chips > 0; // Has chips to play
         });
         const activePlayerCount = eligibleSeats.length;

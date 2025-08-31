@@ -39,7 +39,7 @@ export function startHand(
   if (table.handNumber === 0) {
     // Only consider players who are not sitting out for initial button
     const eligible = table.seats
-      .filter((s) => s.pid && s.chips > 0 && !sitOutManager.isPlayerSittingOut(s.pid))
+      .filter((s) => s.pid && s.chips > 0 && s.status !== "sittingOut")
       .map((s) => s.id);
     if (eligible.length > 1) {
       const idx = timestamp % eligible.length;
@@ -82,17 +82,15 @@ export function startHand(
         };
       }
       
-      // Check if player is sitting out
-      const isPlayerSittingOut = sitOutManager.isPlayerSittingOut(seat.pid);
+      // Respect existing seat status - only active players can participate
+      const shouldParticipate = seat.chips > 0 && seat.status !== "sittingOut";
       
       return {
         ...seat,
         committed: 0,
         streetCommitted: 0,
-        // Players sitting out stay in their seats but don't participate
-        status: (isPlayerSittingOut ? "empty" : "active") as SeatStatus,
+        status: shouldParticipate ? "active" : seat.status === "sittingOut" ? "sittingOut" : "empty" as SeatStatus,
         holeCards: undefined,
-        sittingOut: isPlayerSittingOut, // Update seat state for UI
       };
     }),
   };

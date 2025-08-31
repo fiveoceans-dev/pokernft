@@ -7,6 +7,7 @@
  */
 
 import { Table, Seat, SideEffect } from "../core/types";
+import { logger } from "../utils/logger";
 
 /**
  * Sit out state tracking and management
@@ -32,14 +33,14 @@ export class SitOutManager {
       const count = (this.timeoutCounts.get(playerId) || 0) + 1;
       this.timeoutCounts.set(playerId, count);
       
-      console.warn(`⏰ [SitOutManager] Player ${playerId} timeout #${count}`);
+      logger.warn(`⏰ [SitOutManager] Player ${playerId} timeout #${count}`);
     }
     
     if (reason === "voluntary") {
       this.timeoutCounts.delete(playerId); // Reset on voluntary sit out
     }
     
-    console.log(`😴 [SitOutManager] Player ${playerId} sitting out (${reason})`);
+    logger.info(`😴 [SitOutManager] Player ${playerId} sitting out (${reason})`);
     
     return [{
       type: "EMIT_STATE_CHANGE",
@@ -54,7 +55,7 @@ export class SitOutManager {
     this.sitOutPlayers.delete(playerId);
     this.timeoutCounts.delete(playerId);
     
-    console.log(`🪑 [SitOutManager] Player ${playerId} sitting in`);
+    logger.info(`🪑 [SitOutManager] Player ${playerId} sitting in`);
     
     return [{
       type: "EMIT_STATE_CHANGE",
@@ -110,7 +111,7 @@ export class SitOutManager {
   clearPlayer(playerId: string): void {
     this.sitOutPlayers.delete(playerId);
     this.timeoutCounts.delete(playerId);
-    console.log(`🧹 [SitOutManager] Cleared tracking for player ${playerId}`);
+    logger.debug(`🧹 [SitOutManager] Cleared tracking for player ${playerId}`);
   }
   
   /**
@@ -148,7 +149,7 @@ export class SitOutManager {
     
     const shouldSitOut = count >= this.MAX_TIMEOUTS;
     
-    console.log(`⏰ [SitOutManager] Player ${playerId} timeout #${count}${shouldSitOut ? ' - auto sit out' : ''}`);
+    logger.info(`⏰ [SitOutManager] Player ${playerId} timeout #${count}${shouldSitOut ? ' - auto sit out' : ''}`);
     
     return { shouldSitOut, timeoutCount: count };
   }
@@ -168,7 +169,7 @@ export function getSitOutManager(tableId: string): SitOutManager {
   if (!manager) {
     manager = new SitOutManager();
     sitOutManagers.set(tableId, manager);
-    console.log(`📋 [SitOutManager] Created for table ${tableId}`);
+    logger.debug(`📋 [SitOutManager] Created for table ${tableId}`);
   }
   return manager;
 }
@@ -178,7 +179,7 @@ export function getSitOutManager(tableId: string): SitOutManager {
  */
 export function removeSitOutManager(tableId: string): void {
   sitOutManagers.delete(tableId);
-  console.log(`🗑️ [SitOutManager] Removed for table ${tableId}`);
+  logger.debug(`🗑️ [SitOutManager] Removed for table ${tableId}`);
 }
 
 /**
@@ -186,5 +187,5 @@ export function removeSitOutManager(tableId: string): void {
  */
 export function clearAllSitOutManagers(): void {
   sitOutManagers.clear();
-  console.log(`🧹 [SitOutManager] Cleared all managers`);
+  logger.debug(`🧹 [SitOutManager] Cleared all managers`);
 }

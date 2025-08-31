@@ -5,9 +5,9 @@ import type { CSSProperties } from "react";
 import { useTableViewModel } from "../hooks/useTableViewModel";
 import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
-import { indexToCard, PlayerState } from "../game-engine";
+import { indexToCard, SeatStatus } from "../game-engine";
 import PlayerSeat from "./PlayerSeat";
-import type { UiPlayer, Card as TCard } from "../game-engine";
+import type { Card as TCard } from "../game-engine";
 import { useWalletGameSync } from "../hooks/useWalletGameSync";
 import { PotDisplayBubbles } from "./PotDisplayBubbles";
 import useIsMobile from "../hooks/useIsMobile";
@@ -173,20 +173,20 @@ export default function Table({ timer }: { timer?: number | null }) {
       ? [indexToCard(handCodes[0]), indexToCard(handCodes[1])]
       : null;
     const state = playerStates[idx];
-    // TODO: visually mark auto-folded players (Action Plan 1.2)
-    const player: UiPlayer = {
+    // TODO: visually mark auto-folded players (Action Plan 1.2)  
+    const player = {
       name: nickname,
       address: addr ?? "",
       chips: chips[idx] ?? 0,
       hand,
-      folded: state === PlayerState.FOLDED,
+      folded: state === "folded",
       currentBet: playerBets[idx] ?? 0,
     };
     const isDealer = idx === dealerIndex;
     const isActive = idx === currentTurn;
     const isWinner = recentWinners.has(idx);
     // Reveal cards for own player always, or if manually revealed, or all non-folded players during showdown (street 4)
-    const reveal = idx === walletSeatIdx || cardsRevealed[idx] || (street === 4 && state !== PlayerState.FOLDED && state !== PlayerState.EMPTY);
+    const reveal = idx === walletSeatIdx || cardsRevealed[idx] || (street === 4 && state !== "folded" && state !== "empty");
 
     const badge = (
       <span
@@ -292,8 +292,8 @@ export default function Table({ timer }: { timer?: number | null }) {
       
       {/* Card Reveal Button - Show during showdown if player hasn't revealed cards */}
       {street === 4 && walletSeatIdx !== null && walletSeatIdx >= 0 && 
-       playerStates[walletSeatIdx] !== PlayerState.FOLDED && 
-       playerStates[walletSeatIdx] !== PlayerState.EMPTY && 
+       playerStates[walletSeatIdx] !== "folded" && 
+       playerStates[walletSeatIdx] !== "empty" && 
        !cardsRevealed[walletSeatIdx] && (
         <div className="mt-2">
           <button

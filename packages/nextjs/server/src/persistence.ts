@@ -1,5 +1,6 @@
 import type { Session } from "./sessionManager";
 import type { Table } from "../game-engine";
+import { logger } from "../game-engine/utils/logger";
 
 type RedisClientType = import("redis").RedisClientType;
 
@@ -22,16 +23,16 @@ async function getClient(): Promise<RedisClientType | null> {
       c.on("error", (err) => {
         errorCount++;
         if (errorCount === 1) {
-          console.warn("📡 Redis connection failed, using in-memory storage");
+          logger.warn("📡 Redis connection failed, using in-memory storage");
         }
         // Don't log subsequent Redis errors to avoid spam
       });
       
       await c.connect();
-      console.log("📡 Redis connected successfully");
+      logger.info("📡 Redis connected successfully");
       client = c as any;
     } catch (err) {
-      console.warn("📡 Redis unavailable, using in-memory storage");
+      logger.warn("📡 Redis unavailable, using in-memory storage");
       client = null;
     }
   }

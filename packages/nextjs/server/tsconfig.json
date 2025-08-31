@@ -4,15 +4,15 @@
     "module": "commonjs",
     "lib": ["ES2022"],
     "outDir": "dist",
-    "strict": false,
+    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": false,
+    "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": false,
     "sourceMap": false,
-    "noImplicitAny": false,
-    "noEmitOnError": false,
+    "noImplicitAny": true,
+    "noEmitOnError": true,
     "baseUrl": ".",
     "paths": {
       "../../game-engine": ["./game-engine/index.ts"],
@@ -22,9 +22,9 @@
   "ts-node": {
     "transpileOnly": true,
     "compilerOptions": {
-      "strict": false,
+      "strict": true,
       "skipLibCheck": true,
-      "noImplicitAny": false
+      "noImplicitAny": true
     }
   },
   "files": [

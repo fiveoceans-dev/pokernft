@@ -14,10 +14,22 @@ import { EventEngine, Table, PokerEvent, TimerEvent, indexToCard } from "../game
 import type { ServerEvent, ClientCommand, LobbyTable } from "../game-engine";
 import { SessionManager, Session } from "./sessionManager";
 import { getSitOutManager } from "../game-engine/managers/sitOutManager";
+import { logger } from "../game-engine/utils/logger";
+import { getTableConfig, getRecommendedBuyIn, validateBuyIn } from "./tableConfig";
 
 /**
- * WebSocket to FSM Event Mapper
- * Converts WebSocket commands to FSM events
+ * Professional WebSocket-FSM Bridge
+ * 
+ * Provides clean translation between WebSocket client commands and EventEngine FSM events.
+ * Maintains separation of concerns with proper error handling and validation.
+ * 
+ * @extends EventEmitter
+ * @example
+ * ```typescript
+ * const bridge = new WebSocketFSMBridge(sessions);
+ * bridge.on('broadcast', (roomId, event) => broadcast(roomId, event));
+ * await bridge.handleCommand(ws, session, command);
+ * ```
  */
 class WebSocketFSMBridge extends EventEmitter {
   private engines = new Map<string, EventEngine>();
@@ -31,17 +43,33 @@ class WebSocketFSMBridge extends EventEmitter {
 
   /**
    * Get or create EventEngine for table
-   * Pure FSM - no adapter layer
+   * 
+   * Creates a new EventEngine instance if one doesn't exist for the given table.
+   * Each table has its own isolated EventEngine with complete event sourcing.
+   * Uses table configuration for blind levels.
+   * 
+   * @param tableId - Unique identifier for the poker table
+   * @param smallBlind - Optional small blind override
+   * @param bigBlind - Optional big blind override
+   * @returns EventEngine instance for the specified table
+   * @throws {Error} If tableId is invalid or configuration not found
    */
-  getEngine(tableId: string): EventEngine {
+  getEngine(tableId: string, smallBlind?: number, bigBlind?: number): EventEngine {
     let engine = this.engines.get(tableId);
     if (!engine) {
-      engine = new EventEngine(tableId, 5, 10); // Use EventEngine directly
+      // Get table configuration or use provided blinds
+      const config = getTableConfig(tableId);
+      const sb = smallBlind ?? config?.blinds.small ?? 5;
+      const bb = bigBlind ?? config?.blinds.big ?? 10;
+      
+      engine = new EventEngine(tableId, sb, bb);
       this.engines.set(tableId, engine);
       this.seatMaps.set(tableId, new Map());
 
       // Forward FSM events to WebSocket clients
       this.setupEngineEventForwarding(engine, tableId);
+      
+      logger.info(`🎯 Created EventEngine for table ${tableId} with blinds ${sb}/${bb}`);
     }
     return engine;
   }
@@ -74,6 +102,16 @@ class WebSocketFSMBridge extends EventEmitter {
       this.emit('broadcast', tableId, {
         type: "TIMER",
         countdown: 0
+      });
+    });
+
+    // Game countdown events
+    engine.on('gameStartCountdown', (data: any) => {
+      this.emit('broadcast', tableId, {
+        type: "GAME_START_COUNTDOWN",
+        countdown: data.seconds,
+        activePlayerCount: data.activePlayerCount,
+        totalPlayerCount: data.totalPlayerCount
       });
     });
 
@@ -161,47 +199,103 @@ class WebSocketFSMBridge extends EventEmitter {
   }
 
   /**
-   * Handle SIT command via FSM events
+   * Handle SIT command via FSM events with dynamic buy-in
    */
   private async handleSitCommand(session: Session, command: any): Promise<void> {
-    const engine = this.getEngine(command.tableId);
-    const playerId = this.normalizePlayerId(command.playerId || session.userId || session.sessionId);
-    
-    // Dispatch PlayerJoin event through FSM
-    await engine.dispatch({
-      t: "PlayerJoin",
-      seat: command.seat,
-      pid: playerId,
-      chips: 10000, // Standard buy-in
-      nickname: this.shortAddress(playerId)
-    });
+    try {
+      // Validate input
+      if (!command.tableId || typeof command.seat !== 'number') {
+        throw new Error("Invalid SIT command: missing tableId or seat");
+      }
+      
+      if (command.seat < 0 || command.seat > 8) {
+        throw new Error("Invalid seat number: must be 0-8");
+      }
 
-    // Update session and seat mapping
-    session.roomId = command.tableId;
-    session.seat = command.seat;
-    session.chips = 10000;
-    this.seatMaps.get(command.tableId)?.set(playerId, command.seat);
+      const engine = this.getEngine(command.tableId);
+      const playerId = this.normalizePlayerId(command.playerId || session.userId || session.sessionId);
+      
+      // Validate player ID
+      if (!playerId || playerId.length === 0) {
+        throw new Error("Invalid player ID");
+      }
+      
+      // Calculate buy-in based on table configuration
+      const requestedChips = command.chips;
+      const recommendedBuyIn = getRecommendedBuyIn(command.tableId);
+      const buyInChips = requestedChips ?? recommendedBuyIn; // Use requested or recommended
+      
+      // Validate buy-in amount
+      const buyInValidation = validateBuyIn(command.tableId, buyInChips);
+      if (!buyInValidation.valid) {
+        throw new Error(buyInValidation.error || "Invalid buy-in amount");
+      }
+      
+      // Dispatch PlayerJoin event through FSM
+      await engine.dispatch({
+        t: "PlayerJoin",
+        seat: command.seat,
+        pid: playerId,
+        chips: buyInChips, // Dynamic buy-in based on table
+        nickname: this.shortAddress(playerId)
+      });
+
+      // Update session and seat mapping
+      session.roomId = command.tableId;
+      session.seat = command.seat;
+      session.chips = buyInChips;
+      this.seatMaps.get(command.tableId)?.set(playerId, command.seat);
+      
+      logger.info(`✅ Player ${playerId} successfully joined table ${command.tableId} at seat ${command.seat} with ${buyInChips} chips`);
+    } catch (error) {
+      logger.error(`❌ SIT command failed:`, error);
+      throw error; // Re-throw for higher level handler
+    }
   }
 
   /**
    * Handle ACTION command via FSM events  
    */
   private async handleActionCommand(session: Session, command: any): Promise<void> {
-    if (!session.roomId) return;
+    try {
+      if (!session.roomId) {
+        throw new Error("Player not in any room");
+      }
+      
+      // Validate action
+      const validActions = ['FOLD', 'CHECK', 'CALL', 'BET', 'RAISE', 'ALLIN'];
+      if (!validActions.includes(command.action)) {
+        throw new Error(`Invalid action: ${command.action}`);
+      }
+      
+      // Validate amount for betting actions
+      if (['BET', 'RAISE'].includes(command.action)) {
+        if (typeof command.amount !== 'number' || command.amount <= 0) {
+          throw new Error("Invalid amount for betting action");
+        }
+      }
     
-    const engine = this.getEngine(session.roomId);
-    const playerId = this.normalizePlayerId(session.userId || session.sessionId);
-    const seatId = this.seatMaps.get(session.roomId)?.get(playerId);
-    
-    if (seatId === undefined) return;
+      const engine = this.getEngine(session.roomId);
+      const playerId = this.normalizePlayerId(session.userId || session.sessionId);
+      const seatId = this.seatMaps.get(session.roomId)?.get(playerId);
+      
+      if (seatId === undefined) {
+        throw new Error("Player not found at table");
+      }
 
-    // Dispatch Action event through FSM
-    await engine.dispatch({
-      t: "Action",
-      seat: seatId,
-      action: command.action,
-      amount: command.amount
-    });
+      // Dispatch Action event through FSM
+      await engine.dispatch({
+        t: "Action",
+        seat: seatId,
+        action: command.action,
+        amount: command.amount
+      });
+      
+      logger.debug(`🎮 Player ${playerId} executed ${command.action}${command.amount ? ` (${command.amount})` : ''}`);
+    } catch (error) {
+      logger.error(`❌ ACTION command failed:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -233,17 +327,31 @@ class WebSocketFSMBridge extends EventEmitter {
    * Handle sit out via SitOutManager integration
    */
   private async handleSitOutCommand(session: Session): Promise<void> {
-    if (!session.roomId) return;
+    if (!session.roomId || session.seat === undefined) return;
     
     const playerId = this.normalizePlayerId(session.userId || session.sessionId);
-    const sitOutManager = getSitOutManager(session.roomId);
+    const engine = this.engines.get(session.roomId);
     
-    // Use SitOutManager for sit out logic
+    if (!engine) {
+      console.error(`❌ [WebSocket] No engine found for table ${session.roomId}`);
+      return;
+    }
+
+    // Dispatch PlayerSitOut event to FSM
+    engine.dispatch({
+      t: "PlayerSitOut",
+      seat: session.seat,
+      pid: playerId,
+      reason: "voluntary"
+    });
+
+    // Also update SitOutManager for timeout tracking
+    const sitOutManager = getSitOutManager(session.roomId);
     sitOutManager.markSitOut(playerId, "voluntary");
     
     this.emit('broadcast', session.roomId, {
-      type: "PLAYER_SAT_OUT",
-      seat: session.seat!,
+      type: "PLAYER_SIT_OUT",
+      seat: session.seat,
       playerId,
       reason: "voluntary"
     });
@@ -253,17 +361,30 @@ class WebSocketFSMBridge extends EventEmitter {
    * Handle sit in via SitOutManager integration
    */
   private async handleSitInCommand(session: Session): Promise<void> {
-    if (!session.roomId) return;
+    if (!session.roomId || session.seat === undefined) return;
     
     const playerId = this.normalizePlayerId(session.userId || session.sessionId);
-    const sitOutManager = getSitOutManager(session.roomId);
+    const engine = this.engines.get(session.roomId);
     
-    // Use SitOutManager for sit in logic
+    if (!engine) {
+      console.error(`❌ [WebSocket] No engine found for table ${session.roomId}`);
+      return;
+    }
+
+    // Dispatch PlayerSitIn event to FSM
+    engine.dispatch({
+      t: "PlayerSitIn",
+      seat: session.seat,
+      pid: playerId
+    });
+
+    // Also update SitOutManager for timeout tracking
+    const sitOutManager = getSitOutManager(session.roomId);
     sitOutManager.markSitIn(playerId);
     
     this.emit('broadcast', session.roomId, {
-      type: "PLAYER_SAT_IN",
-      seat: session.seat!,
+      type: "PLAYER_SIT_IN",
+      seat: session.seat,
       playerId
     });
   }
@@ -280,19 +401,24 @@ class WebSocketFSMBridge extends EventEmitter {
   }
 
   /**
-   * Get all tables for lobby
+   * Get all tables for lobby with enhanced information
    */
   getTables(): LobbyTable[] {
     return Array.from(this.engines.entries()).map(([id, engine]) => {
       const table = engine.getState();
+      const config = getTableConfig(id);
+      
       return {
         id,
-        name: `Table ${id}`,
+        name: config?.name ?? `Table ${id}`,
         gameType: "No Limit Hold'em",
         playerCount: table.seats.filter(s => s.pid).length,
         maxPlayers: 9,
         smallBlind: table.smallBlind,
-        bigBlind: table.bigBlind
+        bigBlind: table.bigBlind,
+        // Add stake level information
+        stakeLevel: config?.stakeLevel,
+        buyInRange: config ? `${config.buyIn.min}-${config.buyIn.max}` : undefined
       };
     });
   }

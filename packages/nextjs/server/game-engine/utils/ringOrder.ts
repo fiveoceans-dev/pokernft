@@ -10,6 +10,7 @@
 
 import { Table, Seat, SeatStatus, NextActorResult, BettingRoundState } from '../core/types';
 import { getFirstActor as rulesGetFirstActor, shouldGiveBBOption } from '../logic/gameRules';
+import { logger } from './logger';
 
 /**
  * Check if a seat can take actions
@@ -129,7 +130,7 @@ function isBettingRoundComplete(table: Table, nextActorIndex: number): boolean {
   
   // BB OPTION: Special preflop logic via canonical rules
   if (shouldGiveBBOption(table, nextActorIndex)) {
-    console.log(`💺 [RingOrder] BB gets option to raise`);
+    logger.debug(`💺 [RingOrder] BB gets option to raise`);
     return false; // Round not complete - BB can act
   }
   
@@ -171,7 +172,7 @@ function isBettingRoundComplete(table: Table, nextActorIndex: number): boolean {
   }
   
   // FALLBACK: Old amount-based logic for backward compatibility
-  console.warn("⚠️  [RingOrder] Using fallback amount-based completion logic");
+  logger.warn("⚠️  [RingOrder] Using fallback amount-based completion logic");
   
   // If everyone has matching streetCommitted amounts or is all-in/folded
   const allMatched = activePlayers.every(seatId => {

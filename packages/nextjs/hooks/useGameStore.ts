@@ -2,15 +2,15 @@
 import { create } from "zustand";
 import {
   cardToIndex,
-  PlayerState,
-  type Stage,
+  type SeatStatus,
+  type Phase,
   type ServerEvent,
   type ClientCommand,
 } from "../game-engine";
 import { shortAddress } from "../utils/address";
 
-/** Map Stage strings to numeric street indices used by the UI */
-const stageToStreet: Record<string, number> = {
+/** Map Phase strings to numeric street indices used by the UI */
+const phaseToStreet: Record<string, number> = {
   waiting: -1,    // Not in active play
   deal: -1,       // Cards being dealt, no street yet
   preflop: 0,     // Preflop betting round
@@ -38,7 +38,7 @@ interface GameStoreState {
   community: (number | null)[];
   chips: number[];
   playerBets: number[];
-  playerStates: PlayerState[];
+  playerStates: SeatStatus[];
   /** which seat is the dealer */
   dealerIndex: number | null;
   pot: number;
@@ -100,9 +100,8 @@ interface GameStoreState {
 export const useGameStore = create<GameStoreState>((set, get) => {
   function applySnapshot(room: any) {
     console.log("📸 Applying TABLE_SNAPSHOT:", {
-      playersCount: room.players?.length || 0,
-      players: room.players?.map((p: any) => ({ seat: p.seat, id: p.id?.slice(0, 10) + "..." })) || [],
-      stage: room.stage
+      seatsCount: room.seats?.length || 0,
+      phase: room.phase
     });
 
     // Start with completely fresh arrays to ensure proper cleanup
@@ -111,7 +110,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const hands = Array(9).fill(null) as ([number, number] | null)[];
     const chips = Array(9).fill(0) as number[];
     const bets = Array(9).fill(0) as number[];
-    const states = Array(9).fill(PlayerState.EMPTY) as PlayerState[];
+    const states = Array(9).fill("empty" as SeatStatus) as SeatStatus[];
 
     // Populate only seats that have active players
     // Handle both new EventEngine format (seats array) and legacy format (players array)
@@ -129,47 +128,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           chips[index] = seat.chips ?? 0;
           bets[index] = seat.committed ?? 0;
           
-          // Map new EventEngine status to PlayerState
-          let state = PlayerState.ACTIVE;
-          if (seat.status === "folded") {
-            state = PlayerState.FOLDED;
-          } else if (seat.status === "allin") {
-            state = PlayerState.ALL_IN;
-          } else if (seat.status === "empty") {
-            state = PlayerState.EMPTY;
-          }
+          // Map new EventEngine status directly (includes "sittingOut")
+          let state: SeatStatus = seat.status || "empty";
           states[index] = state;
           
           console.log(`👤 Seat ${index}: ${seat.pid?.slice(0, 10)}... (${chips[index]} chips, ${seat.committed} committed, state: ${seat.status})`);
         }
       });
-    } else if (room.players) {
-      // Legacy format
-      room.players.forEach((p: any) => {
-        if (p.seat >= 0 && p.seat < 9) {
-          // Use nickname if available, otherwise use wallet address for display
-          seats[p.seat] = p.nickname || p.id;
-          ids[p.seat] = p.id;
-          
-          if (p.hand?.length === 2) {
-            hands[p.seat] = [cardToIndex(p.hand[0]), cardToIndex(p.hand[1])];
-          }
-          
-          chips[p.seat] = p.chips ?? p.stack ?? 0;
-          bets[p.seat] = p.currentBet ?? p.betThisRound ?? 0;
-          
-          // Determine player state
-          let state = PlayerState.ACTIVE;
-          if (p.hasFolded) {
-            state = PlayerState.FOLDED;
-          } else if ((p.chips ?? p.stack ?? 0) === 0) {
-            state = PlayerState.ALL_IN;
-          }
-          states[p.seat] = p.state ?? state;
-          
-          console.log(`👤 Player ${p.seat}: ${p.id?.slice(0, 10)}... (${chips[p.seat]} chips, state: ${state})`);
-        }
-      });
+    } else {
+      // No valid format found - initialize with empty state  
+      console.warn('⚠️ No valid room format found, using empty state');
     }
 
     const comm = Array(5).fill(null) as (number | null)[];
@@ -209,31 +177,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           return (room as any).actor;
         }
         
-        // Legacy format: find player with isTurn=true
-        if (room.players?.length) {
-          const playerWithTurn = room.players.find(p => p.isTurn);
-          if (playerWithTurn) {
-            console.log(`   → Using legacy isTurn player: seat ${playerWithTurn.seat}`);
-            return playerWithTurn.seat;
-          }
-        }
-        
-        // Fallback: use currentTurnIndex if valid
-        if (room.currentTurnIndex >= 0 && room.players?.[room.currentTurnIndex]) {
-          console.log(`   → Using currentTurnIndex: ${room.currentTurnIndex}`);
-          return room.players[room.currentTurnIndex].seat;
-        }
+        // No legacy format support in pure FSM
         
         console.log(`   → No current turn found, returning null`);
         return null;
       })(),
-      street: stageToStreet[room.phase ?? room.stage] ?? 0,
+      street: phaseToStreet[room.phase] ?? 0,
       loading: false,
       error: null,
-      smallBlind: room.smallBlindAmount ?? get().smallBlind,
-      bigBlind: room.bigBlindAmount ?? get().bigBlind,
+      smallBlind: room.smallBlind ?? get().smallBlind,
+      bigBlind: room.bigBlind ?? get().bigBlind,
       // default to big blind if minRaise not provided (e.g. pre-action snapshot)
-      minRaise: room.minRaise ?? room.bigBlindAmount ?? get().minRaise,
+      minRaise: room.minRaise ?? room.bigBlind ?? get().minRaise,
     });
   }
 
@@ -306,7 +261,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 // Clear all data for the leaving player's seat
                 arr[msg.seat] = null;
                 ids[msg.seat] = null;
-                states[msg.seat] = PlayerState.EMPTY;
+                states[msg.seat] = "empty";
                 chips[msg.seat] = 0;
                 bets[msg.seat] = 0;
                 hands[msg.seat] = null;
@@ -339,10 +294,28 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               });
               get().addLog(`${shortAddress(msg.playerId)} left`);
               break;
+            case "PLAYER_SIT_OUT":
+              set((s) => {
+                const states = [...s.playerStates];
+                states[msg.seat] = "sittingOut";
+                console.log(`😴 Player at seat ${msg.seat} sitting out (${msg.reason})`);
+                return { playerStates: states };
+              });
+              get().addLog(`${shortAddress(msg.playerId)} sat out`);
+              break;
+            case "PLAYER_SIT_IN":
+              set((s) => {
+                const states = [...s.playerStates];
+                states[msg.seat] = "active";
+                console.log(`🪑 Player at seat ${msg.seat} sitting in`);
+                return { playerStates: states };
+              });
+              get().addLog(`${shortAddress(msg.playerId)} sat in`);
+              break;
             case "PLAYER_DISCONNECTED":
               set((s) => {
                 const arr = [...s.playerStates];
-                arr[msg.seat] = PlayerState.DISCONNECTED;
+                arr[msg.seat] = "empty";
                 return { playerStates: arr };
               });
               get().addLog(`${shortAddress(msg.playerId)} disconnected`);
@@ -350,7 +323,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             case "PLAYER_SAT_OUT":
               set((s) => {
                 const states = [...s.playerStates];
-                states[msg.seat] = PlayerState.SITTING_OUT;
+                states[msg.seat] = "active";
                 return { playerStates: states };
               });
               get().addLog(`${shortAddress(msg.playerId)} sat out${msg.reason === 'inactivity' ? ' (inactive)' : ''}`);
@@ -358,7 +331,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             case "PLAYER_SAT_IN":
               set((s) => {
                 const states = [...s.playerStates];
-                states[msg.seat] = PlayerState.ACTIVE;
+                states[msg.seat] = "active";
                 return { playerStates: states };
               });
               get().addLog(`${shortAddress(msg.playerId)} returned to play`);
@@ -366,7 +339,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             case "PLAYER_REJOINED":
               set((s) => {
                 const states = [...s.playerStates];
-                states[msg.seat] = PlayerState.ACTIVE;
+                states[msg.seat] = "active";
                 const names = [...s.players];
                 const ids = [...s.playerIds];
                 if (!names[msg.seat])
@@ -449,6 +422,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 set({ timer: null });
               }
               break;
+            case "GAME_START_COUNTDOWN":
+              set({ timer: msg.countdown });
+              console.log(`🚀 Game starting in ${msg.countdown} seconds with ${msg.activePlayerCount || 0} players`);
+              if (msg.countdown === 0) {
+                set({ timer: null });
+              }
+              break;
             case "TABLE_RESET":
               // Handle table reset due to idle timeout
               console.log("🔄 Table was reset due to inactivity");
@@ -461,7 +441,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 community: Array(5).fill(null),
                 chips: Array(9).fill(0),
                 playerBets: Array(9).fill(0),
-                playerStates: Array(9).fill(PlayerState.EMPTY),
+                playerStates: Array(9).fill("empty"),
                 dealerIndex: null,
                 pot: 0,
                 currentTurn: null,
@@ -476,7 +456,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               set((s) => {
                 const newRevealed = [...s.cardsRevealed];
                 s.playerStates.forEach((state, idx) => {
-                  if (state !== PlayerState.FOLDED && state !== PlayerState.EMPTY && s.players[idx]) {
+                  if (state !== "folded" && state !== "empty" && s.players[idx]) {
                     newRevealed[idx] = true;
                   }
                 });
@@ -517,7 +497,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 const nickname = (msg as any).nickname || shortAddress(msg.playerId);
                 arr[msg.seat] = nickname;
                 ids[msg.seat] = msg.playerId;
-                states[msg.seat] = PlayerState.SITTING_OUT; // Show as sitting out until next hand
+                states[msg.seat] = "active"; // Show as sitting out until next hand
                 
                 // If this is our wallet, update table seats tracking
                 if (msg.playerId === s.currentWalletId) {
@@ -661,7 +641,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     community: Array(5).fill(null),
     chips: Array(9).fill(0),
     playerBets: Array(9).fill(0),
-    playerStates: Array(9).fill(PlayerState.EMPTY),
+    playerStates: Array(9).fill("empty"),
     dealerIndex: null,
     pot: 0,
     currentTurn: null,
@@ -731,7 +711,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             playerIds: Array(9).fill(null),
             chips: Array(9).fill(0),
             playerBets: Array(9).fill(0),
-            playerStates: Array(9).fill(PlayerState.EMPTY),
+            playerStates: Array(9).fill("empty"),
           });
           
           if (typeof window !== "undefined") {
@@ -845,7 +825,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         playerHands: Array(9).fill(null),
         chips: Array(9).fill(0),
         playerBets: Array(9).fill(0),
-        playerStates: Array(9).fill(PlayerState.EMPTY),
+        playerStates: Array(9).fill("empty"),
         currentTurn: null,
         pot: 0
       });
@@ -959,7 +939,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           const states = [...s.playerStates];
           players[idx] = null;
           ids[idx] = null;
-          states[idx] = PlayerState.EMPTY;
+          states[idx] = "empty";
           return { players, playerIds: ids, playerStates: states };
         });
       }

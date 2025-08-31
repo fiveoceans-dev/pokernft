@@ -67,4 +67,4 @@ export function createEventEngine(
   return new EventEngine(tableId, smallBlind, bigBlind);
 }
 
-console.log('🎮 [FSM Engine] Pure event-driven poker engine loaded');
+// Engine loaded - using logger from individual components

@@ -23,7 +23,7 @@ export type Street = "preflop" | "flop" | "turn" | "river";
 
 export type ActionType = "FOLD" | "CHECK" | "CALL" | "BET" | "RAISE" | "ALLIN";
 
-export type SeatStatus = "active" | "folded" | "allin" | "empty";
+export type SeatStatus = "active" | "folded" | "allin" | "empty" | "sittingOut";
 
 /**
  * Seat represents a single position at the poker table
@@ -38,7 +38,6 @@ export interface Seat {
   status: SeatStatus; // current seat state
   holeCards?: [number, number]; // card indices if dealt
   nickname?: string; // display name
-  sittingOut?: boolean; // player is sitting out (optional for backwards compatibility)
 }
 
 /**
@@ -223,10 +222,9 @@ export interface TimerEvent {
 export type { Seat as PokerSeat, Table as PokerTable, Pot as PokerPot };
 
 // ============================================================================
-// LEGACY TYPES FOR BACKWARD COMPATIBILITY
+// CARD TYPES
 // ============================================================================
 
-// Legacy card types
 export type Suit = "s" | "h" | "d" | "c";
 export type Rank =
   | "2"
@@ -247,9 +245,6 @@ export interface Card {
   suit: Suit;
   rank: Rank;
 }
-
-// Note: All legacy types removed - using pure event-driven FSM types only
-// Table, Phase, Seat, Pot, ActionType are the only game state types needed
 
 /**
  * Side Effects - Actions that the reducer wants the engine to perform

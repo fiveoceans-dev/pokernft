@@ -10,6 +10,7 @@
  */
 
 import { Table, Seat, Pot, PotCalculation, PayoutDistribution } from '../core/types';
+import { logger } from '../utils/logger';
 
 /**
  * Player commitment data for pot calculations
@@ -139,7 +140,7 @@ export function calculatePayouts(
 
     if (eligibleRankings.length === 0) {
       // No eligible winners - this shouldn't happen but handle gracefully
-      console.warn(`Pot ${potIndex} has no eligible winners`);
+      logger.warn(`Pot ${potIndex} has no eligible winners`);
       return;
     }
 

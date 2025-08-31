@@ -13,7 +13,7 @@ import { useWalletGameSync } from "../../hooks/useWalletGameSync";
 import { useTableViewModel } from "../../hooks/useTableViewModel";
 import { usePlayViewModel } from "../../hooks/usePlayViewModel";
 import useIsMobile from "../../hooks/useIsMobile";
-import { PlayerState } from "../../game-engine";
+import type { SeatStatus } from "../../game-engine";
 
 // TODO: display connected address and handle signature (Action Plan 1.3)
 
@@ -46,7 +46,7 @@ export default function PlayPage() {
   // Check if current player is sitting out based on game state
   const mySeatIndex = playerIds.findIndex((id) => id === currentWalletId);
   const isSittingOut =
-    mySeatIndex >= 0 && playerStates[mySeatIndex] === PlayerState.SITTING_OUT;
+    mySeatIndex >= 0 && playerStates[mySeatIndex] === "sittingOut";
 
   // Calculate action button props
   const isMyTurn = currentTurn !== null && currentTurn === mySeatIndex;

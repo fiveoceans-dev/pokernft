@@ -2,24 +2,24 @@
 // This file serves as a bridge between the client and server game-engine
 // Updated to use ONLY the new event-driven state machine architecture
 
-// Export types from types.ts (legacy compatibility)
+// Export pure FSM types from types.ts
 export type { 
-  UiPlayer,
   Card,
   Table,
-  Player,
-  Stage,
-  GameRoom,
-  Suit,
-  Rank,
-  PlayerSession,
-  GameState as EngineGameState,
-  CardShape,
-  PlayerAction,
+  Seat,
   Pot,
-  RakeConfig,
-  HandAction,
-  HandLog
+  Phase,
+  Street,
+  ActionType,
+  SeatStatus,
+  PokerEvent,
+  StateTransition,
+  SideEffect,
+  TimerEvent,
+  GameSnapshot,
+  ActionValidation,
+  Suit,
+  Rank
 } from "./server/game-engine/core/types";
 
 // Export types from networking.ts
@@ -28,13 +28,6 @@ export type {
   ServerEvent,
   ClientCommand
 } from "./server/game-engine/network/networking";
-
-// Export enums and constants (legacy compatibility)
-export { 
-  PlayerState,
-  TableState,
-  Round as BettingRound
-} from "./server/game-engine/core/types";
 
 // Export constants
 export * from "./server/game-engine/core/constants";
@@ -55,4 +48,4 @@ export * from "./server/game-engine/utils/rng";
 // Hash tables commented out due to SUITS conflict with constants
 // export * from "./server/game-engine/hashTables";
 
-console.log('🎮 [ClientGameEngine] New state machine architecture loaded for UI');
+console.log('🎮 [ClientGameEngine] Pure FSM architecture loaded for UI');

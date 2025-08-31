@@ -1,25 +1,32 @@
 # PokerNFT WebSocket Server
 
-Real-time multiplayer server for poker game connections. This server handles WebSocket connections, game state management, and table orchestration.
+**Pure Event-Driven FSM Architecture**
+
+Production-ready multiplayer poker server featuring direct EventEngine integration, complete event sourcing, and professional WebSocket-FSM communication.
 
 ## 🏗️ Architecture
 
 ```
+Pure Event-Driven FSM Architecture:
+WebSocket Commands → WebSocketFSMBridge → EventEngine → FSM State
+                                                      ↓
+                      Client Events ← Event Stream ← FSM Events
+
 server/
-├── src/                          # Server source code
-│   ├── index.ts                  # WebSocket server entry point
-│   ├── lobby.ts                  # Table management & listing
+├── src/                          # Pure FSM Server
+│   ├── index.ts                  # WebSocket server with direct FSM integration
+│   ├── pokerWebSocketServer.ts   # Professional WebSocket-FSM bridge
 │   ├── sessionManager.ts         # User session handling
-│   ├── persistence.ts            # Redis/memory state persistence
+│   ├── persistence.ts            # Table state persistence (Table format)
 │   ├── user.ts                   # User management utilities
 │   └── utils.ts                  # Server utilities
-├── dist/                         # Compiled JavaScript output
-├── tests/                        # Integration tests
-├── Procfile                      # Heroku process definition
-├── package.json                  # Dependencies & scripts
-├── tsconfig.json                 # TypeScript configuration
-├── heroku-deploy.sh             # Deployment script
-└── README.md                     # This file
+├── game-engine/                  # Event-Driven FSM Core
+│   ├── core/                     # Pure FSM implementation
+│   ├── logic/                    # Game logic modules
+│   ├── managers/                 # Timer and state management
+│   └── utils/                    # FSM utilities
+├── dist/                         # Compiled output
+└── README.md                     # Architecture documentation
 ```
 
 ## 🚀 Local Development
@@ -159,8 +166,8 @@ git subtree push --prefix=packages/nextjs/server heroku main
 // Table list response
 { type: "TABLE_LIST", tables: LobbyTable[] }
 
-// Game state update
-{ type: "TABLE_SNAPSHOT", table: GameRoom }
+// Game state update (pure Table format)
+{ type: "TABLE_SNAPSHOT", table: Table }
 
 // Player joined
 { type: "PLAYER_JOINED", seat: number, playerId: string }

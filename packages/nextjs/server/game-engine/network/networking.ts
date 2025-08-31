@@ -18,6 +18,7 @@ export type ServerEvent =
   | { tableId: ""; type: "TABLE_LIST"; tables: LobbyTable[] }
   | { tableId: string; type: "TABLE_CREATED"; table: LobbyTable }
   | { tableId: string; type: "HAND_START" }
+  | { tableId: string; type: "GAME_START_COUNTDOWN"; countdown: number; activePlayerCount?: number; totalPlayerCount?: number }
   | { tableId: string; type: "BLINDS_POSTED" }
   | { tableId: string; type: "DEAL_HOLE"; seat: number; cards: [Card, Card] }
   | { tableId: string; type: "PLAYER_JOINED"; seat: number; playerId: string }

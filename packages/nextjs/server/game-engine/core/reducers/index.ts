@@ -17,7 +17,7 @@ import { startHand, postBlinds, endHand } from "./handLifecycle";
 import { applyHoleCards, enterStreet } from "./cardDealing";
 import { applyAction, handleTimeoutAutoFold } from "./actionProcessing";
 import { closeStreet, processShowdown, processPayout } from "./potManagement";
-import { addPlayer, removePlayer } from "./tableManagement";
+import { addPlayer, removePlayer, sitOutPlayer, sitInPlayer } from "./tableManagement";
 
 /**
  * Main reducer function - pure and deterministic
@@ -67,6 +67,12 @@ export function reduce(table: Table, event: PokerEvent): StateTransition {
     case "PlayerLeave":
       return removePlayer(table, event.seat, event.pid);
 
+    case "PlayerSitOut":
+      return sitOutPlayer(table, event.seat, event.pid, event.reason);
+
+    case "PlayerSitIn":
+      return sitInPlayer(table, event.seat, event.pid);
+
     default:
       // TypeScript ensures all cases are handled
       return { nextState: table, sideEffects: [] };
@@ -96,6 +102,8 @@ export {
   // Table management
   addPlayer,
   removePlayer,
+  sitOutPlayer,
+  sitInPlayer,
 };
 
 // Export types for convenience
