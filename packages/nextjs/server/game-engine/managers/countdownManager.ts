@@ -33,6 +33,26 @@ export interface CountdownEvent {
  */
 export class CountdownManager {
   private countdowns = new Map<string, CountdownData>();
+  private cleanupInterval: NodeJS.Timeout;
+
+  constructor() {
+    // Auto-cleanup expired countdowns every 30 seconds
+    this.cleanupInterval = setInterval(() => {
+      this.clearExpiredCountdowns();
+    }, 30000);
+    
+    console.log(`🧹 [CountdownManager] Auto-cleanup started (30s interval)`);
+  }
+
+  /**
+   * Shutdown cleanup interval
+   */
+  shutdown(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      console.log(`🧹 [CountdownManager] Auto-cleanup stopped`);
+    }
+  }
 
   /**
    * Start a new countdown and return event data for client
@@ -43,6 +63,24 @@ export class CountdownManager {
     duration: number,
     metadata?: any
   ): CountdownEvent {
+    // Validation
+    if (!id || id.trim().length === 0) {
+      throw new Error("Countdown ID cannot be empty");
+    }
+    
+    if (duration <= 0) {
+      throw new Error(`Invalid countdown duration: ${duration} (must be > 0)`);
+    }
+    
+    if (duration > 300000) { // 5 minutes max
+      console.warn(`⚠️ [CountdownManager] Very long countdown duration: ${duration}ms`);
+    }
+    
+    // Clear existing countdown with same ID if it exists
+    if (this.countdowns.has(id)) {
+      console.log(`🔄 [CountdownManager] Replacing existing countdown: ${id}`);
+      this.cancelCountdown(id);
+    }
     const startTime = Date.now();
     
     this.countdowns.set(id, { 
@@ -161,6 +199,10 @@ export function getCountdownManager(tableId: string): CountdownManager {
  * Remove countdown manager for table cleanup
  */
 export function removeCountdownManager(tableId: string): void {
+  const manager = countdownManagers.get(tableId);
+  if (manager) {
+    manager.shutdown();
+  }
   countdownManagers.delete(tableId);
   console.log(`🗑️ [CountdownManager] Removed for table ${tableId}`);
 }
@@ -169,6 +211,9 @@ export function removeCountdownManager(tableId: string): void {
  * Clear all countdown managers (for testing/cleanup)
  */
 export function clearAllCountdownManagers(): void {
+  for (const manager of countdownManagers.values()) {
+    manager.shutdown();
+  }
   countdownManagers.clear();
   console.log(`🧹 [CountdownManager] Cleared all managers`);
 }

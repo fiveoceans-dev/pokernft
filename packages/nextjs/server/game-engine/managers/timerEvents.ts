@@ -24,6 +24,7 @@ interface ActiveTimer {
   deadline: number;
   timeoutMs: number;
   nodeTimer: NodeJS.Timeout;
+  creationTimestamp: number; // Add timestamp for race condition protection
 }
 
 /**
@@ -93,19 +94,22 @@ export class TimerEventManager extends EventEmitter {
       }
     );
     
+    const creationTimestamp = Date.now();
+    
     // Create timeout handler for server validation
     const nodeTimer = setTimeout(() => {
-      this.handleTimeout(pid, seat);
+      this.handleTimeout(pid, seat, creationTimestamp);
     }, timeoutMs);
     
     // Store active timer with metadata
     this.activeTimers.set(pid, {
       pid,
       seat,
-      startTime: Date.now(),
+      startTime: creationTimestamp,
       deadline,
       timeoutMs,
-      nodeTimer
+      nodeTimer,
+      creationTimestamp
     });
 
     // Update metrics
@@ -225,14 +229,20 @@ export class TimerEventManager extends EventEmitter {
   }
 
   /**
-   * Handle timer expiration
+   * Handle timer expiration with race condition protection
    */
-  private handleTimeout(pid: string, seat: number): void {
+  private handleTimeout(pid: string, seat: number, expectedTimestamp: number): void {
     const timer = this.activeTimers.get(pid);
     
     if (!timer) {
       logger.debug(`⏰ [TimerEventManager] Timer for ${pid} was already cleared - ignoring timeout`);
       return; // Timer was already cleared
+    }
+    
+    // Race condition protection: verify this is the expected timer
+    if (timer.creationTimestamp !== expectedTimestamp) {
+      logger.debug(`⏰ [TimerEventManager] Timer for ${pid} is stale (expected: ${expectedTimestamp}, actual: ${timer.creationTimestamp}) - ignoring timeout`);
+      return; // This is an old timer, ignore
     }
     
     // Double-check the timer is for the right seat (paranoid validation)

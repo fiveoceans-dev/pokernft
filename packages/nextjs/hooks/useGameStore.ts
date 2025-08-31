@@ -130,8 +130,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           chips[index] = seat.chips ?? 0;
           bets[index] = seat.committed ?? 0;
           
-          // Map new EventEngine status directly (includes "sittingOut")
-          let state: SeatStatus = seat.status || "empty";
+          // Use derived sittingOut field if present, otherwise use status
+          const state = seat.sittingOut ? "sittingOut" : (seat.status || "empty");
           states[index] = state;
           
           console.log(`👤 Seat ${index}: ${seat.pid?.slice(0, 10)}... (${chips[index]} chips, ${seat.committed} committed, state: ${seat.status})`);
@@ -145,24 +145,22 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const comm = Array(5).fill(null) as (number | null)[];
     const newCards = room.communityCards ?? room.board ?? [];
     
-    // Don't overwrite existing community cards with empty array during betting
-    // Only clear cards on HAND_END or when new hand starts
+    // Preserve existing community cards during betting if the snapshot sends none,
+    // but continue updating players and other fields to avoid stale UI state.
     if (newCards.length === 0) {
       const existingCards = get().community || [];
       const hasExistingCards = existingCards.some(c => c !== null);
-      
-      if (hasExistingCards && room.phase && 
-          !["waiting", "deal"].includes(room.phase)) {
-        // Keep existing cards during betting phases
-        console.log("📇 [useGameStore] Preserving community cards during betting phase");
-        return; // Don't update community cards
+      if (hasExistingCards && room.phase && !["waiting", "deal"].includes(room.phase)) {
+        for (let i = 0; i < Math.min(existingCards.length, comm.length); i++) {
+          comm[i] = existingCards[i];
+        }
       }
+    } else {
+      // Update community cards with new data
+      newCards.forEach((c: any, i: number) => {
+        comm[i] = cardToIndex(c);
+      });
     }
-    
-    // Update community cards with new data
-    newCards.forEach((c: any, i: number) => {
-      comm[i] = cardToIndex(c);
-    });
 
     const pot =
       room.pot ??
@@ -314,21 +312,35 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               get().addLog(`${shortAddress(msg.playerId)} left`);
               break;
             case "PLAYER_SIT_OUT":
-              set((s) => {
-                const states = [...s.playerStates];
-                states[msg.seat] = "sittingOut";
-                console.log(`😴 Player at seat ${msg.seat} sitting out (${msg.reason})`);
-                return { playerStates: states };
-              });
+              // Snapshot is authoritative — request fresh snapshot instead of mutating local state
+              try {
+                const tableId = get().tableId;
+                if (tableId && socket && socket.readyState === WebSocket.OPEN) {
+                  const cmd: ClientCommand = {
+                    cmdId: crypto.randomUUID(),
+                    type: "JOIN_TABLE",
+                    tableId,
+                  } as any;
+                  socket.send(JSON.stringify(cmd));
+                  console.log(`🔄 [useGameStore] Requested TABLE_SNAPSHOT after PLAYER_SIT_OUT`);
+                }
+              } catch {}
               get().addLog(`${shortAddress(msg.playerId)} sat out`);
               break;
             case "PLAYER_SIT_IN":
-              set((s) => {
-                const states = [...s.playerStates];
-                states[msg.seat] = "active";
-                console.log(`🪑 Player at seat ${msg.seat} sitting in`);
-                return { playerStates: states };
-              });
+              // Snapshot is authoritative — request fresh snapshot instead of mutating local state
+              try {
+                const tableId = get().tableId;
+                if (tableId && socket && socket.readyState === WebSocket.OPEN) {
+                  const cmd: ClientCommand = {
+                    cmdId: crypto.randomUUID(),
+                    type: "JOIN_TABLE",
+                    tableId,
+                  } as any;
+                  socket.send(JSON.stringify(cmd));
+                  console.log(`🔄 [useGameStore] Requested TABLE_SNAPSHOT after PLAYER_SIT_IN`);
+                }
+              } catch {}
               get().addLog(`${shortAddress(msg.playerId)} sat in`);
               break;
             case "PLAYER_DISCONNECTED":
@@ -340,20 +352,19 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               get().addLog(`${shortAddress(msg.playerId)} disconnected`);
               break;
             case "PLAYER_SAT_OUT":
-              set((s) => {
-                const states = [...s.playerStates];
-                states[msg.seat] = "active";
-                return { playerStates: states };
-              });
-              get().addLog(`${shortAddress(msg.playerId)} sat out${msg.reason === 'inactivity' ? ' (inactive)' : ''}`);
-              break;
             case "PLAYER_SAT_IN":
-              set((s) => {
-                const states = [...s.playerStates];
-                states[msg.seat] = "active";
-                return { playerStates: states };
-              });
-              get().addLog(`${shortAddress(msg.playerId)} returned to play`);
+              // Legacy events — prefer snapshot for truth
+              try {
+                const tableId = get().tableId;
+                if (tableId && socket && socket.readyState === WebSocket.OPEN) {
+                  const cmd: ClientCommand = {
+                    cmdId: crypto.randomUUID(),
+                    type: "JOIN_TABLE",
+                    tableId,
+                  } as any;
+                  socket.send(JSON.stringify(cmd));
+                }
+              } catch {}
               break;
             case "PLAYER_REJOINED":
               set((s) => {
@@ -562,7 +573,22 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               // This is sent directly to the requesting player, so no state updates needed
               break;
             case "ERROR":
+              // Record error and request a fresh snapshot to resync UI
               set({ error: msg.msg });
+              try {
+                const tableId = get().tableId;
+                if (tableId && socket && socket.readyState === WebSocket.OPEN) {
+                  const cmd: ClientCommand = {
+                    cmdId: crypto.randomUUID(),
+                    type: "JOIN_TABLE",
+                    tableId,
+                  } as any;
+                  socket.send(JSON.stringify(cmd));
+                  console.log("🔄 [useGameStore] Requested fresh TABLE_SNAPSHOT after error");
+                }
+              } catch (e) {
+                console.error("❌ Failed to request TABLE_SNAPSHOT after error:", e);
+              }
               break;
           }
         } catch {
@@ -1047,11 +1073,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
 
       try {
+        const { currentWalletId } = get(); // Extract from store
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
           type: "ACTION",
           action: action.type,
           amount: action.amount,
+          playerId: currentWalletId || undefined, // Safely handle null
         };
         
         socket.send(JSON.stringify(cmd));

@@ -144,30 +144,20 @@ export function sitOutPlayer(
     return { nextState: table, sideEffects: [] };
   }
 
-  // Can't sit out if already sitting out or empty
-  if (seat.status === "sittingOut" || seat.status === "empty") {
-    console.warn(`⚠️ [Reducer] Player ${pid} already sitting out or empty`);
+  // Can't sit out if empty seat
+  if (seat.status === "empty") {
+    console.warn(`⚠️ [Reducer] Player ${pid} seat is empty`);
     return { nextState: table, sideEffects: [] };
   }
 
-  const newSeats = [...table.seats];
-  newSeats[seatId] = {
-    ...seat,
-    status: "sittingOut"
-  };
+  // Use SitOutManager as single source of truth - don't modify seat.status
+  const sitOutManager = getSitOutManager(table.id);
+  const sitOutSideEffects = sitOutManager.markSitOut(pid, reason);
 
-  console.log(`😴 [Reducer] Player ${pid} sitting out (${reason})`);
+  console.log(`😴 [Reducer] Player ${pid} sitting out (${reason}) - SitOutManager updated`);
 
-  const nextState = {
-    ...table,
-    seats: newSeats,
-  };
-
-  const sideEffects: SideEffect[] = [
-    { type: "EMIT_STATE_CHANGE", payload: { reason: `player_sit_out_${reason}` } },
-  ];
-
-  return { nextState, sideEffects };
+  // No seat status changes - SitOutManager handles the state
+  return { nextState: table, sideEffects: sitOutSideEffects };
 }
 
 /**
@@ -185,9 +175,10 @@ export function sitInPlayer(
     return { nextState: table, sideEffects: [] };
   }
 
-  // Can't sit in if not sitting out
-  if (seat.status !== "sittingOut") {
-    console.warn(`⚠️ [Reducer] Player ${pid} not sitting out (status: ${seat.status})`);
+  // Use SitOutManager to check if sitting out
+  const sitOutManager = getSitOutManager(table.id);
+  if (!sitOutManager.isPlayerSittingOut(pid)) {
+    console.warn(`⚠️ [Reducer] Player ${pid} not sitting out`);
     return { nextState: table, sideEffects: [] };
   }
 
@@ -197,22 +188,11 @@ export function sitInPlayer(
     return { nextState: table, sideEffects: [] };
   }
 
-  const newSeats = [...table.seats];
-  newSeats[seatId] = {
-    ...seat,
-    status: "active"
-  };
+  // Use SitOutManager as single source of truth - don't modify seat.status
+  const sitInSideEffects = sitOutManager.markSitIn(pid);
 
-  console.log(`🪑 [Reducer] Player ${pid} sitting in`);
+  console.log(`🪑 [Reducer] Player ${pid} sitting in - SitOutManager updated`);
 
-  const nextState = {
-    ...table,
-    seats: newSeats,
-  };
-
-  const sideEffects: SideEffect[] = [
-    { type: "EMIT_STATE_CHANGE", payload: { reason: "player_sit_in" } },
-  ];
-
-  return { nextState, sideEffects };
+  // No seat status changes - SitOutManager handles the state
+  return { nextState: table, sideEffects: sitInSideEffects };
 }

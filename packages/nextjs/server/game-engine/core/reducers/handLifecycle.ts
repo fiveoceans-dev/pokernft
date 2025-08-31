@@ -39,7 +39,7 @@ export function startHand(
   if (table.handNumber === 0) {
     // Only consider players who are not sitting out for initial button
     const eligible = table.seats
-      .filter((s) => s.pid && s.chips > 0 && s.status !== "sittingOut")
+      .filter((s) => s.pid && s.chips > 0 && !sitOutManager.isPlayerSittingOut(s.pid))
       .map((s) => s.id);
     if (eligible.length > 1) {
       const idx = timestamp % eligible.length;
@@ -84,7 +84,7 @@ export function startHand(
       
       // Players participating in hand are always active
       // Players sitting out should NOT participate in hands at all
-      const shouldParticipate = seat.chips > 0 && seat.status !== "sittingOut";
+      const shouldParticipate = seat.chips > 0 && !sitOutManager.isPlayerSittingOut(seat.pid);
       
       return {
         ...seat,
@@ -124,17 +124,12 @@ export function postBlinds(
   bb: number,
   ante?: number,
 ): StateTransition {
-  const sitOutManager = getSitOutManager(table.id);
   const newSeats = [...table.seats];
   
   // Only count players who are not sitting out as active
-  const activePlayers = newSeats.filter((seat) => 
-    seat.status === "active" && 
-    seat.pid &&
-    !sitOutManager.isPlayerSittingOut(seat.pid)
-  );
+  const activePlayers = newSeats.filter((seat) => seat.status === "active" && seat.pid);
 
-  console.log(`🎲 [Reducer] PostBlinds: ${activePlayers.length} active players (excluding sitting out)`);
+  console.log(`🎲 [Reducer] PostBlinds: ${activePlayers.length} active players`);
 
   if (activePlayers.length < 2) {
     console.log(`⚠️ [Reducer] Insufficient active players for hand: ${activePlayers.length}`);

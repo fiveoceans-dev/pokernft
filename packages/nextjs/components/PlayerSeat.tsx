@@ -20,7 +20,7 @@ interface PlayerSeatProps {
   revealCards?: boolean; // if true, show hole cards face-up
   cardSize?: "xs" | "sm" | "md" | "lg"; // size of player's hole cards
   dealerOffset?: { x: number; y: number }; // offset dealer button toward centre
-  state?: SeatStatus; // player state for status labels
+  state?: SeatStatus | "sittingOut"; // include UI-only sittingOut state
   isWinner?: boolean; // show sparkle effect if true
 }
 
@@ -104,7 +104,7 @@ export default function PlayerSeat({
             Folded
           </span>
         )}
-        {state === "active" && (
+        {state === "sittingOut" && (
           <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-orange-300 font-bold">
             Sitting Out
           </span>

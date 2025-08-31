@@ -98,6 +98,34 @@ export class SessionManager {
     this.sessions.set(ws, session);
   }
 
+  /**
+   * Update user binding for existing session
+   * Maintains consistency of byUserId mapping
+   */
+  updateBinding(session: Session, userId: string): boolean {
+    const normalizedUserId = userId.toLowerCase().trim();
+    
+    // Check if userId is already bound to a different session
+    const existingSession = this.byUserId.get(normalizedUserId);
+    if (existingSession && existingSession !== session) {
+      console.warn(`⚠️ [SessionManager] UserId ${normalizedUserId} already bound to different session`);
+      return false;
+    }
+
+    // Remove old userId binding if session had one
+    if (session.userId && session.userId !== normalizedUserId) {
+      this.byUserId.delete(session.userId);
+      console.log(`🔄 [SessionManager] Removed old binding: ${session.userId}`);
+    }
+
+    // Set new binding
+    session.userId = normalizedUserId;
+    this.byUserId.set(normalizedUserId, session);
+    
+    console.log(`✅ [SessionManager] Updated binding: session ${session.sessionId} -> userId ${normalizedUserId}`);
+    return true;
+  }
+
   /** Restore a session from persisted data */
   restore(
     data: { sessionId: string; userId?: string; roomId?: string; seat?: number; chips?: number; nickname?: string; inActiveHand?: boolean },

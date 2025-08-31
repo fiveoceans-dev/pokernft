@@ -127,6 +127,16 @@ export default function PlayPage() {
     }
   }, [walletSeatIdx, isLeaving, isMyTurn, playerAction, leaveSeat]);
 
+  const handleSitIn = useCallback(async () => {
+    if (!isSittingOut) return;
+    try {
+      await sitIn();
+      console.log("🪑 Requested SIT_IN for current player");
+    } catch (error) {
+      console.error("🚫 Failed to SIT_IN:", error);
+    }
+  }, [isSittingOut, sitIn]);
+
   const handleLeaveClick = () => {
     handleLeaveTable();
   };
@@ -168,6 +178,16 @@ export default function PlayPage() {
         <AnimatedTitle text="Poker Night on Starknet" />
         {walletSeatIdx >= 0 && (
           <div className="header-actions">
+            {isSittingOut && (
+              <button
+                onClick={handleSitIn}
+                disabled={connectionState === "disconnected" || isActionPending}
+                className={`action-btn ${connectionState === "disconnected" || isActionPending ? 'disabled' : 'sit-in'}`}
+                title="Sit in to rejoin play"
+              >
+                🪑 Sit In
+              </button>
+            )}
             <button
               onClick={handleSitOutToggle}
               disabled={connectionState === "disconnected" || isActionPending}

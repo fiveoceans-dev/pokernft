@@ -96,5 +96,6 @@ export type ClientCommand =
       type: "ACTION";
       action: "FOLD" | "CHECK" | "CALL" | "BET" | "RAISE" | "ALLIN";
       amount?: number;
+      playerId?: string; // Optional player ID for identity consistency
     }
   | { cmdId: string; type: "REBUY"; amount: number };

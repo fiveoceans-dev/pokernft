@@ -16,6 +16,8 @@ import { SessionManager, Session } from "./sessionManager";
 import { getSitOutManager } from "../game-engine/managers/sitOutManager";
 import { logger } from "../game-engine/utils/logger";
 import { getTableConfig, getRecommendedBuyIn, validateBuyIn } from "./tableConfig";
+import { globalSeatMappings } from "./seatMappingManager";
+import { saveSession } from "./persistence";
 
 /**
  * Professional WebSocket-FSM Bridge
@@ -34,11 +36,105 @@ import { getTableConfig, getRecommendedBuyIn, validateBuyIn } from "./tableConfi
 class WebSocketFSMBridge extends EventEmitter {
   private engines = new Map<string, EventEngine>();
   private sessions: SessionManager;
-  private seatMaps = new Map<string, Map<string, number>>();
 
   constructor(sessions: SessionManager) {
     super();
     this.sessions = sessions;
+  }
+
+  /**
+   * Get canonical identity for consistent lookups
+   * Priority: 1) Command playerId 2) Session wallet 3) Session ID
+   */
+  private async getCanonicalId(session: Session, command?: any): Promise<string> {
+    // If command provides identity, bind it to session if not already bound
+    if (command?.playerId) {
+      const normalizedPlayerId = this.normalizePlayerId(command.playerId);
+      logger.debug(`🔍 [Identity] Command playerId: ${normalizedPlayerId}, Session userId: ${session.userId}`);
+      
+      if (!session.userId) {
+        // Bind wallet identity to session
+        const success = this.sessions.updateBinding(session, normalizedPlayerId);
+        if (success) {
+          // CRITICAL: Persist the session binding
+          try {
+            await saveSession(session);
+            logger.info(`✅ [Identity] Bound and persisted wallet ${normalizedPlayerId} to session ${session.sessionId}`);
+          } catch (error) {
+            logger.error(`❌ [Identity] Failed to persist session binding:`, error);
+          }
+        } else {
+          logger.warn(`⚠️ [Identity] Failed to bind ${normalizedPlayerId} to session ${session.sessionId}`);
+        }
+      } else if (session.userId !== normalizedPlayerId) {
+        logger.warn(`🔄 [Identity] Wallet mismatch: session has ${session.userId}, command has ${normalizedPlayerId}`);
+      } else {
+        // Already bound correctly - ensure it's persisted
+        try {
+          await saveSession(session);
+          logger.debug(`📦 [Identity] Session already bound correctly, ensured persistence`);
+        } catch (error) {
+          logger.error(`❌ [Identity] Failed to persist existing session binding:`, error);
+        }
+      }
+      
+      return normalizedPlayerId;
+    }
+    
+    // Use session's bound wallet or fall back to session ID
+    const canonicalId = this.normalizePlayerId(session.userId || session.sessionId);
+    logger.debug(`🎯 [Identity] Resolved canonical ID: ${canonicalId} (from ${session.userId ? 'userId' : 'sessionId'})`);
+    return canonicalId;
+  }
+
+  /**
+   * Resolve seat mapping with self-healing recovery
+   */
+  private async resolveSeatMapping(session: Session, tableId: string): Promise<number | undefined> {
+    const canonicalId = await this.getCanonicalId(session);
+    logger.debug(`🔍 [SeatResolve] Resolving seat for canonical ID: ${canonicalId}`);
+    
+    // Try direct lookup
+    let seatId = globalSeatMappings.findSeat(tableId, canonicalId);
+    logger.debug(`🔍 [SeatResolve] Direct lookup result: ${seatId}`);
+    
+    if (seatId === undefined) {
+      logger.warn(`⚠️ [SeatResolve] No direct mapping found, attempting FSM recovery...`);
+      // Attempt recovery from FSM state
+      try {
+        const table = this.getTableState(tableId);
+        logger.debug(`🔍 [SeatResolve] FSM table seats:`, table.seats.map(s => ({ id: s.id, pid: s.pid })));
+        
+        const foundSeat = table.seats.find(s => 
+          s.pid && this.normalizePlayerId(s.pid) === canonicalId
+        );
+        
+        if (foundSeat) {
+          // Repair the mapping
+          globalSeatMappings.setSeatMapping(tableId, canonicalId, foundSeat.id);
+          logger.warn(`🔧 [Identity] Recovered seat mapping: ${canonicalId} -> seat ${foundSeat.id}`);
+          return foundSeat.id;
+        } else {
+          logger.error(`❌ [Recovery] Player ${canonicalId} not found in FSM table state`);
+        }
+      } catch (error) {
+        logger.error(`❌ [Identity] Failed to recover seat mapping for ${canonicalId}:`, error);
+      }
+    }
+    
+    // If still not found, try raw sessionId as last resort
+    if (seatId === undefined && session.sessionId !== canonicalId) {
+      logger.warn(`⚠️ [SeatResolve] Trying sessionId fallback: ${session.sessionId}`);
+      seatId = globalSeatMappings.findSeat(tableId, session.sessionId);
+      if (seatId !== undefined) {
+        // Repair the mapping with correct canonical ID
+        globalSeatMappings.setSeatMapping(tableId, canonicalId, seatId);
+        logger.warn(`🔧 [Recovery] Found seat using sessionId, repaired mapping: ${canonicalId} -> seat ${seatId}`);
+      }
+    }
+    
+    logger.debug(`🎯 [SeatResolve] Final seat result: ${seatId} for ${canonicalId}`);
+    return seatId;
   }
 
   /**
@@ -64,7 +160,6 @@ class WebSocketFSMBridge extends EventEmitter {
       
       engine = new EventEngine(tableId, sb, bb);
       this.engines.set(tableId, engine);
-      this.seatMaps.set(tableId, new Map());
 
       // Forward FSM events to WebSocket clients
       this.setupEngineEventForwarding(engine, tableId);
@@ -138,9 +233,38 @@ class WebSocketFSMBridge extends EventEmitter {
       });
     });
 
+    // Reconnect countdown events
+    engine.on('reconnectCountdown', (countdownEvent: any) => {
+      this.emit('broadcast', tableId, {
+        type: "COUNTDOWN_START",
+        countdownType: countdownEvent.countdownType,
+        startTime: countdownEvent.startTime,
+        duration: countdownEvent.duration,
+        metadata: countdownEvent.metadata
+      });
+    });
+
     // Game flow events
     engine.on('eventProcessed', (event: PokerEvent, table: Table) => {
       this.handleEventForwarding(event, table, tableId);
+    });
+
+    // Forward waiting player info so UI can show proper 'waiting' status
+    engine.on('playerWaitingForNextHand', ({ pid }: { pid: string }) => {
+      try {
+        const table = this.getTableState(tableId);
+        const seat = table.seats.find(s => s.pid && s.pid.toLowerCase() === pid.toLowerCase());
+        if (seat) {
+          this.emit('broadcast', tableId, {
+            tableId,
+            type: "PLAYER_WAITING",
+            seat: seat.id,
+            playerId: pid
+          } as any);
+        }
+      } catch (error) {
+        logger.error(`❌ Failed to broadcast PLAYER_WAITING for ${pid} on ${tableId}:`, error);
+      }
     });
   }
 
@@ -213,16 +337,31 @@ class WebSocketFSMBridge extends EventEmitter {
           });
       }
     } catch (error) {
-      this.emit('error', session.roomId || "", {
+      const errEvent = {
         type: "ERROR",
         code: "COMMAND_FAILED",
         msg: error instanceof Error ? error.message : String(error)
-      });
+      } as ServerEvent;
+      this.emit('error', session.roomId || "", errEvent);
+
+      // Graceful recovery: broadcast fresh snapshot to resync UI
+      try {
+        if (session.roomId) {
+          const table = this.getTableState(session.roomId);
+          this.emit('broadcast', session.roomId, {
+            tableId: session.roomId,
+            type: "TABLE_SNAPSHOT",
+            table,
+          } as ServerEvent);
+        }
+      } catch (snapErr) {
+        logger.error(`❌ Failed to broadcast snapshot after error:`, snapErr);
+      }
     }
   }
 
   /**
-   * Handle SIT command via FSM events with dynamic buy-in
+   * Handle SIT command with unified identity management
    */
   private async handleSitCommand(session: Session, command: any): Promise<void> {
     try {
@@ -235,13 +374,21 @@ class WebSocketFSMBridge extends EventEmitter {
         throw new Error("Invalid seat number: must be 0-8");
       }
 
-      const engine = this.getEngine(command.tableId);
-      const playerId = this.normalizePlayerId(command.playerId || session.userId || session.sessionId);
+      // Get canonical identity (binds wallet to session if needed)
+      logger.info(`🪑 [SIT] Starting seat join for session ${session.sessionId}, seat ${command.seat}`);
+      logger.debug(`🔍 [SIT] Session state before: userId=${session.userId}, playerId from command=${command.playerId}`);
       
-      // Validate player ID
-      if (!playerId || playerId.length === 0) {
-        throw new Error("Invalid player ID");
+      const canonicalId = await this.getCanonicalId(session, command);
+      
+      logger.debug(`🔍 [SIT] Session state after binding: userId=${session.userId}`);
+      logger.info(`✅ [SIT] Canonical ID resolved: ${canonicalId}`);
+      
+      // Validate canonical ID
+      if (!canonicalId || canonicalId.length === 0) {
+        throw new Error("Invalid canonical identity");
       }
+
+      const engine = this.getEngine(command.tableId);
       
       // Calculate buy-in based on table configuration
       const requestedChips = command.chips;
@@ -254,22 +401,29 @@ class WebSocketFSMBridge extends EventEmitter {
         throw new Error(buyInValidation.error || "Invalid buy-in amount");
       }
       
-      // Dispatch PlayerJoin event through FSM
+      // Dispatch PlayerJoin event through FSM with canonical ID
       await engine.dispatch({
         t: "PlayerJoin",
         seat: command.seat,
-        pid: playerId,
-        chips: buyInChips, // Dynamic buy-in based on table
-        nickname: this.shortAddress(playerId)
+        pid: canonicalId,
+        chips: buyInChips,
+        nickname: this.shortAddress(canonicalId)
       });
 
-      // Update session and seat mapping
+      // Update session state
       session.roomId = command.tableId;
       session.seat = command.seat;
       session.chips = buyInChips;
-      this.seatMaps.get(command.tableId)?.set(playerId, command.seat);
+      session.userId = canonicalId;  // CRITICAL: Set userId to canonical ID
       
-      logger.info(`✅ Player ${playerId} successfully joined table ${command.tableId} at seat ${command.seat} with ${buyInChips} chips`);
+      // Persist complete session with userId
+      await saveSession(session);
+      
+      // Store seat mapping with canonical ID
+      logger.info(`💺 [SIT] Storing seat mapping: ${canonicalId} -> seat ${command.seat} on table ${command.tableId}`);
+      globalSeatMappings.setSeatMapping(command.tableId, canonicalId, command.seat);
+      
+      logger.info(`✅ Player ${canonicalId} successfully joined table ${command.tableId} at seat ${command.seat} with ${buyInChips} chips`);
     } catch (error) {
       logger.error(`❌ SIT command failed:`, error);
       throw error; // Re-throw for higher level handler
@@ -277,10 +431,13 @@ class WebSocketFSMBridge extends EventEmitter {
   }
 
   /**
-   * Handle ACTION command via FSM events  
+   * Handle ACTION command with self-healing recovery
    */
   private async handleActionCommand(session: Session, command: any): Promise<void> {
     try {
+      logger.info(`🎮 [ACTION] Starting action processing for session ${session.sessionId}, command: ${command.action}`);
+      logger.debug(`🔍 [ACTION] Session state: userId=${session.userId}, roomId=${session.roomId}, seat=${session.seat}`);
+      
       if (!session.roomId) {
         throw new Error("Player not in any room");
       }
@@ -299,12 +456,20 @@ class WebSocketFSMBridge extends EventEmitter {
       }
     
       const engine = this.getEngine(session.roomId);
-      const playerId = this.normalizePlayerId(session.userId || session.sessionId);
-      const seatId = this.seatMaps.get(session.roomId)?.get(playerId);
+      
+      // Use self-healing seat resolution
+      logger.debug(`🔍 [ACTION] Resolving seat mapping for session ${session.sessionId}...`);
+      const seatId = await this.resolveSeatMapping(session, session.roomId);
       
       if (seatId === undefined) {
-        throw new Error("Player not found at table");
+        logger.error(`❌ [ACTION] Seat resolution failed - session: ${session.sessionId}, userId: ${session.userId}, roomId: ${session.roomId}`);
+        // Log current seat mappings for debugging
+        const mappings = globalSeatMappings.getTableMappings(session.roomId);
+        logger.error(`💺 [ACTION] Current seat mappings:`, mappings);
+        throw new Error("Player not found at table (no valid seat mapping)");
       }
+      
+      logger.info(`✅ [ACTION] Resolved seat ${seatId} for session ${session.sessionId}`);
 
       // Dispatch Action event through FSM
       await engine.dispatch({
@@ -314,7 +479,8 @@ class WebSocketFSMBridge extends EventEmitter {
         amount: command.amount
       });
       
-      logger.debug(`🎮 Player ${playerId} executed ${command.action}${command.amount ? ` (${command.amount})` : ''}`);
+      const canonicalId = await this.getCanonicalId(session);
+      logger.debug(`🎮 Player ${canonicalId} executed ${command.action}${command.amount ? ` (${command.amount})` : ''} from seat ${seatId}`);
     } catch (error) {
       logger.error(`❌ ACTION command failed:`, error);
       throw error;
@@ -328,8 +494,8 @@ class WebSocketFSMBridge extends EventEmitter {
     if (!session.roomId) return;
     
     const engine = this.getEngine(session.roomId);
-    const playerId = this.normalizePlayerId(session.userId || session.sessionId);
-    const seatId = this.seatMaps.get(session.roomId)?.get(playerId);
+    const canonicalId = await this.getCanonicalId(session);
+    const seatId = await this.resolveSeatMapping(session, session.roomId);
     
     if (seatId === undefined) return;
 
@@ -337,11 +503,11 @@ class WebSocketFSMBridge extends EventEmitter {
     await engine.dispatch({
       t: "PlayerLeave",
       seat: seatId,
-      pid: playerId
+      pid: canonicalId
     });
 
-    // Clean up session
-    this.seatMaps.get(session.roomId)?.delete(playerId);
+    // Clean up mappings
+    globalSeatMappings.removePlayer(session.roomId, canonicalId);
     session.roomId = undefined;
     session.seat = undefined;
   }
@@ -352,7 +518,7 @@ class WebSocketFSMBridge extends EventEmitter {
   private async handleSitOutCommand(session: Session): Promise<void> {
     if (!session.roomId || session.seat === undefined) return;
     
-    const playerId = this.normalizePlayerId(session.userId || session.sessionId);
+    const canonicalId = await this.getCanonicalId(session);
     const engine = this.engines.get(session.roomId);
     
     if (!engine) {
@@ -360,24 +526,15 @@ class WebSocketFSMBridge extends EventEmitter {
       return;
     }
 
-    // Dispatch PlayerSitOut event to FSM
-    engine.dispatch({
+    // Dispatch PlayerSitOut event to FSM (authoritative path)
+    await engine.dispatch({
       t: "PlayerSitOut",
       seat: session.seat,
-      pid: playerId,
+      pid: canonicalId,
       reason: "voluntary"
     });
 
-    // Also update SitOutManager for timeout tracking
-    const sitOutManager = getSitOutManager(session.roomId);
-    sitOutManager.markSitOut(playerId, "voluntary");
-    
-    this.emit('broadcast', session.roomId, {
-      type: "PLAYER_SIT_OUT",
-      seat: session.seat,
-      playerId,
-      reason: "voluntary"
-    });
+    // No direct broadcast of PLAYER_SIT_OUT; engine's stateChanged snapshot is the source of truth
   }
 
   /**
@@ -386,7 +543,7 @@ class WebSocketFSMBridge extends EventEmitter {
   private async handleSitInCommand(session: Session): Promise<void> {
     if (!session.roomId || session.seat === undefined) return;
     
-    const playerId = this.normalizePlayerId(session.userId || session.sessionId);
+    const canonicalId = await this.getCanonicalId(session);
     const engine = this.engines.get(session.roomId);
     
     if (!engine) {
@@ -394,22 +551,38 @@ class WebSocketFSMBridge extends EventEmitter {
       return;
     }
 
-    // Dispatch PlayerSitIn event to FSM
-    engine.dispatch({
+    // Dispatch PlayerSitIn event to FSM (authoritative path)
+    await engine.dispatch({
       t: "PlayerSitIn",
       seat: session.seat,
-      pid: playerId
+      pid: canonicalId
     });
+    // No direct broadcast; rely on engine's stateChanged snapshots
+  }
 
-    // Also update SitOutManager for timeout tracking
-    const sitOutManager = getSitOutManager(session.roomId);
-    sitOutManager.markSitIn(playerId);
-    
-    this.emit('broadcast', session.roomId, {
-      type: "PLAYER_SIT_IN",
-      seat: session.seat,
-      playerId
+  /**
+   * Start reconnect countdown for player
+   */
+  startReconnectCountdown(tableId: string, playerId: string, gracePeriodMs = 30000): void {
+    const engine = this.engines.get(tableId);
+    if (!engine) {
+      console.error(`❌ [WebSocket] No engine found for table ${tableId}`);
+      return;
+    }
+
+    // Emit reconnect countdown event
+    engine.emit('reconnectCountdown', {
+      type: "COUNTDOWN_START",
+      countdownType: "reconnect",
+      startTime: Date.now(),
+      duration: gracePeriodMs,
+      metadata: {
+        playerId,
+        reason: "connection_lost"
+      }
     });
+    
+    console.log(`🔄 [WebSocket] Started reconnect countdown for ${playerId} (${gracePeriodMs}ms)`);
   }
 
   /**

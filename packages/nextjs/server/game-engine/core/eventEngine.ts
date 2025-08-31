@@ -108,10 +108,21 @@ export class EventEngine extends EventEmitter {
   }
 
   /**
-   * Get current table state (immutable)
+   * Get current table state with derived sittingOut field (immutable)
    */
   getState(): Table {
-    return { ...this.table }; // Shallow copy for immutability
+    const sitOutManager = getSitOutManager(this.table.id);
+    
+    // Create table copy with sittingOut derived from SitOutManager
+    const tableWithSittingOut = {
+      ...this.table,
+      seats: this.table.seats.map(seat => ({
+        ...seat,
+        sittingOut: seat.pid ? sitOutManager.isPlayerSittingOut(seat.pid) : false
+      }))
+    };
+    
+    return tableWithSittingOut;
   }
 
   /**
@@ -301,11 +312,20 @@ export class EventEngine extends EventEmitter {
     // Apply event through pure reducer
     const transition = reduce(this.table, event);
 
-    // Check if state actually changed - if not, validation failed
+    // Check if state actually changed - if not, it may be a no-op managerial event or a validation failure
     if (transition.nextState === this.table) {
       logger.warn(
         `⚠️ [EventEngine] Event ${event.t} produced no state change - validation failed`,
       );
+
+      // Allow idempotent managerial events without hard failure
+      if (event.t === "PlayerSitOut" || event.t === "PlayerSitIn") {
+        logger.info(`ℹ️ [EventEngine] ${event.t} had no effect (idempotent or invalid seat) - continuing`);
+        // Still emit current state so clients can reconcile
+        this.emit("stateChanged", this.getState());
+        this.emit("eventProcessed", event, this.getState());
+        return;
+      }
 
       // For PlayerJoin events, determine specific error type
       if (event.t === "PlayerJoin") {
@@ -422,7 +442,7 @@ export class EventEngine extends EventEmitter {
     if (event.t === "HandEnd") {
       const waitingCount = this.waitingPlayers.size;
       if (waitingCount > 0) {
-        logger.info(`🧹 [EventEngine] Hand ended - clearing ${waitingCount} waiting players for next hand`);
+        logger.info(`🧹 [EventEngine] Hand ended - cleared ${waitingCount} waiting players; they can now participate`);
         this.waitingPlayers.clear();
         this.emit("waitingPlayersCleared", { count: waitingCount });
       }
@@ -440,8 +460,10 @@ export class EventEngine extends EventEmitter {
     // Avoid starting duplicate timers here to prevent race conditions.
 
     // Emit state change for external listeners AFTER state is fully consistent
-    this.emit("stateChanged", this.table);
-    this.emit("eventProcessed", event, this.table);
+    // Use getState() to include derived sittingOut field
+    const stateWithSittingOut = this.getState();
+    this.emit("stateChanged", stateWithSittingOut);
+    this.emit("eventProcessed", event, stateWithSittingOut);
 
     console.log(`✅ [EventEngine] Event ${event.t} processed successfully`);
   }
@@ -719,14 +741,14 @@ export class EventEngine extends EventEmitter {
     const eligibleSeats = this.table.seats.filter(s => {
       if (!s.pid) return false; // Empty seat
       if (this.waitingPlayers.has(s.pid)) return false; // Waiting for next hand
-      if (s.status === "sittingOut") return false; // Sitting out
+      if (sitOutManager.isPlayerSittingOut(s.pid)) return false; // Sitting out
       return s.chips > 0; // Has chips to play
     });
     
     const activePlayerCount = eligibleSeats.length;
     const totalPlayerCount = this.table.seats.filter(s => s.pid).length;
     const sittingOutCount = this.table.seats.filter(s => 
-      s.pid && s.status === "sittingOut"
+      s.pid && sitOutManager.isPlayerSittingOut(s.pid)
     ).length;
 
     console.log(
@@ -787,7 +809,7 @@ export class EventEngine extends EventEmitter {
         const eligibleSeats = this.table.seats.filter(s => {
           if (!s.pid) return false; // Empty seat
           if (this.waitingPlayers.has(s.pid)) return false; // Waiting for next hand
-          if (s.status === "sittingOut") return false; // Sitting out
+          if (sitOutManager.isPlayerSittingOut(s.pid)) return false; // Sitting out
           return s.chips > 0; // Has chips to play
         });
         const activePlayerCount = eligibleSeats.length;
@@ -1024,7 +1046,7 @@ export class EventEngine extends EventEmitter {
       case "EMIT_STATE_CHANGE":
         const { reason } = effect.payload;
         console.log(`📡 [EventEngine] Emitting state change: ${reason}`);
-        this.emit("stateChanged", this.table);
+        this.emit("stateChanged", this.getState());
         this.emit("eventProcessed", reason, this.table);
         break;
 

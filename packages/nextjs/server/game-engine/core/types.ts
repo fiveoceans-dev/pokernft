@@ -23,7 +23,7 @@ export type Street = "preflop" | "flop" | "turn" | "river";
 
 export type ActionType = "FOLD" | "CHECK" | "CALL" | "BET" | "RAISE" | "ALLIN";
 
-export type SeatStatus = "active" | "folded" | "allin" | "empty" | "sittingOut";
+export type SeatStatus = "active" | "folded" | "allin" | "empty";
 
 /**
  * Seat represents a single position at the poker table
@@ -35,9 +35,10 @@ export interface Seat {
   chips: number; // chips behind (not yet in pot)
   committed: number; // total committed this hand
   streetCommitted: number; // committed on current street only
-  status: SeatStatus; // current seat state
+  status: SeatStatus; // current seat state (active/folded/allin/empty only)
   holeCards?: [number, number]; // card indices if dealt
   nickname?: string; // display name
+  sittingOut?: boolean; // UI display flag - derived from SitOutManager
 }
 
 /**

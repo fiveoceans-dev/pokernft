@@ -14,25 +14,20 @@ import { logger } from "../utils/logger";
  * Manages player sit-out states externally from core game engine
  */
 export class SitOutManager {
-  private readonly sitOutPlayers = new Map<string, number>(); // playerId -> timestamp
+  private readonly sitOutPlayers = new Map<string, number>(); // playerId -> timestamp (SINGLE SOURCE OF TRUTH)
   private readonly timeoutCounts = new Map<string, number>();  // playerId -> count
   
   private readonly MAX_TIMEOUTS = 3;
   
   /**
-   * Mark player as sitting out
-   * Returns side effects to execute
+   * Mark player as sitting out (SINGLE SOURCE OF TRUTH)
    */
-  markSitOut(
-    playerId: string, 
-    reason: "voluntary" | "timeout" | "busted"
-  ): SideEffect[] {
+  markSitOut(playerId: string, reason: "voluntary" | "timeout" | "busted"): SideEffect[] {
     this.sitOutPlayers.set(playerId, Date.now());
     
     if (reason === "timeout") {
       const count = (this.timeoutCounts.get(playerId) || 0) + 1;
       this.timeoutCounts.set(playerId, count);
-      
       logger.warn(`⏰ [SitOutManager] Player ${playerId} timeout #${count}`);
     }
     
@@ -47,7 +42,7 @@ export class SitOutManager {
       payload: { reason: `player_sit_out_${reason}` }
     }];
   }
-  
+
   /**
    * Mark player as sitting in
    */
@@ -61,6 +56,21 @@ export class SitOutManager {
       type: "EMIT_STATE_CHANGE",
       payload: { reason: "player_sit_in" }
     }];
+  }
+
+  /**
+   * Check if specific player is sitting out (SINGLE SOURCE OF TRUTH)
+   */
+  isPlayerSittingOut(playerId: string): boolean {
+    return this.sitOutPlayers.has(playerId);
+  }
+  
+  /**
+   * Reset timeout count when player sits in
+   */
+  resetTimeouts(playerId: string): void {
+    this.timeoutCounts.delete(playerId);
+    logger.info(`🔄 [SitOutManager] Reset timeout count for ${playerId}`);
   }
   
   /**
@@ -92,13 +102,6 @@ export class SitOutManager {
   }
   
   /**
-   * Check if specific player is sitting out
-   */
-  isPlayerSittingOut(playerId: string): boolean {
-    return this.sitOutPlayers.has(playerId);
-  }
-  
-  /**
    * Get timeout count for player
    */
   getTimeoutCount(playerId: string): number {
@@ -112,13 +115,6 @@ export class SitOutManager {
     this.sitOutPlayers.delete(playerId);
     this.timeoutCounts.delete(playerId);
     logger.debug(`🧹 [SitOutManager] Cleared tracking for player ${playerId}`);
-  }
-  
-  /**
-   * Get sitting out timestamp for player
-   */
-  getSitOutTimestamp(playerId: string): number | undefined {
-    return this.sitOutPlayers.get(playerId);
   }
   
   /**
@@ -138,20 +134,6 @@ export class SitOutManager {
     return !this.sitOutPlayers.has(playerId) && 
            seat.chips > 0 && 
            seat.status !== "empty";
-  }
-  
-  /**
-   * Increment timeout count and check if should sit out
-   */
-  incrementTimeout(playerId: string): { shouldSitOut: boolean; timeoutCount: number } {
-    const count = (this.timeoutCounts.get(playerId) || 0) + 1;
-    this.timeoutCounts.set(playerId, count);
-    
-    const shouldSitOut = count >= this.MAX_TIMEOUTS;
-    
-    logger.info(`⏰ [SitOutManager] Player ${playerId} timeout #${count}${shouldSitOut ? ' - auto sit out' : ''}`);
-    
-    return { shouldSitOut, timeoutCount: count };
   }
 }
 
