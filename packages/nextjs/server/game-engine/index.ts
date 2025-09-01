@@ -42,7 +42,7 @@ export { validateAction, getAvailableActions, getBettingLimits } from './logic/v
 
 // Utility Functions
 export * from './utils/ringOrder';
-export { indexToCard, cardToIndex } from "./utils/utils";
+export { indexToCard, cardToIndex, hashIdToCard, cardToHashId } from "./utils/utils";
 export * from "./utils/hashEvaluator";
 export * from "./utils/rng";
 

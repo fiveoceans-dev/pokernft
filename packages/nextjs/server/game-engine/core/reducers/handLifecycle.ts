@@ -22,7 +22,8 @@ import {
   calculateNextButton,
   validateAndFixButton,
 } from "../../logic/gameRules";
-import { createDeck, generateDeckSeed } from "../../logic/deckManager";
+import { generateDeckSeed } from "../../logic/deckManager";
+import * as CardLedger from "../../logic/cardLedger";
 
 /**
  * Initialize a new poker hand
@@ -48,10 +49,10 @@ export function startHand(
     }
   }
 
-  // Generate deck seed and create shuffled deck
+  // Generate deck seed and create shuffled deck (numeric codes)
   const deckSeed = generateDeckSeed(handNumber, timestamp);
-  const deck = createDeck(deckSeed);
-  console.log(`🎰 [Reducer] Created shuffled deck with seed: ${deckSeed}`);
+  const deckCodes = CardLedger.shuffle(deckSeed);
+  console.log(`🎰 [Reducer] Created shuffled deck with seed: ${deckSeed} (codes length=${deckCodes.length})`);
 
   const nextState = {
     ...table,
@@ -67,9 +68,10 @@ export function startHand(
     pots: [],
     communityCards: [],
     // Deck management
-    deck,
+    deckCodes,
     deckIndex: 0,
     deckSeed,
+    burns: { flop: [], turn: [], river: [] },
     // Reset all seats for new hand - only active players participate
     seats: table.seats.map((seat) => {
       if (!seat.pid) {
@@ -314,6 +316,11 @@ export function endHand(table: Table): StateTransition {
       payload: { reason: "broke_players_removed" },
     });
   }
+
+  // Ask engine to evaluate whether to start the next hand using the
+  // standard game-start countdown logic. This preserves FSM flow and avoids
+  // ad-hoc triggers from outside the reducer.
+  sideEffects.push({ type: "CHECK_GAME_START", payload: { delayMs: 0 } });
 
   return { nextState, sideEffects };
 }

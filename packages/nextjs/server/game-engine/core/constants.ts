@@ -21,6 +21,10 @@ export const RANKS: Rank[] = [
 // s = spades, h = hearts, d = diamonds, c = clubs
 export const SUITS: Suit[] = ["s", "h", "d", "c"];
 
+// Hash evaluator format suits order (for hash ID calculations)
+// Hash format: id = rankIdx * 4 + suitIdx where suitIdx ∈ [0,1,2,3] 
+export const HASH_SUITS: Suit[] = ["c", "d", "h", "s"];
+
 /** Blind levels (edit to taste) */
 export const SMALL_BLIND = 5;
 export const BIG_BLIND = 10;

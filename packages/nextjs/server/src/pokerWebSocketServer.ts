@@ -10,10 +10,11 @@
 
 import { EventEmitter } from "events";
 import { WebSocket } from "ws";
-import { EventEngine, Table, PokerEvent, TimerEvent, indexToCard } from "../game-engine";
+import { EventEngine, Table, PokerEvent, TimerEvent } from "../game-engine";
 import type { ServerEvent, ClientCommand, LobbyTable } from "../game-engine";
 import { SessionManager, Session } from "./sessionManager";
 import { getSitOutManager } from "../game-engine/managers/sitOutManager";
+import { TimerIntegration } from "../game-engine/managers/timerEvents";
 import { logger } from "../game-engine/utils/logger";
 import { getTableConfig, getRecommendedBuyIn, validateBuyIn } from "./tableConfig";
 import { globalSeatMappings } from "./seatMappingManager";
@@ -164,6 +165,15 @@ class WebSocketFSMBridge extends EventEmitter {
       // Forward FSM events to WebSocket clients
       this.setupEngineEventForwarding(engine, tableId);
       
+       // Initialize action timer integration for this engine (FSM side effects drive timers)
+      try {
+        const timeoutMs = parseInt(process.env.ACTION_TIMEOUT_SECONDS || "15") * 1000;
+        const timerIntegration = new TimerIntegration(engine as any, tableId, timeoutMs);
+        engine.setTimerManager(timerIntegration);
+      } catch (e) {
+        logger.error(`❌ Failed to initialize timer integration for ${tableId}:`, e);
+      }
+      
       logger.info(`🎯 Created EventEngine for table ${tableId} with blinds ${sb}/${bb}`);
     }
     return engine;
@@ -281,17 +291,17 @@ class WebSocketFSMBridge extends EventEmitter {
         if (event.street === "flop" && table.communityCards.length >= 3) {
           this.emit('broadcast', tableId, {
             type: "DEAL_FLOP",
-            cards: table.communityCards.slice(0, 3).map(indexToCard)
+            cards: table.communityCards.slice(0, 3)
           });
         } else if (event.street === "turn" && table.communityCards.length >= 4) {
           this.emit('broadcast', tableId, {
             type: "DEAL_TURN", 
-            card: indexToCard(table.communityCards[3])
+            card: table.communityCards[3]
           });
         } else if (event.street === "river" && table.communityCards.length >= 5) {
           this.emit('broadcast', tableId, {
             type: "DEAL_RIVER",
-            card: indexToCard(table.communityCards[4])
+            card: table.communityCards[4]
           });
         }
         break;
@@ -470,6 +480,19 @@ class WebSocketFSMBridge extends EventEmitter {
       }
       
       logger.info(`✅ [ACTION] Resolved seat ${seatId} for session ${session.sessionId}`);
+
+      // Professional normalization: treat BET as RAISE if a bet already exists
+      try {
+        const state = engine.getState();
+        const seat = state.seats[seatId];
+        const toCall = Math.max(0, state.currentBet - (seat?.streetCommitted || 0));
+        if (command.action === 'BET' && state.currentBet > 0) {
+          logger.debug(`🔁 [ACTION] Normalizing BET->RAISE (currentBet=${state.currentBet}, toCall=${toCall})`);
+          command.action = 'RAISE';
+        }
+      } catch (e) {
+        logger.warn(`⚠️ [ACTION] Failed to normalize action (using raw):`, e);
+      }
 
       // Dispatch Action event through FSM
       await engine.dispatch({

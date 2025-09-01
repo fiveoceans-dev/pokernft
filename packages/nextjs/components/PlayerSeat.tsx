@@ -34,11 +34,8 @@ export default function PlayerSeat({
   state = "active",
   isWinner = false,
 }: PlayerSeatProps) {
-  // If `player.hand` is null, treat as not yet dealt
-  const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [
-    null,
-    null,
-  ];
+  // If `player.hand` is null, we still may show card backs for opponents
+  const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [null, null];
 
   const isPlaceholderAddress = (addr: string) =>
     addr.toLowerCase() === "white" || /^0x0{40}$/.test(addr);
@@ -51,12 +48,13 @@ export default function PlayerSeat({
 
   return (
     <div className={clsx("relative w-24 h-8", player.folded && "opacity-60")}>
-      {/* Hole cards are rendered only after the dealer deals them */}
-      {player.hand && (
+      {/* Hole cards/back-of-cards display */}
+      {(state === "active" || state === "allin" || (revealCards && player.hand)) && (
         <div
           className="absolute w-full flex justify-center gap-1"
           style={{ bottom: "150%", marginBottom: "0.5rem" }}
         >
+          {/* If we have faces (own seat or revealed), show face; otherwise show back */}
           <Card card={hole1} hidden={!revealCards} size={cardSize} />
           <Card card={hole2} hidden={!revealCards} size={cardSize} />
         </div>

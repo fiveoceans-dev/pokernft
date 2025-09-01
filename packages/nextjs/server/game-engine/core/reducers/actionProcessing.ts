@@ -221,18 +221,27 @@ export function applyAction(
   // If betting round is complete, schedule next transition events
   const roundState = getBettingRoundState(nextState);
   if (roundState.isComplete) {
-    // Collect into pots
+    // Collect into pots for current street
     sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'CloseStreet' } } });
 
     const currentStreet = nextState.street;
     const nextStreet = currentStreet ? getNextStreet(currentStreet as Street) : null;
     const atRiver = !nextStreet;
-    const allInOrFold = roundState.reason === 'all-players-allin' || roundState.reason === 'fold-to-one';
 
-    if (atRiver || allInOrFold) {
+    if (roundState.reason === 'fold-to-one') {
+      // Immediate showdown on fold-to-one
+      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
+    } else if (roundState.reason === 'all-players-allin') {
+      // Auto-deal remaining streets before showdown
+      if (nextStreet) {
+        sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet, isAutoDealt: true } } });
+      } else {
+        sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
+      }
+    } else if (atRiver) {
       sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
     } else if (nextStreet) {
-      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet, isAutoDealt: roundState.reason === 'all-players-allin' } } });
+      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet } } });
     }
   }
 

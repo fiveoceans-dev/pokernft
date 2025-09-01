@@ -25,15 +25,15 @@ import { validateAction, getAvailableActions } from "../logic/validation";
 import { getBettingRoundState } from "../utils/ringOrder";
 import { calculatePayouts, handleUncalledBet } from "../logic/potManager";
 import { getNextStreet } from "../logic/betting";
-import {
-  generateHoleCards,
-  generateBoardCards,
-} from "./cardDealer";
+import * as CardLedger from "../logic/cardLedger";
+import { validateCardInvariants } from "../logic/invariants";
+import { logHandStartAudit } from "../utils/audit";
 import {
   evaluateHand,
   determineWinners,
   type PlayerHand
 } from "../logic/handEvaluationAdapter";
+import { evaluateCodes } from "../utils/hashEvaluator";
 import {
   STREET_DEAL_DELAY_MS,
   NEW_HAND_DELAY_MS,
@@ -269,6 +269,8 @@ export class EventEngine extends EventEmitter {
   private async processEvent(queuedEvent: QueuedEvent): Promise<void> {
     const { event, timestamp } = queuedEvent;
 
+    // No paused gating: on invariant failure we auto-reset hand
+
     // Clear event processing state on new hand
     if (event.t === "StartHand") {
       logger.info(`🧹 [EventEngine] Starting new hand ${event.handNumber}`);
@@ -414,8 +416,41 @@ export class EventEngine extends EventEmitter {
     this.table = transition.nextState;
     this.eventLog.push(event);
 
+    // Deck commitment logging on StartHand for auditability
+    if (event.t === "StartHand") {
+      try {
+        if (this.table.deckCodes && this.table.deckCodes.length === 52) {
+          void (async () => {
+            const commit = await CardLedger.commit(this.table.deckCodes!);
+            logger.info(`🧾 [EventEngine] Deck commit (sha256) for hand ${event.handNumber}: ${commit}`);
+            // Structured audit record (future: persist)
+            logHandStartAudit(this.table, event.handNumber, this.table.deckSeed, commit);
+          })();
+        }
+      } catch (e) {
+        logger.error(`❌ [EventEngine] Failed to compute deck commit:`, e);
+      }
+    }
+
     // Execute side effects returned by the reducer
     await this.executeSideEffects(transition.sideEffects);
+
+    // Invariant checks for card state (graceful handling)
+    try {
+      const inv = validateCardInvariants(this.table);
+      if (!inv.ok) {
+        logger.error(`❌ [EventEngine] Card invariants failed after ${event.t}:`, inv.errors);
+        // Professional recovery: end hand and start a new one if eligible
+        await this.dispatch({ t: 'HandEnd' });
+        // Count eligible players (chips > 0 and seated)
+        const eligible = this.table.seats.filter(s => s.pid && s.chips > 0).length;
+        if (eligible >= MIN_PLAYERS_TO_START && this.table.phase === 'waiting') {
+          await this.dispatch({ t: 'StartHand', handNumber: this.table.handNumber + 1, timestamp: Date.now() });
+        }
+      }
+    } catch (e) {
+      logger.error(`❌ [EventEngine] Invariant validation error:`, e);
+    }
 
     // Handle player join/leave events with countdown logic
     if (event.t === "PlayerJoin") {
@@ -1035,10 +1070,6 @@ export class EventEngine extends EventEmitter {
         }
         // Card generation is now handled by the reducer using table deck
         // No manual card generation needed here
-        if (event.t === 'Showdown' && (!event.results || event.results.length === 0)) {
-          await this.processShowdown();
-          return;
-        }
         await this.dispatch(event);
         break;
       }
@@ -1050,9 +1081,26 @@ export class EventEngine extends EventEmitter {
         this.emit("eventProcessed", reason, this.table);
         break;
 
+      case "CHECK_GAME_START": {
+        const { delayMs } = effect.payload as any;
+        if (delayMs && delayMs > 0) {
+          await this.delay(delayMs);
+        }
+        await this.checkGameStart();
+        break;
+      }
+
       case "CLEAR_TIMERS":
         if (this.timerManager) {
           this.timerManager.clearAllTimers();
+        }
+        break;
+
+      case "EVALUATE_HANDS":
+        // Evaluate hands and dispatch Payout using hash format
+        const distributions = await this.evaluateHandsWithHashFormat();
+        if (distributions.length > 0) {
+          await this.dispatch({ t: "Payout", distributions });
         }
         break;
 
@@ -1060,6 +1108,72 @@ export class EventEngine extends EventEmitter {
         console.warn(`⚠️ [EventEngine] Unknown side effect type:`, effect);
         break;
     }
+  }
+
+  /**
+   * Evaluate hands using hash format (cards are already in correct format)
+   */
+  private async evaluateHandsWithHashFormat(): Promise<any[]> {
+    logger.info(`🃏 [EventEngine] Evaluating hands using hash format`);
+    
+    // Get players still in hand with their hole cards
+    const playersInHand = this.table.seats.filter(
+      (seat) => 
+        seat.pid && 
+        seat.holeCards && 
+        (seat.status === "active" || seat.status === "allin")
+    );
+    
+    if (playersInHand.length === 0) {
+      logger.error(`❌ [EventEngine] No players in hand for showdown`);
+      return [];
+    }
+    
+    if (playersInHand.length === 1) {
+      // Only one player left - they win without showing cards
+      const winner = playersInHand[0];
+      logger.info(`🏆 [EventEngine] ${winner.pid} wins by elimination`);
+      
+      const totalPotAmount = this.table.pots.reduce((sum, pot) => sum + pot.amount, 0);
+      return [{
+        pid: winner.pid!,
+        amount: totalPotAmount,
+        potIndex: 0,
+        reason: "win" as const
+      }];
+    }
+    
+    // Evaluate each player's hand using hash format (no conversion needed)
+    const evaluatedHands = playersInHand.map(seat => {
+      const allCards = [...seat.holeCards!, ...this.table.communityCards];
+      const handRank = evaluateCodes(allCards);
+      
+      logger.info(`   🃏 ${seat.pid}: Score ${handRank}`);
+      
+      return {
+        pid: seat.pid!,
+        handRank,
+        holeCards: seat.holeCards!
+      };
+    });
+    
+    // Determine winners (lower score is better)
+    const sortedHands = evaluatedHands.sort((a, b) => a.handRank - b.handRank);
+    const bestScore = sortedHands[0].handRank;
+    const winners = sortedHands.filter(h => h.handRank === bestScore);
+    
+    logger.info(`🏆 [EventEngine] Winners determined: ${winners.map(w => w.pid).join(', ')}`);
+    
+    // Calculate distributions (simple equal split for now)
+    const totalPotAmount = this.table.pots.reduce((sum, pot) => sum + pot.amount, 0);
+    const amountPerWinner = Math.floor(totalPotAmount / winners.length);
+    
+    return winners.map(winner => ({
+      pid: winner.pid,
+      amount: amountPerWinner,
+      potIndex: 0,
+      reason: "win" as const
+    }));
   }
 
   /**

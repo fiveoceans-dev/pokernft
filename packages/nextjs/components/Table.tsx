@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 import { useTableViewModel } from "../hooks/useTableViewModel";
 import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
-import { indexToCard, SeatStatus } from "../game-engine";
+import { hashIdToCard, SeatStatus } from "../game-engine";
 import PlayerSeat from "./PlayerSeat";
 import type { Card as TCard } from "../game-engine";
 import { useWalletGameSync } from "../hooks/useWalletGameSync";
@@ -124,6 +124,27 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   const holeCardSize = "sm";
 
+  /* helper – calculate position along oval border from seat toward center */
+  const getOvalPosition = (seatPos: { x: string; y: string }, percentage: number) => {
+    // Parse seat position percentages
+    const seatX = parseFloat(seatPos.x);
+    const seatY = parseFloat(seatPos.y);
+    
+    // Center is at 50%, 50%
+    const centerX = 50;
+    const centerY = 50;
+    
+    // Calculate direction vector from seat to center
+    const dx = centerX - seatX;
+    const dy = centerY - seatY;
+    
+    // Apply percentage along the line from seat toward center
+    const targetX = seatX + (dx * percentage / 100);
+    const targetY = seatY + (dy * percentage / 100);
+    
+    return { x: targetX, y: targetY };
+  };
+
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
     let nickname = players[idx] ?? "";
@@ -141,11 +162,12 @@ export default function Table({ timer }: { timer?: number | null }) {
       transform: `translate(${pos.t})`,
     } as CSSProperties;
 
-    const dx = 50 - parseFloat(pos.x);
-    const dy = 50 - parseFloat(pos.y);
-    const mag = Math.sqrt(dx * dx + dy * dy) || 1;
-    const offset = 40;
-    const dealerOffset = { x: (dx / mag) * offset, y: (dy / mag) * offset };
+    // Position dealer button at 40% from seat toward center (20% closer than chips)
+    const dealerPosition = getOvalPosition(pos, 40);
+    const dealerOffset = { 
+      x: (dealerPosition.x - parseFloat(pos.x)) * (baseW / 100), 
+      y: (dealerPosition.y - parseFloat(pos.y)) * (baseH / 100) 
+    };
     /* ── empty seat → button ─────────────────────────────── */
     if (!nickname) {
       const badge = (
@@ -174,7 +196,7 @@ export default function Table({ timer }: { timer?: number | null }) {
 
     /* ── occupied seat ───────────────────────────────────── */
     const hand: [TCard, TCard] | null = handCodes
-      ? [indexToCard(handCodes[0]), indexToCard(handCodes[1])]
+      ? [hashIdToCard(handCodes[0]), hashIdToCard(handCodes[1])]
       : null;
     const state = playerStates[idx];
     // TODO: visually mark auto-folded players (Action Plan 1.2)  
@@ -203,11 +225,11 @@ export default function Table({ timer }: { timer?: number | null }) {
       </span>
     );
 
-    const betX = (parseFloat(pos.x) + 50) / 2;
-    const betY = (parseFloat(pos.y) + 50) / 2;
+    // Position chips at 30% from seat toward center (on oval border)
+    const chipPosition = getOvalPosition(pos, 30);
     const betStyle = {
-      left: `${betX}%`,
-      top: `${betY}%`,
+      left: `${chipPosition.x}%`,
+      top: `${chipPosition.y}%`,
       transform: "translate(-50%, -50%)",
     } as CSSProperties;
     const betAmount = player.currentBet ?? 0;
@@ -216,6 +238,17 @@ export default function Table({ timer }: { timer?: number | null }) {
     else if (betAmount > 500) betBg = "bg-blue-500";
     else if (betAmount > 250) betBg = "bg-red-500";
     else if (betAmount > 100) betBg = "bg-green-500";
+
+    // Calculate blind positions (SB = dealer + 1, BB = dealer + 2 for multi-way games)
+    const totalPlayers = players.filter(p => p).length;
+    const isSmallBlind = totalPlayers > 2 && dealerIndex !== null && 
+      ((dealerIndex + 1) % players.length === idx);
+    const isBigBlind = totalPlayers > 2 && dealerIndex !== null && 
+      ((dealerIndex + 2) % players.length === idx);
+    // For heads-up, dealer is SB
+    const isHeadsUpSmallBlind = totalPlayers === 2 && dealerIndex !== null && dealerIndex === idx;
+    const isHeadsUpBigBlind = totalPlayers === 2 && dealerIndex !== null && 
+      ((dealerIndex + 1) % players.length === idx);
 
     return (
       <Fragment key={idx}>
@@ -244,6 +277,32 @@ export default function Table({ timer }: { timer?: number | null }) {
             ${betAmount}
           </div>
         )}
+        {/* Small Blind marker */}
+        {(isSmallBlind || isHeadsUpSmallBlind) && (
+          <div
+            style={{
+              left: `${chipPosition.x}%`,
+              top: `${chipPosition.y}%`,
+              transform: "translate(-50%, -50%) translate(-12px, -12px)",
+            }}
+            className="absolute w-4 h-4 rounded-full bg-blue-600 border border-white flex items-center justify-center text-xs text-white font-bold pointer-events-none z-30"
+          >
+            SB
+          </div>
+        )}
+        {/* Big Blind marker */}
+        {(isBigBlind || isHeadsUpBigBlind) && (
+          <div
+            style={{
+              left: `${chipPosition.x}%`,
+              top: `${chipPosition.y}%`,
+              transform: "translate(-50%, -50%) translate(12px, -12px)",
+            }}
+            className="absolute w-4 h-4 rounded-full bg-orange-600 border border-white flex items-center justify-center text-xs text-white font-bold pointer-events-none z-30"
+          >
+            BB
+          </div>
+        )}
       </Fragment>
     );
   };
@@ -253,10 +312,20 @@ export default function Table({ timer }: { timer?: number | null }) {
   /* community cards – only reveal dealt streets */
   const visibleCommunity = community.filter((c): c is number => c !== null);
   const communityRow = (
-    <div className="absolute inset-0 flex items-center justify-center gap-2 w-full">
-      {visibleCommunity.map((code, i) => (
-        <Card key={i} card={indexToCard(code)} size={communityCardSize} />
-      ))}
+    <div className="absolute inset-0 flex items-center justify-center w-full">
+      <div className="relative">
+        {/* Centered concentric oval, same shape as table (rounded-full), sized as a fraction of table */}
+        <div
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-transparent z-10 pointer-events-none"
+          style={{ width: '110%', height: '180%' }}
+        />
+        {/* Cards above the oval */}
+        <div className="relative z-20 flex items-center gap-2 px-4">
+          {visibleCommunity.map((code, i) => (
+            <Card key={i} card={hashIdToCard(code)} size={communityCardSize} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 

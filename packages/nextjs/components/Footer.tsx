@@ -13,7 +13,7 @@ export const Footer = () => {
         {/* left spacer to keep center text truly centered */}
         <div />
         {/* centered brand text inherits body font/size */}
-        <div className="text-center whitespace-nowrap">PokerNFTs © 2025</div>
+        <div className="text-center text-sm whitespace-nowrap">PokerNFTs © 2025</div>
         {/* right-aligned links + socials (single line) */}
         <div className="flex items-center justify-end gap-3 whitespace-nowrap text-sm">
           <a href="https://twitter.com/pokernfts" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="hover:text-accent transition-colors"><FaTwitter size={16} /></a>

@@ -35,7 +35,9 @@ export * from "./server/game-engine/core/constants";
 // Export utility functions that are safe for client use
 export { 
   indexToCard,
-  cardToIndex 
+  cardToIndex,
+  hashIdToCard,
+  cardToHashId
 } from "./server/game-engine/utils/utils";
 
 // Export address utilities for client use

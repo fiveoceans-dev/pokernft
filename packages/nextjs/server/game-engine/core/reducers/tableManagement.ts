@@ -196,3 +196,7 @@ export function sitInPlayer(
   // No seat status changes - SitOutManager handles the state
   return { nextState: table, sideEffects: sitInSideEffects };
 }
+/**
+ * Pause table progression due to invariant failure or admin action
+ */
+// Admin pause/unpause/reset removed in favor of automatic recovery

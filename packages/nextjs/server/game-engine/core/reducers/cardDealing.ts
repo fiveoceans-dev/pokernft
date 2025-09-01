@@ -12,7 +12,7 @@ import {
   StateTransition,
   SideEffect,
 } from "../types";
-import { generateHoleCards, generateBoardCards } from "../cardDealer";
+import * as CardLedger from "../../logic/cardLedger";
 import { getBettingRoundState } from "../../utils/ringOrder";
 import { getFirstActor } from "../../logic/gameRules";
 import { getNextStreet } from "../../logic/betting";
@@ -25,27 +25,33 @@ export function applyHoleCards(
   table: Table,
   cards: Record<string, [number, number]> | undefined,
 ): StateTransition {
-  // If no cards provided, generate them from the table's deck
-  let playerCards = cards;
-  let nextDeckIndex = table.deckIndex;
-  
-  if (!playerCards || Object.keys(playerCards).length === 0) {
-    // Generate cards from the table's deck
-    const result = generateHoleCards(table);
-    playerCards = result.cards;
-    nextDeckIndex = result.nextIndex;
-    console.log(`🎴 [Reducer] Generated hole cards from deck, next index: ${nextDeckIndex}`);
-  }
+  // If cards provided (testing), apply them; otherwise deal deterministically from deckCodes
+  let nextDeckIndex = table.deckIndex || 0;
+  const newSeats = table.seats.map((s) => ({ ...s }));
 
-  const newSeats = table.seats.map((seat) => {
-    if (seat.pid && playerCards![seat.pid]) {
-      return {
-        ...seat,
-        holeCards: playerCards![seat.pid],
-      };
+  if (!cards || Object.keys(cards).length === 0) {
+    // Determine dealing order starting left of button
+    const seatCount = newSeats.length;
+    const order: number[] = [];
+    for (let o = 1; o <= seatCount; o++) {
+      const idx = (table.button + o) % seatCount;
+      const seat = newSeats[idx];
+      if (seat.pid && seat.status === "active") order.push(idx);
     }
-    return seat;
-  });
+    const { assignments, nextIndex } = CardLedger.dealHole(table, order);
+    nextDeckIndex = nextIndex;
+    assignments.forEach((pair, seatId) => {
+      newSeats[seatId] = { ...newSeats[seatId], holeCards: pair };
+    });
+    console.log(`🎴 [Reducer] Dealt hole cards to ${assignments.size} players, next index: ${nextDeckIndex}`);
+  } else {
+    // Apply provided mapping (pid -> [n,n])
+    newSeats.forEach((seat, i) => {
+      if (seat.pid && cards![seat.pid]) {
+        newSeats[i] = { ...seat, holeCards: cards![seat.pid] };
+      }
+    });
+  }
 
   const nextState = {
     ...table,
@@ -78,16 +84,40 @@ export function enterStreet(
 
   // Generate cards from deck if not provided
   let communityCards = table.communityCards;
-  let nextDeckIndex = table.deckIndex;
-  
-  if ((!cards || cards.length === 0) && street !== "preflop") {
-    // Generate board cards from the table's deck
-    const result = generateBoardCards(table, street, true);
-    communityCards = [...table.communityCards, ...result.cards];
-    nextDeckIndex = result.nextIndex;
-    console.log(`🎴 [Reducer] Generated ${result.cards.length} cards for ${street}, next index: ${nextDeckIndex}`);
-  } else if (cards) {
-    communityCards = [...table.communityCards, ...cards];
+  let nextDeckIndex = table.deckIndex || 0;
+  let burns = table.burns || { flop: [], turn: [], river: [] };
+
+  if (street !== "preflop") {
+    // Idempotency guard: don't deal a street twice
+    const ccLen = communityCards.length;
+    const alreadyDealt =
+      (street === "flop" && ccLen >= 3) ||
+      (street === "turn" && ccLen >= 4) ||
+      (street === "river" && ccLen >= 5);
+
+    if (alreadyDealt) {
+      console.warn(`⚠️ [Reducer] ${street} already dealt (community length=${ccLen}). Skipping re-deal.`);
+    } else if (!cards || cards.length === 0) {
+      if (street === "flop") {
+        const { burn, cards: drawn, nextIndex } = CardLedger.dealFlop(table);
+        burns = { ...burns, flop: burns.flop.length ? burns.flop : [burn] };
+        communityCards = [...table.communityCards, ...drawn];
+        nextDeckIndex = nextIndex;
+        console.log(`🎴 [Reducer] Flop dealt: burn=${burn}, cards=${drawn.join(',')}`);
+      } else {
+        const { burn, card, nextIndex } = CardLedger.dealTurnOrRiver(table);
+        if (street === "turn") {
+          burns = { ...burns, turn: burns.turn.length ? burns.turn : [burn] };
+        } else {
+          burns = { ...burns, river: burns.river.length ? burns.river : [burn] };
+        }
+        communityCards = [...table.communityCards, card];
+        nextDeckIndex = nextIndex;
+        console.log(`🎴 [Reducer] ${street} dealt: burn=${burn}, card=${card}`);
+      }
+    } else {
+      communityCards = [...table.communityCards, ...cards];
+    }
   }
 
   // Determine first actor and betting state based on street
@@ -126,6 +156,7 @@ export function enterStreet(
     lastAggressor: undefined,
     actor, // Will be undefined for all-in scenarios
     communityCards,
+    burns,
     deckIndex: nextDeckIndex, // Update deck position after dealing cards
     // Reset action tracking for new street
     playersActedThisRound: new Set<number>(),

@@ -59,22 +59,9 @@ export function processShowdown(table: Table, results: any[]): StateTransition {
 
   const sideEffects: SideEffect[] = [
     { type: "EMIT_STATE_CHANGE", payload: { reason: "showdown_started" } },
+    // Pure FSM: dispatch hand evaluation as side effect
+    { type: "EVALUATE_HANDS", payload: {} },
   ];
-
-  // If only one player left, they win immediately
-  if (playersInHand <= 1) {
-    console.log(`🏆 [Reducer] Only ${playersInHand} player(s) remaining - immediate win`);
-    sideEffects.push({ 
-      type: "EMIT_STATE_CHANGE", 
-      payload: { reason: "win_by_elimination" } 
-    });
-  } else {
-    console.log(`🃏 [Reducer] Multiple players - cards will be evaluated`);
-    sideEffects.push({ 
-      type: "EMIT_STATE_CHANGE", 
-      payload: { reason: "revealing_cards" } 
-    });
-  }
 
   return {
     nextState,

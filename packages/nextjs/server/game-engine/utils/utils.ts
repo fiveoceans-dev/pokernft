@@ -1,4 +1,4 @@
-import { RANKS, SUITS } from "../core/constants";
+import { RANKS, SUITS, HASH_SUITS } from "../core/constants";
 import type { Card } from "../core/types";
 import { randomInt, seededRNG } from "./rng";
 
@@ -49,4 +49,16 @@ export function indexToCard(code: number): Card {
 /** Convert a Card object back into its numeric code (0..51) */
 export function cardToIndex(card: Card): number {
   return SUITS.indexOf(card.suit) * RANKS.length + RANKS.indexOf(card.rank);
+}
+
+/** Convert a hash format ID (0..51) into a Card object */
+export function hashIdToCard(id: number): Card {
+  const rank = RANKS[Math.floor(id / 4)];
+  const suit = HASH_SUITS[id % 4];
+  return { rank, suit };
+}
+
+/** Convert a Card object into its hash format ID (0..51) */
+export function cardToHashId(card: Card): number {
+  return RANKS.indexOf(card.rank) * 4 + HASH_SUITS.indexOf(card.suit);
 }

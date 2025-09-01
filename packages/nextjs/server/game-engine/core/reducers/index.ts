@@ -55,6 +55,7 @@ export function reduce(table: Table, event: PokerEvent): StateTransition {
     case "HandEnd":
       return endHand(table);
 
+
     case "PlayerJoin":
       return addPlayer(
         table,

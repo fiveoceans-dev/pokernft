@@ -96,14 +96,42 @@ function createPersistentTables(): void {
 /**
  * Broadcast events to WebSocket clients
  */
+function sanitizeTableForSession(table: Table, session: Session): Table {
+  // Only expose holeCards for the viewer's own seat; strip others
+  const viewerSeat = session.seat;
+  const seats = table.seats.map((s, idx) => {
+    if (s && s.pid && idx !== viewerSeat) {
+      const { holeCards, ...rest } = s as any;
+      return { ...rest, holeCards: undefined };
+    }
+    return s;
+  });
+  // Enforce numeric-only arrays for community and burns
+  const communityCards = (table.communityCards || []).filter((c: any) => typeof c === 'number');
+  const burns = table.burns
+    ? {
+        flop: (table.burns.flop || []).filter((c: any) => typeof c === 'number'),
+        turn: (table.burns.turn || []).filter((c: any) => typeof c === 'number'),
+        river: (table.burns.river || []).filter((c: any) => typeof c === 'number'),
+      }
+    : undefined;
+  return { ...table, seats, communityCards, burns };
+}
+
 function broadcast(roomId: string, event: ServerEvent): void {
-  const msg = JSON.stringify({ ...event, tableId: roomId });
   let sentCount = 0;
-  
+
   wss.clients.forEach((client) => {
     const session = sessions.get(client);
     if (session?.roomId === roomId && client.readyState === WebSocket.OPEN) {
       try {
+        // Sanitize TABLE_SNAPSHOT per viewer to avoid leaking others' hole cards
+        let payload: ServerEvent = event;
+        if (event.type === "TABLE_SNAPSHOT") {
+          const sanitized = sanitizeTableForSession((event as any).table, session);
+          payload = { ...event, table: sanitized } as ServerEvent;
+        }
+        const msg = JSON.stringify({ ...payload, tableId: roomId });
         client.send(msg);
         sentCount++;
       } catch (error) {
@@ -111,7 +139,7 @@ function broadcast(roomId: string, event: ServerEvent): void {
       }
     }
   });
-  
+
   logger.debug(`📡 Event: ${event.type}, Room: ${roomId}, Clients: ${sentCount}`);
 }
 

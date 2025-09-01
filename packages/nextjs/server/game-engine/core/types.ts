@@ -62,6 +62,8 @@ export interface Table {
   smallBlind: number; // small blind amount
   bigBlind: number; // big blind amount
   deckSeed?: string; // deterministic deck seed for this hand (persisted)
+  // Canonical deck representation for this hand (numeric codes 0..51)
+  deckCodes?: number[];
 
   // Game state
   phase: Phase; // current game phase
@@ -77,11 +79,17 @@ export interface Table {
   pots: Pot[]; // main pot + side pots
 
   // Board cards
-  communityCards: number[]; // card indices (0-4)
+  communityCards: number[]; // cumulative numeric card codes (0..51)
+  // Burn/discarded cards by street for auditability
+  burns?: {
+    flop: number[];
+    turn: number[];
+    river: number[];
+  };
 
   // Deck management
-  deck?: Card[];        // Current shuffled deck for the hand
-  deckIndex?: number;   // Next card index to draw (0-51)
+  deck?: Card[];        // Deprecated: use deckCodes; kept for backward compatibility
+  deckIndex?: number;   // Next index into deckCodes
 
   // Configuration
   blinds: {
@@ -259,7 +267,9 @@ export type SideEffect =
   | { type: "STOP_TIMER"; payload: { playerId?: string } }
   | { type: "DISPATCH_EVENT"; payload: { event: PokerEvent; delayMs?: number } }
   | { type: "EMIT_STATE_CHANGE"; payload: { reason: string } }
-  | { type: "CLEAR_TIMERS"; payload: {} };
+  | { type: "CLEAR_TIMERS"; payload: {} }
+  | { type: "EVALUATE_HANDS"; payload: {} }
+  | { type: "CHECK_GAME_START"; payload: { delayMs?: number } };
 
 /**
  * State Transition Result

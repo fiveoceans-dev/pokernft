@@ -1,7 +1,6 @@
 // src/hooks/useGameStore.ts
 import { create } from "zustand";
 import {
-  cardToIndex,
   type SeatStatus,
   type Phase,
   type ServerEvent,
@@ -156,14 +155,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         }
       }
     } else {
-      // Update community cards with new data
+      // Update community cards with new data  
       newCards.forEach((c: any, i: number) => {
-        // Snapshot may send numeric indices or Card objects; support both
-        if (typeof c === 'number') {
-          comm[i] = c as number;
-        } else {
-          comm[i] = cardToIndex(c);
-        }
+        // Cards are now always in hash format (numeric IDs)
+        comm[i] = c as number;
       });
     }
 
@@ -421,21 +416,21 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             case "DEAL_FLOP":
               set((s) => {
                 const comm = [...s.community];
-                msg.cards.forEach((c, i) => (comm[i] = cardToIndex(c)));
+                msg.cards.forEach((c, i) => (comm[i] = c as number));
                 return { community: comm };
               });
               break;
             case "DEAL_TURN":
               set((s) => {
                 const comm = [...s.community];
-                comm[3] = cardToIndex(msg.card);
+                comm[3] = msg.card as number;
                 return { community: comm };
               });
               break;
             case "DEAL_RIVER":
               set((s) => {
                 const comm = [...s.community];
-                comm[4] = cardToIndex(msg.card);
+                comm[4] = msg.card as number;
                 return { community: comm };
               });
               break;

@@ -86,3 +86,34 @@ export function evaluateHand(cards: Card[]): number {
   for (const id of ids) quinary[Math.floor(id / 4)]++;
   return noFlush[hashQuinary(quinary, handSize)];
 }
+
+/**
+ * Direct evaluator using hash format IDs (0..51).
+ * Cards are now generated directly in hash evaluator format: id = rankIdx * 4 + suitIdx
+ * where suitIdx ∈ [0,1,2,3] for [c,d,h,s]
+ */
+export function evaluateCodes(codes: number[]): number {
+  const ids = codes; // Cards already in hash format - no conversion needed
+  const handSize = ids.length;
+  const noFlush = NO_FLUSHES[handSize];
+  if (!noFlush) {
+    throw new Error(
+      `The number of cards must be between 5 and 7. passed size: ${handSize}`,
+    );
+  }
+
+  let suitHash = 0;
+  for (const id of ids) suitHash += SUITBIT_BY_ID[id];
+  const flushSuit = SUITS[suitHash] - 1; // -1 if no flush
+  if (flushSuit !== -1) {
+    let handBinary = 0;
+    for (const id of ids) {
+      if (id % 4 === flushSuit) handBinary |= BINARIES_BY_ID[id];
+    }
+    return FLUSH[handBinary];
+  }
+
+  const quinary = new Array(13).fill(0);
+  for (const id of ids) quinary[Math.floor(id / 4)]++;
+  return noFlush[hashQuinary(quinary, handSize)];
+}
