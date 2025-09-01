@@ -158,7 +158,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     } else {
       // Update community cards with new data
       newCards.forEach((c: any, i: number) => {
-        comm[i] = cardToIndex(c);
+        // Snapshot may send numeric indices or Card objects; support both
+        if (typeof c === 'number') {
+          comm[i] = c as number;
+        } else {
+          comm[i] = cardToIndex(c);
+        }
       });
     }
 
