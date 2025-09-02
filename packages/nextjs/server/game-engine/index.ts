@@ -25,6 +25,7 @@ export type {
   ActionType,
   SeatAction,
   SeatStatus,
+  SeatUIState,
   PokerEvent,
   StateTransition,
   SideEffect,

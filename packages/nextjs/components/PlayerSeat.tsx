@@ -2,14 +2,14 @@
 
 import clsx from "clsx";
 import Card from "./Card";
-import type { Card as TCard, SeatStatus } from "../game-engine";
+import type { Card as TCard, SeatUIState } from "../game-engine";
 import { shortAddress } from "../utils/address";
 import { GlowEffect } from "./GlowEffect";
 
 interface PlayerSeatProps {
   player: {
     name: string;
-    address: string;  
+    address: string;
     chips: number;
     hand: [TCard, TCard] | null;
     folded: boolean;
@@ -20,7 +20,7 @@ interface PlayerSeatProps {
   revealCards?: boolean; // if true, show hole cards face-up
   cardSize?: "xs" | "sm" | "md" | "lg"; // size of player's hole cards
   dealerOffset?: { x: number; y: number }; // offset dealer button toward centre
-  state?: SeatStatus | "sittingOut"; // include UI-only sittingOut state
+  state?: SeatUIState; // include UI-only sittingOut state
   isWinner?: boolean; // show sparkle effect if true
   actionLabel?: string; // dynamic action label (Check, Bet $40, etc.)
 }
@@ -37,7 +37,10 @@ export default function PlayerSeat({
   actionLabel,
 }: PlayerSeatProps) {
   // If `player.hand` is null, we still may show card backs for opponents
-  const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [null, null];
+  const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [
+    null,
+    null,
+  ];
 
   const isPlaceholderAddress = (addr: string) =>
     addr.toLowerCase() === "white" || /^0x0{40}$/.test(addr);
@@ -49,7 +52,7 @@ export default function PlayerSeat({
       : "";
 
   return (
-    <div className={clsx("relative w-24 h-8", player.folded && "opacity-60")}>      
+    <div className={clsx("relative w-24 h-8", player.folded && "opacity-60")}>
       {/* Hole cards/back-of-cards display */}
       {/* Render if cards dealt - show backs for opponents, faces when revealed */}
       {player.hand && (
@@ -86,8 +89,8 @@ export default function PlayerSeat({
               isActive
                 ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
                 : state === "active"
-                ? "bg-gray-700/80 border-gray-400 opacity-60"
-                : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
+                  ? "bg-gray-700/80 border-gray-400 opacity-60"
+                  : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
             )}
           >
             <span className="text-[var(--color-highlight)] truncate w-full text-xs">
@@ -99,18 +102,20 @@ export default function PlayerSeat({
         {(() => {
           // Priority 1: Always show action label if it exists (regardless of state)
           if (actionLabel) {
-            const color = actionLabel.toLowerCase().includes("all") 
-              ? "text-yellow-300" 
+            const color = actionLabel.toLowerCase().includes("all")
+              ? "text-yellow-300"
               : actionLabel.toLowerCase() === "fold"
-              ? "text-gray-400"
-              : "text-blue-300";
+                ? "text-gray-400"
+                : "text-blue-300";
             return (
-              <span className={`absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold whitespace-nowrap transition-all duration-200 ${color}`}>
+              <span
+                className={`absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold whitespace-nowrap transition-all duration-200 ${color}`}
+              >
                 {actionLabel}
               </span>
             );
           }
-          
+
           // Priority 2: Only show state labels when no action taken
           if (state === "sittingOut") {
             return (
@@ -119,7 +124,7 @@ export default function PlayerSeat({
               </span>
             );
           }
-          
+
           return null;
         })()}
       </div>

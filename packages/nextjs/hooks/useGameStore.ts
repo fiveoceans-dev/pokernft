@@ -1,7 +1,7 @@
 // src/hooks/useGameStore.ts
 import { create } from "zustand";
 import {
-  type SeatStatus,
+  type SeatUIState,
   type Phase,
   type ServerEvent,
   type ClientCommand,
@@ -37,7 +37,7 @@ interface GameStoreState {
   community: (number | null)[];
   chips: number[];
   playerBets: number[];
-  playerStates: (SeatStatus | "sittingOut")[];
+  playerStates: SeatUIState[];
   /** which seat is the dealer */
   dealerIndex: number | null;
   pot: number;
@@ -119,10 +119,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const hands = Array(9).fill(null) as ([number, number] | null)[];
     const chips = Array(9).fill(0) as number[];
     const bets = Array(9).fill(0) as number[];
-    const states = Array(9).fill("empty" as SeatStatus) as (
-      | SeatStatus
-      | "sittingOut"
-    )[];
+    const states = Array(9).fill("empty") as SeatUIState[];
     const labels = Array(9).fill(null) as (string | null)[];
 
     // Populate only seats that have active players
@@ -460,7 +457,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   break;
               }
               if (text) get().addLog(text);
-              // Record action in history and update lastActionLabels for that seat
+              // Record action in history and update lastActionLabels/playerStates for that seat
               set((s) => {
                 const actionHistory = [
                   ...s.actionHistory,
@@ -471,6 +468,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   },
                 ];
                 const labels = [...s.lastActionLabels];
+                const states = [...s.playerStates];
                 const seatIdx = s.playerIds.findIndex(
                   (id) =>
                     id &&
@@ -481,28 +479,38 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   switch (msg.action) {
                     case "FOLD":
                       label = "Fold";
+                      states[seatIdx] = "folded";
                       break;
                     case "CHECK":
                       label = "Check";
+                      states[seatIdx] = "active";
                       break;
                     case "CALL":
                       label = "Call";
+                      states[seatIdx] = "active";
                       break;
                     case "BET":
                       label = "Bet";
+                      states[seatIdx] = "active";
                       break;
                     case "RAISE":
                       label = "Raise";
+                      states[seatIdx] = "active";
                       break;
                     case "ALLIN":
                       label = "All In";
+                      states[seatIdx] = "allin";
                       break;
                     default:
                       label = msg.action;
                   }
                   labels[seatIdx] = label;
                 }
-                return { actionHistory, lastActionLabels: labels };
+                return {
+                  actionHistory,
+                  lastActionLabels: labels,
+                  playerStates: states,
+                };
               });
               break;
             }
@@ -610,7 +618,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 community: Array(5).fill(null),
                 chips: Array(9).fill(0),
                 playerBets: Array(9).fill(0),
-                playerStates: Array(9).fill("empty"),
+                playerStates: Array(9).fill("empty") as SeatUIState[],
                 dealerIndex: null,
                 pot: 0,
                 currentTurn: null,
@@ -863,7 +871,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     community: Array(5).fill(null),
     chips: Array(9).fill(0),
     playerBets: Array(9).fill(0),
-    playerStates: Array(9).fill("empty"),
+    playerStates: Array(9).fill("empty") as SeatUIState[],
     dealerIndex: null,
     pot: 0,
     currentTurn: null,
@@ -954,7 +962,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               playerIds: Array(9).fill(null),
               chips: Array(9).fill(0),
               playerBets: Array(9).fill(0),
-              playerStates: Array(9).fill("empty"),
+              playerStates: Array(9).fill("empty") as SeatUIState[],
             });
 
             if (typeof window !== "undefined") {
@@ -1084,7 +1092,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         playerHands: Array(9).fill(null),
         chips: Array(9).fill(0),
         playerBets: Array(9).fill(0),
-        playerStates: Array(9).fill("empty"),
+        playerStates: Array(9).fill("empty") as SeatUIState[],
         currentTurn: null,
         pot: 0,
       });

@@ -28,6 +28,9 @@ export type SeatAction = ActionType | "SITTING_OUT";
 
 export type SeatStatus = "active" | "folded" | "allin" | "empty";
 
+// UI helper state used by client stores/components
+export type SeatUIState = SeatStatus | "sittingOut";
+
 /**
  * Seat represents a single position at the poker table
  * Immutable structure with all state needed for betting calculations

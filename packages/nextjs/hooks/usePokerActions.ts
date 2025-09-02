@@ -203,5 +203,10 @@ export function usePokerActions() {
     currentWalletId,
     playerIds,
     playerStates,
+    dealerIndex,
+    bigBlind,
+    minRaise,
+    street,
+    actionHistory,
   ]);
 }
