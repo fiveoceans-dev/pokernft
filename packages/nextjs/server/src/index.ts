@@ -27,12 +27,7 @@ import { SessionManager, Session } from "./sessionManager";
 import { WebSocketFSMBridge } from "./pokerWebSocketServer";
 import { logger } from "../game-engine/utils/logger";
 import { TABLES } from "./tableConfig";
-import {
-  saveSession,
-  saveRoom,
-  loadAllRooms,
-  loadSession,
-} from "./persistence";
+import { saveRoom, loadAllRooms } from "./persistence";
 
 // Environment Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
@@ -166,6 +161,7 @@ function broadcast(roomId: string, event: ServerEvent, publish = true): void {
   if (publish) {
     void bus.publish({ roomId, event, origin: INSTANCE_ID });
   }
+
 }
 
 /**
@@ -200,6 +196,7 @@ wss.on("connection", (ws: WebSocket) => {
 
   let session = sessions.create(ws);
   void saveSession(session);
+
 
   // Send session info to client
   ws.send(
@@ -236,6 +233,7 @@ wss.on("connection", (ws: WebSocket) => {
         case "JOIN_TABLE":
           session.roomId = command.tableId;
           void saveSession(session);
+
 
           try {
             const table = bridge.getTableState(command.tableId);
@@ -284,16 +282,14 @@ wss.on("connection", (ws: WebSocket) => {
           // Handle session reattachment
           let existing = sessions.getBySessionId(command.sessionId);
           if (!existing) {
-            const data = await loadSession(command.sessionId);
-            if (data) {
-              existing = sessions.restore(data, ws);
-            }
+            existing = await sessions.restore(command.sessionId, ws);
+          } else {
+            sessions.replaceSocket(existing, ws);
           }
 
           if (existing) {
             sessions.handleReconnect(existing);
             sessions.expire(session);
-            sessions.replaceSocket(existing, ws);
             session = existing;
             void saveSession(existing);
 
@@ -326,7 +322,6 @@ wss.on("connection", (ws: WebSocket) => {
             session.roomId = session.roomId || attached.roomId;
             sessions.handleReconnect(attached);
             void saveSession(session);
-
             ws.send(
               JSON.stringify({
                 tableId: session.roomId ?? "",

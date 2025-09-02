@@ -1,5 +1,38 @@
 import { randomBytes } from "crypto";
 import type { WebSocket } from "ws";
+import { logger } from "../game-engine/utils/logger";
+
+type RedisClientType = import("redis").RedisClientType;
+
+let client: RedisClientType | null;
+let redisConnectionAttempted = false;
+
+async function getClient(): Promise<RedisClientType | null> {
+  if (client !== undefined) return client;
+  if (!redisConnectionAttempted) {
+    redisConnectionAttempted = true;
+    try {
+      const mod = await import("redis");
+      const c = mod.createClient({ url: process.env.REDIS_URL });
+
+      let errorCount = 0;
+      c.on("error", () => {
+        errorCount++;
+        if (errorCount === 1) {
+          logger.warn("📡 Redis connection failed, using in-memory sessions");
+        }
+      });
+
+      await c.connect();
+      logger.info("📡 Redis connected for sessions");
+      client = c as any;
+    } catch {
+      logger.warn("📡 Redis unavailable, using in-memory sessions");
+      client = null;
+    }
+  }
+  return client;
+}
 
 export interface Session {
   /** Unique identifier for this websocket connection */
@@ -24,21 +57,54 @@ export function createAddress(): string {
   return "0x" + randomBytes(20).toString("hex");
 }
 
-/** Simple in-memory session registry */
+/** Redis-backed session registry with in-memory fallback */
 export class SessionManager {
   private sessions = new Map<WebSocket, Session>();
   private bySessionId = new Map<string, Session>();
   private byUserId = new Map<string, Session>();
+  private memoryStore = new Map<string, Omit<Session, "socket" | "timeout">>();
+
   constructor(private disconnectGraceMs = 5000) {}
-  
+
   get getDisconnectGraceMs() {
     return this.disconnectGraceMs;
   }
+
+  private async persist(session: Session) {
+    const c = await getClient();
+    const key = `session:${session.sessionId}`;
+    const data: Record<string, string> = {
+      sessionId: session.sessionId,
+    };
+    if (session.userId) data.userId = session.userId;
+    if (session.roomId) data.roomId = session.roomId;
+    if (session.seat !== undefined) data.seat = String(session.seat);
+    if (c) {
+      await c.hSet(key, data);
+      if (session.userId)
+        await c.set(`user:${session.userId}`, session.sessionId);
+    }
+    this.memoryStore.set(session.sessionId, {
+      sessionId: session.sessionId,
+      userId: session.userId,
+      roomId: session.roomId,
+      seat: session.seat,
+      chips: session.chips,
+      nickname: session.nickname,
+      inActiveHand: session.inActiveHand,
+    });
+  }
+
+  async save(session: Session) {
+    await this.persist(session);
+  }
+
   create(ws: WebSocket): Session {
     const sessionId = createAddress();
     const session: Session = { sessionId, socket: ws };
     this.sessions.set(ws, session);
     this.bySessionId.set(sessionId, session);
+    void this.persist(session);
     return session;
   }
 
@@ -64,9 +130,9 @@ export class SessionManager {
       this.sessions.set(ws, session);
       this.bySessionId.set(session.sessionId, session);
     }
-    // Preserve existing roomId when attaching userId
     session.userId = userId;
     this.byUserId.set(userId, session);
+    void this.persist(session);
     return session;
   }
 
@@ -89,7 +155,16 @@ export class SessionManager {
     this.bySessionId.delete(session.sessionId);
     if (session.userId) {
       this.byUserId.delete(session.userId);
+      void (async () => {
+        const c = await getClient();
+        if (c) await c.del(`user:${session.userId}`);
+      })();
     }
+    void (async () => {
+      const c = await getClient();
+      if (c) await c.del(`session:${session.sessionId}`);
+    })();
+    this.memoryStore.delete(session.sessionId);
   }
 
   replaceSocket(session: Session, ws: WebSocket) {
@@ -104,48 +179,65 @@ export class SessionManager {
    */
   updateBinding(session: Session, userId: string): boolean {
     const normalizedUserId = userId.toLowerCase().trim();
-    
-    // Check if userId is already bound to a different session
+
     const existingSession = this.byUserId.get(normalizedUserId);
     if (existingSession && existingSession !== session) {
-      console.warn(`⚠️ [SessionManager] UserId ${normalizedUserId} already bound to different session`);
+      console.warn(
+        `⚠️ [SessionManager] UserId ${normalizedUserId} already bound to different session`,
+      );
       return false;
     }
 
-    // Remove old userId binding if session had one
     if (session.userId && session.userId !== normalizedUserId) {
       this.byUserId.delete(session.userId);
-      console.log(`🔄 [SessionManager] Removed old binding: ${session.userId}`);
+      void (async () => {
+        const c = await getClient();
+        if (c) await c.del(`user:${session.userId}`);
+      })();
     }
 
-    // Set new binding
     session.userId = normalizedUserId;
     this.byUserId.set(normalizedUserId, session);
-    
-    console.log(`✅ [SessionManager] Updated binding: session ${session.sessionId} -> userId ${normalizedUserId}`);
+    void this.persist(session);
+
+    console.log(
+      `✅ [SessionManager] Updated binding: session ${session.sessionId} -> userId ${normalizedUserId}`,
+    );
     return true;
   }
 
-  /** Restore a session from persisted data */
-  restore(
-    data: { sessionId: string; userId?: string; roomId?: string; seat?: number; chips?: number; nickname?: string; inActiveHand?: boolean },
+  /** Restore a session from persistent storage */
+  async restore(
+    sessionId: string,
     ws: WebSocket,
-  ): Session {
+  ): Promise<Session | undefined> {
+    const c = await getClient();
+    let data: any = null;
+    if (c) {
+      const raw = await c.hGetAll(`session:${sessionId}`);
+      if (Object.keys(raw).length > 0) {
+        data = {
+          sessionId: raw.sessionId,
+          userId: raw.userId,
+          roomId: raw.roomId,
+          seat: raw.seat ? Number(raw.seat) : undefined,
+        };
+      }
+    }
+    if (!data) {
+      data = this.memoryStore.get(sessionId);
+    }
+    if (!data) return undefined;
     const session: Session = {
       sessionId: data.sessionId,
       userId: data.userId,
       roomId: data.roomId,
       seat: data.seat,
-      chips: data.chips,
-      nickname: data.nickname,
-      inActiveHand: data.inActiveHand,
       socket: ws,
     };
     this.sessions.set(ws, session);
     this.bySessionId.set(session.sessionId, session);
-    if (session.userId) {
-      this.byUserId.set(session.userId, session);
-    }
+    if (session.userId) this.byUserId.set(session.userId, session);
     return session;
   }
 
