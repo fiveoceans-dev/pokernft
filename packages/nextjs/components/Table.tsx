@@ -52,6 +52,7 @@ export default function Table({ timer }: { timer?: number | null }) {
   const cardsRevealed = gameStore.cardsRevealed;
   const revealCards = gameStore.revealCards;
   const recentWinners = gameStore.recentWinners;
+  const lastActionLabels = gameStore.lastActionLabels;
   const { isConnected, address } = useWalletGameSync();
   const isMobile = useIsMobile();
 
@@ -211,8 +212,13 @@ export default function Table({ timer }: { timer?: number | null }) {
     const isDealer = idx === dealerIndex;
     const isActive = idx === currentTurn;
     const isWinner = recentWinners.has(idx);
-    // Reveal cards for own player always, or if manually revealed, or all non-folded players during showdown (street 4)
-    const reveal = idx === walletSeatIdx || cardsRevealed[idx] || (street === 4 && state !== "folded" && state !== "empty");
+    // Reveal rules:
+    // - Own seat: always reveal own cards once dealt (professional poker UX)
+    // - Winners or players who opted to reveal: cardsRevealed[idx] set by store
+    // - Auto-reveal at showdown: still controlled by autoRevealAtShowdown
+    const isOwnSeat = idx === walletSeatIdx;
+    const revealOwn = isOwnSeat && hand !== null; // Always show own cards if dealt
+    const reveal = cardsRevealed[idx] || revealOwn;
 
     const badge = (
       <span
@@ -233,11 +239,19 @@ export default function Table({ timer }: { timer?: number | null }) {
       transform: "translate(-50%, -50%)",
     } as CSSProperties;
     const betAmount = player.currentBet ?? 0;
-    let betBg = "bg-yellow-500";
-    if (betAmount > 1000) betBg = "bg-black";
-    else if (betAmount > 500) betBg = "bg-blue-500";
-    else if (betAmount > 250) betBg = "bg-red-500";
-    else if (betAmount > 100) betBg = "bg-green-500";
+    // Color-code bet chip based on size relative to big blind for consistency across stakes
+    const getBetChipColor = (amt: number, bb: number | undefined) => {
+      const base = Math.max(1, bb || 1);
+      const x = amt / base;
+      if (x >= 50) return "bg-orange-600"; // 50bb+
+      if (x >= 25) return "bg-purple-600"; // 25–49bb
+      if (x >= 10) return "bg-black";      // 10–24bb
+      if (x >= 5)  return "bg-blue-600";  // 5–9bb
+      if (x >= 2)  return "bg-red-600";   // 2–4bb
+      if (x > 0)   return "bg-green-600"; // <2bb
+      return "bg-gray-500";               // no bet
+    };
+    const betBg = getBetChipColor(betAmount, bigBlind);
 
     // Calculate blind positions (SB = dealer + 1, BB = dealer + 2 for multi-way games)
     const totalPlayers = players.filter(p => p).length;
@@ -265,6 +279,7 @@ export default function Table({ timer }: { timer?: number | null }) {
                 dealerOffset={dealerOffset}
                 state={state}
                 isWinner={isWinner}
+                actionLabel={lastActionLabels[idx] || undefined}
               />
             </div>
           </div>
@@ -383,20 +398,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       </div>
 
       
-      {/* Card Reveal Button - Show during showdown if player hasn't revealed cards */}
-      {street === 4 && walletSeatIdx !== null && walletSeatIdx >= 0 && 
-       playerStates[walletSeatIdx] !== "folded" && 
-       playerStates[walletSeatIdx] !== "empty" && 
-       !cardsRevealed[walletSeatIdx] && (
-        <div className="mt-2">
-          <button
-            onClick={() => revealCards(walletSeatIdx)}
-            className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-lg font-bold transition-colors shadow-lg border-2 border-yellow-400 animate-bounce"
-          >
-            Show Your Cards
-          </button>
-        </div>
-      )}
+      {/* Show-cards control moved into PlayerActionButtons */}
     </div>
   );
 }

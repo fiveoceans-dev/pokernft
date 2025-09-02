@@ -292,11 +292,39 @@ export function handleTimeoutAutoFold(table: Table, seatId: number): StateTransi
   // Apply fold for current actor - this will handle timer cleanup
   const foldResult = applyAction(table, seatId, "FOLD");
 
+  // Handle timeout through PlayerStateManager for unified state management
+  const { getPlayerStateManager } = require("../../managers/sitOutManager");
+  const playerStateManager = getPlayerStateManager(table.id);
+  const stateManagerEffects = playerStateManager.handleTimeout(seat.pid, table.id);
+
   // Add timeout-specific side effects
   const timeoutSideEffects: SideEffect[] = [
     ...foldResult.sideEffects,
+    ...stateManagerEffects,
     { type: "EMIT_STATE_CHANGE", payload: { reason: "player_timeout_folded" } },
   ];
+
+  // If player was auto-sat out, dispatch PlayerSitOut event
+  const hasSitOutEffect = stateManagerEffects.some((effect: SideEffect) => 
+    effect.type === 'EMIT_STATE_CHANGE' && 
+    'reason' in effect.payload &&
+    typeof effect.payload.reason === 'string' &&
+    effect.payload.reason.includes('sit_out_timeout')
+  );
+  
+  if (hasSitOutEffect) {
+    timeoutSideEffects.push({
+      type: "DISPATCH_EVENT",
+      payload: {
+        event: {
+          t: "PlayerSitOut",
+          seat: seatId,
+          pid: seat.pid,
+          reason: "timeout"
+        }
+      }
+    });
+  }
 
   return {
     nextState: foldResult.nextState,

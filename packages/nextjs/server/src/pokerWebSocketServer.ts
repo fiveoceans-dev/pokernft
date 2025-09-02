@@ -309,6 +309,36 @@ class WebSocketFSMBridge extends EventEmitter {
       case "HandEnd":
         this.emit('broadcast', tableId, { type: "HAND_END" });
         break;
+
+      case "Payout": {
+        try {
+          const distributions = (event as any).distributions || [];
+          // Aggregate winners by pid with positive amounts
+          const winnersMap = new Map<string, number>();
+          let total = 0;
+          for (const d of distributions) {
+            if (d.amount > 0) {
+              const prev = winnersMap.get(d.pid) || 0;
+              winnersMap.set(d.pid, prev + d.amount);
+              total += d.amount;
+            }
+          }
+          if (winnersMap.size > 0) {
+            const winners = Array.from(winnersMap.keys()).map(pid => {
+              const seat = table.seats.find(s => s.pid && s.pid.toLowerCase() === pid.toLowerCase());
+              return { seat: seat ? seat.id : -1, playerId: pid };
+            });
+            this.emit('broadcast', tableId, {
+              type: "WINNER_ANNOUNCEMENT",
+              winners,
+              potAmount: total
+            } as any);
+          }
+        } catch (e) {
+          logger.error(`❌ [Bridge] Failed to emit WINNER_ANNOUNCEMENT:`, e);
+        }
+        break;
+      }
     }
   }
 
@@ -522,7 +552,22 @@ class WebSocketFSMBridge extends EventEmitter {
     
     if (seatId === undefined) return;
 
-    // Dispatch PlayerLeave event through FSM
+    // Professional leave handling: Auto-fold if it's player's turn
+    const tableState = engine.getState();
+    if (tableState.actor === seatId && 
+        ["preflop", "flop", "turn", "river"].includes(tableState.phase)) {
+      
+      logger.info(`🚪 [WebSocket] Auto-folding ${canonicalId} before leaving (player's turn)`);
+      
+      // Auto-fold first
+      await engine.dispatch({
+        t: "Action",
+        seat: seatId,
+        action: "FOLD"
+      });
+    }
+
+    // Then dispatch PlayerLeave event through FSM
     await engine.dispatch({
       t: "PlayerLeave",
       seat: seatId,

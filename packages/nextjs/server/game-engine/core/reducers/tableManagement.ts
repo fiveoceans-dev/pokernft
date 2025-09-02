@@ -107,6 +107,7 @@ export function removePlayer(
 ): StateTransition {
   const newSeats = [...table.seats];
   if (newSeats[seatId]?.pid === pid) {
+    // Clear seat (chips set to 0 for play money system)
     newSeats[seatId] = {
       id: seatId,
       chips: 0,
@@ -114,6 +115,12 @@ export function removePlayer(
       streetCommitted: 0,
       status: "empty",
     };
+
+    // Comprehensive player state cleanup through PlayerStateManager
+    const sitOutManager = getSitOutManager(table.id);
+    sitOutManager.handlePlayerLeave(pid);
+    
+    console.log(`🚪 [Reducer] Removed player ${pid} from seat ${seatId} with complete state cleanup`);
   }
 
   const nextState = {
@@ -150,13 +157,13 @@ export function sitOutPlayer(
     return { nextState: table, sideEffects: [] };
   }
 
-  // Use SitOutManager as single source of truth - don't modify seat.status
+  // Use PlayerStateManager as single source of truth - don't modify seat.status
   const sitOutManager = getSitOutManager(table.id);
-  const sitOutSideEffects = sitOutManager.markSitOut(pid, reason);
+  const sitOutSideEffects = sitOutManager.markSitOut(pid, reason, table.id);
 
-  console.log(`😴 [Reducer] Player ${pid} sitting out (${reason}) - SitOutManager updated`);
+  console.log(`😴 [Reducer] Player ${pid} sitting out (${reason}) - PlayerStateManager updated`);
 
-  // No seat status changes - SitOutManager handles the state
+  // No seat status changes - PlayerStateManager handles the state
   return { nextState: table, sideEffects: sitOutSideEffects };
 }
 
@@ -191,7 +198,7 @@ export function sitInPlayer(
   // Use SitOutManager as single source of truth - don't modify seat.status
   const sitInSideEffects = sitOutManager.markSitIn(pid);
 
-  console.log(`🪑 [Reducer] Player ${pid} sitting in - SitOutManager updated`);
+  console.log(`🪑 [Reducer] Player ${pid} sitting in - PlayerStateManager updated`);
 
   // No seat status changes - SitOutManager handles the state
   return { nextState: table, sideEffects: sitInSideEffects };

@@ -127,15 +127,6 @@ export default function PlayPage() {
     }
   }, [walletSeatIdx, isLeaving, isMyTurn, playerAction, leaveSeat]);
 
-  const handleSitIn = useCallback(async () => {
-    if (!isSittingOut) return;
-    try {
-      await sitIn();
-      console.log("🪑 Requested SIT_IN for current player");
-    } catch (error) {
-      console.error("🚫 Failed to SIT_IN:", error);
-    }
-  }, [isSittingOut, sitIn]);
 
   const handleLeaveClick = () => {
     handleLeaveTable();
@@ -178,16 +169,6 @@ export default function PlayPage() {
         <AnimatedTitle text="Poker Night on Starknet" />
         {walletSeatIdx >= 0 && (
           <div className="header-actions">
-            {isSittingOut && (
-              <button
-                onClick={handleSitIn}
-                disabled={connectionState === "disconnected" || isActionPending}
-                className={`action-btn ${connectionState === "disconnected" || isActionPending ? 'disabled' : 'sit-in'}`}
-                title="Sit in to rejoin play"
-              >
-                🪑 Sit In
-              </button>
-            )}
             <button
               onClick={handleSitOutToggle}
               disabled={connectionState === "disconnected" || isActionPending}
@@ -208,11 +189,11 @@ export default function PlayPage() {
 
             <button
               onClick={handleLeaveClick}
-              disabled={isLeaving || connectionState === "disconnected" || isMyTurn}
+              disabled={isLeaving || connectionState === "disconnected"}
               className={`action-btn leave ${
-                isLeaving || connectionState === "disconnected" || isMyTurn ? "disabled" : ""
+                isLeaving || connectionState === "disconnected" ? "disabled" : ""
               }`}
-              title={isMyTurn ? "Cannot leave during your turn" : "Leave this table"}
+              title="Leave this table (auto-folds if your turn)"
             >
               {isLeaving ? "🚶 Leaving..." : "🚪 Leave Table"}
             </button>
@@ -427,7 +408,8 @@ export default function PlayPage() {
           display: flex;
           justify-content: center;
           align-items: center;
-          min-height: ${isMobile ? '120px' : '100px'};
+          /* Ensure enough space for buttons + slider inside the card */
+          min-height: ${isMobile ? '150px' : '120px'};
           padding: 5px;
           height: ${isMobile ? 'auto' : '100%'};
           max-width: 600px;
@@ -491,9 +473,7 @@ export default function PlayPage() {
             gap: 8px;
           }
           
-          .control-actions {
-            min-height: 140px;
-          }
+          .control-actions { min-height: 150px; }
         }
 
         /* Short screens - maintain 80/20 ratio but ensure minimum control panel */
@@ -569,9 +549,8 @@ export default function PlayPage() {
             min-height: 32px;
           }
           
-          .control-actions {
-            min-height: 50px;
-          }
+          /* Keep betting controls inside the card even on short screens */
+          .control-actions { min-height: 100px; }
         }
 
         /* Very small screens */

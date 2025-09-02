@@ -104,7 +104,39 @@ export class EventEngine extends EventEmitter {
       timestamp: Date.now(),
     };
 
+    // Set up PlayerStateManager auto-leave event listener
+    this.setupPlayerStateManager();
+
     logger.info(`🎮 [EventEngine] Created for table ${tableId}`);
+  }
+
+  /**
+   * Set up PlayerStateManager event listeners for auto-leave
+   */
+  private setupPlayerStateManager(): void {
+    const playerStateManager = getSitOutManager(this.table.id);
+    
+    // Listen for auto-leave events
+    playerStateManager.on('autoLeave', (event) => {
+      const { playerId, tableId, reason } = event;
+      
+      if (tableId === this.table.id) {
+        logger.info(`🚪 [EventEngine] Processing auto-leave for ${playerId} (${reason})`);
+        
+        // Find player's seat
+        const seat = this.table.seats.find(s => s.pid === playerId);
+        if (seat) {
+          // Dispatch leave event
+          this.dispatch({
+            t: "PlayerLeave",
+            seat: seat.id,
+            pid: playerId
+          });
+        } else {
+          logger.warn(`⚠️ [EventEngine] Auto-leave: Player ${playerId} not found in table`);
+        }
+      }
+    });
   }
 
   /**
@@ -1096,13 +1128,63 @@ export class EventEngine extends EventEmitter {
         }
         break;
 
-      case "EVALUATE_HANDS":
-        // Evaluate hands and dispatch Payout using hash format
-        const distributions = await this.evaluateHandsWithHashFormat();
-        if (distributions.length > 0) {
+      case "EVALUATE_HANDS": {
+        // Evaluate hands and compute pot-aware payouts
+        try {
+          // Collect players still in hand
+          const playersInHand = this.table.seats.filter(
+            (seat) => seat.pid && seat.holeCards && (seat.status === "active" || seat.status === "allin")
+          );
+
+          if (playersInHand.length === 0) {
+            logger.error(`❌ [EventEngine] No players in hand for showdown`);
+            break;
+          }
+
+          if (playersInHand.length === 1) {
+            // Single player wins everything including uncalled bet handling
+            const solo = playersInHand[0]!;
+            const dists = handleUncalledBet(this.table);
+            if (dists.length === 0) {
+              const totalPotAmount = this.table.pots.reduce((sum, pot) => sum + pot.amount, 0);
+              dists.push({ pid: solo.pid!, amount: totalPotAmount, potIndex: 0, reason: "win" as const });
+            }
+            await this.dispatch({ t: "Payout", distributions: dists });
+            break;
+          }
+
+          // Evaluate in hash format (lower score is better)
+          const evaluated = playersInHand.map(seat => ({
+            pid: seat.pid!,
+            score: evaluateCodes([...(seat.holeCards as number[]), ...this.table.communityCards]),
+            holeCards: seat.holeCards as [number, number]
+          }));
+
+          // Compute rank numbers (1 = best), ties share same rank
+          const sorted = [...evaluated].sort((a, b) => a.score - b.score);
+          const ranks = new Map<string, number>();
+          let currentRank = 1;
+          for (let i = 0; i < sorted.length; i++) {
+            if (i > 0 && sorted[i].score !== sorted[i - 1].score) {
+              currentRank = i + 1;
+            }
+            ranks.set(sorted[i].pid, currentRank);
+          }
+
+          const handRankings = evaluated.map(e => ({
+            pid: e.pid,
+            rank: ranks.get(e.pid) || 999,
+            description: `score ${e.score}`
+          }));
+
+          // Calculate payouts using pot manager (handles side pots and ties)
+          const distributions = calculatePayouts(this.table.pots, handRankings);
           await this.dispatch({ t: "Payout", distributions });
+        } catch (err) {
+          logger.error(`❌ [EventEngine] Showdown evaluation failed:`, err);
         }
         break;
+      }
 
       default:
         console.warn(`⚠️ [EventEngine] Unknown side effect type:`, effect);

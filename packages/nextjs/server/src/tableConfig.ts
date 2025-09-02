@@ -106,14 +106,14 @@ export const TABLES: TableConfig[] = [
   // High Roller - Elite level
   {
     id: "whale-1",
-    name: "👑 High Roller 1",
+    name: "👑 Whale 1",
     blinds: { small: 1000, big: 2000 },
     buyIn: calculateBuyInLimits(2000), // 40,000-400,000 chips
     stakeLevel: 'whale'
   },
   {
     id: "whale-2", 
-    name: "👑 High Roller 2",
+    name: "👑 Whale 2",
     blinds: { small: 1000, big: 2000 },
     buyIn: calculateBuyInLimits(2000),
     stakeLevel: 'whale'

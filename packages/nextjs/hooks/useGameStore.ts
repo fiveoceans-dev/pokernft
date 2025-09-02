@@ -65,8 +65,13 @@ interface GameStoreState {
   countdowns: Map<string, { startTime: number; duration: number; metadata?: any }>;
   /** track which players have revealed their cards at showdown */
   cardsRevealed: boolean[];
+  /** user preference: reveal own cards automatically at showdown */
+  autoRevealAtShowdown: boolean;
+  setAutoRevealAtShowdown: (v: boolean) => void;
   /** track recent winners for sparkle effects */
   recentWinners: Set<number>;
+  /** last action label per seat (UI-ready, event-driven) */
+  lastActionLabels: (string | null)[];
   /** WebSocket connection state */
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
   /** Connection error message */
@@ -404,34 +409,59 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   break;
               }
               if (text) get().addLog(text);
-              // Record action in local action history for consumers (UI, analytics)
-              set(s => ({
-                actionHistory: [
+              // Record action in history and update lastActionLabels for that seat
+              set(s => {
+                const actionHistory = [
                   ...s.actionHistory,
                   { playerId: msg.playerId, action: msg.action, amount: (msg as any).amount }
-                ]
-              }));
+                ];
+                const labels = [...s.lastActionLabels];
+                const seatIdx = s.playerIds.findIndex(id => id && id.toLowerCase() === (msg.playerId || '').toLowerCase());
+                if (seatIdx >= 0) {
+                  let label = '';
+                  switch (msg.action) {
+                    case 'FOLD': label = 'Fold'; break;
+                    case 'CHECK': label = 'Check'; break;
+                    case 'CALL': label = 'Call'; break;
+                    case 'BET': label = 'Bet'; break;
+                    case 'RAISE': label = 'Raise'; break;
+                    case 'ALLIN': label = 'All In'; break;
+                    default: label = msg.action;
+                  }
+                  labels[seatIdx] = label;
+                }
+                return { actionHistory, lastActionLabels: labels };
+              });
               break;
             }
             case "DEAL_FLOP":
               set((s) => {
                 const comm = [...s.community];
                 msg.cards.forEach((c, i) => (comm[i] = c as number));
-                return { community: comm };
+                return { 
+                  community: comm,
+                  lastActionLabels: Array(9).fill(null) // Clear action labels on new street
+                };
               });
               break;
             case "DEAL_TURN":
               set((s) => {
                 const comm = [...s.community];
                 comm[3] = msg.card as number;
-                return { community: comm };
+                return { 
+                  community: comm,
+                  lastActionLabels: Array(9).fill(null) // Clear action labels on new street
+                };
               });
               break;
             case "DEAL_RIVER":
               set((s) => {
                 const comm = [...s.community];
                 comm[4] = msg.card as number;
-                return { community: comm };
+                return { 
+                  community: comm,
+                  lastActionLabels: Array(9).fill(null) // Clear action labels on new street
+                };
               });
               break;
             case "HAND_START":
@@ -439,7 +469,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               get().resetCardReveals(); // Reset card reveals for new hand
               get().clearWinners(); // Clear previous winners for new hand
               // Reset action history at the beginning of each hand
-              set({ actionHistory: [] });
+              set({ actionHistory: [], lastActionLabels: Array(9).fill(null) });
               break;
             case "HAND_END":
               get().addLog("Dealer: Hand complete");
@@ -502,21 +532,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 currentTurn: null,
                 street: 0,
                 cardsRevealed: Array(9).fill(false),
+                lastActionLabels: Array(9).fill(null),
               });
               break;
             case "SHOWDOWN":
-              console.log("🃏 Showdown started, revealing cards for winners:", msg.revealOrder);
-              get().addLog(`🃏 Showdown! Cards revealed.`);
-              // Auto-reveal cards for all non-folded players at showdown
-              set((s) => {
-                const newRevealed = [...s.cardsRevealed];
-                s.playerStates.forEach((state, idx) => {
-                  if (state !== "folded" && state !== "empty" && s.players[idx]) {
-                    newRevealed[idx] = true;
-                  }
-                });
-                return { cardsRevealed: newRevealed };
-              });
+              console.log("🃏 Showdown started");
+              get().addLog(`🃏 Showdown!`);
+              // Do not auto-reveal everyone; let winners and user preference handle visibility
               break;
             case "DEALER_MESSAGE":
               console.log("📢 Dealer message:", msg.message);
@@ -529,6 +551,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 if (winner.seat >= 0) {
                   console.log("✨ Triggering sparkle for seat:", winner.seat);
                   get().markWinner(winner.seat);
+                  // Reveal winners' cards automatically per rules
+                  set((s) => {
+                    const revealed = [...s.cardsRevealed];
+                    revealed[winner.seat] = true;
+                    return { cardsRevealed: revealed };
+                  });
                   
                   // Clear winner effect after 5 seconds
                   setTimeout(() => {
@@ -721,7 +749,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     logs: [],
     addLog: (msg) => set((s) => ({ logs: [...s.logs, msg] })),
     cardsRevealed: Array(9).fill(false),
+    autoRevealAtShowdown: (typeof window !== "undefined" ? (localStorage.getItem('autoRevealAtShowdown') ?? 'true') : 'true') === 'true',
+    setAutoRevealAtShowdown: (v: boolean) => {
+      if (typeof window !== 'undefined') {
+        try { localStorage.setItem('autoRevealAtShowdown', v ? 'true' : 'false'); } catch {}
+      }
+      set({ autoRevealAtShowdown: v });
+    },
     recentWinners: new Set<number>(),
+    lastActionLabels: Array(9).fill(null),
     smallBlind: DEFAULT_SMALL_BLIND,
     bigBlind: DEFAULT_BIG_BLIND,
     minRaise: DEFAULT_BIG_BLIND,

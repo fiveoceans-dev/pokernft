@@ -22,6 +22,7 @@ interface PlayerSeatProps {
   dealerOffset?: { x: number; y: number }; // offset dealer button toward centre
   state?: SeatStatus | "sittingOut"; // include UI-only sittingOut state
   isWinner?: boolean; // show sparkle effect if true
+  actionLabel?: string; // dynamic action label (Check, Bet $40, etc.)
 }
 
 export default function PlayerSeat({
@@ -33,6 +34,7 @@ export default function PlayerSeat({
   dealerOffset = { x: 0, y: -20 },
   state = "active",
   isWinner = false,
+  actionLabel,
 }: PlayerSeatProps) {
   // If `player.hand` is null, we still may show card backs for opponents
   const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [null, null];
@@ -47,14 +49,15 @@ export default function PlayerSeat({
       : "";
 
   return (
-    <div className={clsx("relative w-24 h-8", player.folded && "opacity-60")}>
+    <div className={clsx("relative w-24 h-8", player.folded && "opacity-60")}>      
       {/* Hole cards/back-of-cards display */}
-      {(state === "active" || state === "allin" || (revealCards && player.hand)) && (
+      {/* Render if cards dealt - show backs for opponents, faces when revealed */}
+      {player.hand && (
         <div
           className="absolute w-full flex justify-center gap-1"
           style={{ bottom: "150%", marginBottom: "0.5rem" }}
         >
-          {/* If we have faces (own seat or revealed), show face; otherwise show back */}
+          {/* Show faces only when revealCards is true; otherwise render backs */}
           <Card card={hole1} hidden={!revealCards} size={cardSize} />
           <Card card={hole2} hidden={!revealCards} size={cardSize} />
         </div>
@@ -92,21 +95,33 @@ export default function PlayerSeat({
             </span>
           </div>
         </GlowEffect>
-        {state === "allin" && (
-          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-yellow-300 font-bold">
-            ALL IN
-          </span>
-        )}
-        {state === "folded" && (
-          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-gray-300">
-            Folded
-          </span>
-        )}
-        {state === "sittingOut" && (
-          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-orange-300 font-bold">
-            Sitting Out
-          </span>
-        )}
+        {/* Professional action label with proper priority */}
+        {(() => {
+          // Priority 1: Always show action label if it exists (regardless of state)
+          if (actionLabel) {
+            const color = actionLabel.toLowerCase().includes("all") 
+              ? "text-yellow-300" 
+              : actionLabel.toLowerCase() === "fold"
+              ? "text-gray-400"
+              : "text-blue-300";
+            return (
+              <span className={`absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold whitespace-nowrap transition-all duration-200 ${color}`}>
+                {actionLabel}
+              </span>
+            );
+          }
+          
+          // Priority 2: Only show state labels when no action taken
+          if (state === "sittingOut") {
+            return (
+              <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold whitespace-nowrap transition-all duration-200 text-orange-300">
+                Sitting Out
+              </span>
+            );
+          }
+          
+          return null;
+        })()}
       </div>
     </div>
   );
