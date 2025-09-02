@@ -31,7 +31,7 @@ import { logHandStartAudit } from "../utils/audit";
 import {
   evaluateHand,
   determineWinners,
-  type PlayerHand
+  type PlayerHand,
 } from "../logic/handEvaluationAdapter";
 import { evaluateCodes } from "../utils/hashEvaluator";
 import {
@@ -115,46 +115,52 @@ export class EventEngine extends EventEmitter {
    */
   private setupPlayerStateManager(): void {
     const playerStateManager = getSitOutManager(this.table.id);
-    
+
     // Listen for auto-leave events
-    playerStateManager.on('autoLeave', (event) => {
+    playerStateManager.on("autoLeave", (event) => {
       const { playerId, tableId, reason } = event;
-      
+
       if (tableId === this.table.id) {
-        logger.info(`🚪 [EventEngine] Processing auto-leave for ${playerId} (${reason})`);
-        
+        logger.info(
+          `🚪 [EventEngine] Processing auto-leave for ${playerId} (${reason})`,
+        );
+
         // Find player's seat
-        const seat = this.table.seats.find(s => s.pid === playerId);
+        const seat = this.table.seats.find((s) => s.pid === playerId);
         if (seat) {
           // Dispatch leave event
           this.dispatch({
             t: "PlayerLeave",
             seat: seat.id,
-            pid: playerId
+            pid: playerId,
           });
         } else {
-          logger.warn(`⚠️ [EventEngine] Auto-leave: Player ${playerId} not found in table`);
+          logger.warn(
+            `⚠️ [EventEngine] Auto-leave: Player ${playerId} not found in table`,
+          );
         }
       }
     });
   }
 
   /**
-   * Get current table state with derived sittingOut field (immutable)
+   * Get current table state with derived action field for sit-out flag
    */
   getState(): Table {
     const sitOutManager = getSitOutManager(this.table.id);
-    
-    // Create table copy with sittingOut derived from SitOutManager
-    const tableWithSittingOut = {
+
+    const tableWithActions = {
       ...this.table,
-      seats: this.table.seats.map(seat => ({
+      seats: this.table.seats.map((seat) => ({
         ...seat,
-        sittingOut: seat.pid ? sitOutManager.isPlayerSittingOut(seat.pid) : false
-      }))
+        action:
+          seat.pid && sitOutManager.isPlayerSittingOut(seat.pid)
+            ? "SITTING_OUT"
+            : seat.action,
+      })),
     };
-    
-    return tableWithSittingOut;
+
+    return tableWithActions;
   }
 
   /**
@@ -184,7 +190,9 @@ export class EventEngine extends EventEmitter {
       const events = this.commandToEvents(command);
 
       if (!events || events.length === 0) {
-        throw new Error(`Invalid or unsupported command: ${JSON.stringify(command)}`);
+        throw new Error(
+          `Invalid or unsupported command: ${JSON.stringify(command)}`,
+        );
       }
 
       for (const event of events) {
@@ -212,7 +220,9 @@ export class EventEngine extends EventEmitter {
       logger.error(
         `❌ Event queue overflow! ${this.eventQueue.length} events queued`,
       );
-      logger.error(`Queue contents: ${this.eventQueue.map((e) => e.event.t).join(", ")}`);
+      logger.error(
+        `Queue contents: ${this.eventQueue.map((e) => e.event.t).join(", ")}`,
+      );
 
       // Clear queue and reset state machine
       this.eventQueue = [];
@@ -330,7 +340,9 @@ export class EventEngine extends EventEmitter {
       return;
     }
 
-    logger.debug(`📨 [EventEngine] Processing event: ${event.t} ${JSON.stringify(event)}`);
+    logger.debug(
+      `📨 [EventEngine] Processing event: ${event.t} ${JSON.stringify(event)}`,
+    );
 
     // IMMEDIATE timer cancellation for actions to prevent race conditions
     if (event.t === "Action" && this.timerManager) {
@@ -354,7 +366,9 @@ export class EventEngine extends EventEmitter {
 
       // Allow idempotent managerial events without hard failure
       if (event.t === "PlayerSitOut" || event.t === "PlayerSitIn") {
-        logger.info(`ℹ️ [EventEngine] ${event.t} had no effect (idempotent or invalid seat) - continuing`);
+        logger.info(
+          `ℹ️ [EventEngine] ${event.t} had no effect (idempotent or invalid seat) - continuing`,
+        );
         // Still emit current state so clients can reconcile
         this.emit("stateChanged", this.getState());
         this.emit("eventProcessed", event, this.getState());
@@ -394,50 +408,78 @@ export class EventEngine extends EventEmitter {
       // Comprehensive Action event validation diagnostics
       if (event.t === "Action") {
         const seat = this.table.seats[event.seat];
-        const actorSeat = this.table.actor !== undefined ? this.table.seats[this.table.actor] : null;
-        
+        const actorSeat =
+          this.table.actor !== undefined
+            ? this.table.seats[this.table.actor]
+            : null;
+
         // Log full validation context for debugging
-        logger.error(`❌ [EventEngine] Action validation failed - Full Context:`);
+        logger.error(
+          `❌ [EventEngine] Action validation failed - Full Context:`,
+        );
         logger.error(`   Table Phase: ${this.table.phase}`);
-        logger.error(`   Current Actor: seat ${this.table.actor} (${actorSeat?.pid || 'none'})`);
-        logger.error(`   Action Details: seat ${event.seat}, action ${event.action}, amount ${event.amount}`);
-        logger.error(`   Player Status: ${seat?.pid || 'EMPTY'} (status: ${seat?.status || 'N/A'})`);
-        logger.error(`   Current Bet: ${this.table.currentBet}, Player Street Committed: ${seat?.streetCommitted || 0}`);
-        
+        logger.error(
+          `   Current Actor: seat ${this.table.actor} (${actorSeat?.pid || "none"})`,
+        );
+        logger.error(
+          `   Action Details: seat ${event.seat}, action ${event.action}, amount ${event.amount}`,
+        );
+        logger.error(
+          `   Player Status: ${seat?.pid || "EMPTY"} (status: ${seat?.status || "N/A"})`,
+        );
+        logger.error(
+          `   Current Bet: ${this.table.currentBet}, Player Street Committed: ${seat?.streetCommitted || 0}`,
+        );
+
         // Specific validation failure detection
         if (event.seat < 0 || event.seat >= this.table.seats.length) {
-          throw new Error(`Invalid seat index: ${event.seat} (valid range: 0-${this.table.seats.length-1})`);
+          throw new Error(
+            `Invalid seat index: ${event.seat} (valid range: 0-${this.table.seats.length - 1})`,
+          );
         }
-        
+
         if (!seat) {
           throw new Error(`Seat ${event.seat} does not exist`);
         }
-        
+
         if (!seat.pid) {
           throw new Error(`Seat ${event.seat} is empty - no player seated`);
         }
-        
+
         if (seat.status !== "active") {
-          throw new Error(`Player ${seat.pid} cannot act - status is '${seat.status}' (must be 'active')`);
+          throw new Error(
+            `Player ${seat.pid} cannot act - status is '${seat.status}' (must be 'active')`,
+          );
         }
-        
+
         if (this.table.actor === undefined) {
-          throw new Error(`No current actor defined - phase '${this.table.phase}' may not allow actions`);
+          throw new Error(
+            `No current actor defined - phase '${this.table.phase}' may not allow actions`,
+          );
         }
-        
+
         if (this.table.actor !== event.seat) {
-          throw new Error(`Not player's turn: current actor is seat ${this.table.actor} (${actorSeat?.pid}), but seat ${event.seat} (${seat.pid}) tried to act`);
+          throw new Error(
+            `Not player's turn: current actor is seat ${this.table.actor} (${actorSeat?.pid}), but seat ${event.seat} (${seat.pid}) tried to act`,
+          );
         }
-        
+
         // Phase validation
         const bettingPhases = ["preflop", "flop", "turn", "river"];
         if (!bettingPhases.includes(this.table.phase)) {
-          throw new Error(`Cannot take actions during '${this.table.phase}' phase - actions only allowed in: ${bettingPhases.join(', ')}`);
+          throw new Error(
+            `Cannot take actions during '${this.table.phase}' phase - actions only allowed in: ${bettingPhases.join(", ")}`,
+          );
         }
-        
+
         // If we reach here, it's likely a specific action validation failure (betting amounts, etc.)
-        const toCall = Math.max(0, this.table.currentBet - (seat.streetCommitted || 0));
-        throw new Error(`Invalid ${event.action} action: ${seat.pid} (${event.amount || 'no amount'}) - Current bet: ${this.table.currentBet}, To call: ${toCall}, Chips: ${seat.chips}`);
+        const toCall = Math.max(
+          0,
+          this.table.currentBet - (seat.streetCommitted || 0),
+        );
+        throw new Error(
+          `Invalid ${event.action} action: ${seat.pid} (${event.amount || "no amount"}) - Current bet: ${this.table.currentBet}, To call: ${toCall}, Chips: ${seat.chips}`,
+        );
       }
 
       // For other events, throw generic validation error
@@ -454,9 +496,16 @@ export class EventEngine extends EventEmitter {
         if (this.table.deckCodes && this.table.deckCodes.length === 52) {
           void (async () => {
             const commit = await CardLedger.commit(this.table.deckCodes!);
-            logger.info(`🧾 [EventEngine] Deck commit (sha256) for hand ${event.handNumber}: ${commit}`);
+            logger.info(
+              `🧾 [EventEngine] Deck commit (sha256) for hand ${event.handNumber}: ${commit}`,
+            );
             // Structured audit record (future: persist)
-            logHandStartAudit(this.table, event.handNumber, this.table.deckSeed, commit);
+            logHandStartAudit(
+              this.table,
+              event.handNumber,
+              this.table.deckSeed,
+              commit,
+            );
           })();
         }
       } catch (e) {
@@ -471,13 +520,25 @@ export class EventEngine extends EventEmitter {
     try {
       const inv = validateCardInvariants(this.table);
       if (!inv.ok) {
-        logger.error(`❌ [EventEngine] Card invariants failed after ${event.t}:`, inv.errors);
+        logger.error(
+          `❌ [EventEngine] Card invariants failed after ${event.t}:`,
+          inv.errors,
+        );
         // Professional recovery: end hand and start a new one if eligible
-        await this.dispatch({ t: 'HandEnd' });
+        await this.dispatch({ t: "HandEnd" });
         // Count eligible players (chips > 0 and seated)
-        const eligible = this.table.seats.filter(s => s.pid && s.chips > 0).length;
-        if (eligible >= MIN_PLAYERS_TO_START && this.table.phase === 'waiting') {
-          await this.dispatch({ t: 'StartHand', handNumber: this.table.handNumber + 1, timestamp: Date.now() });
+        const eligible = this.table.seats.filter(
+          (s) => s.pid && s.chips > 0,
+        ).length;
+        if (
+          eligible >= MIN_PLAYERS_TO_START &&
+          this.table.phase === "waiting"
+        ) {
+          await this.dispatch({
+            t: "StartHand",
+            handNumber: this.table.handNumber + 1,
+            timestamp: Date.now(),
+          });
         }
       }
     } catch (e) {
@@ -498,18 +559,20 @@ export class EventEngine extends EventEmitter {
         await this.checkGameStart();
       }
     }
-    
+
     if (event.t === "PlayerLeave") {
       // Remove from waiting players if they were waiting
       this.waitingPlayers.delete(event.pid);
       await this.checkGameStart();
     }
-    
+
     // Clean up waiting players when hand ends
     if (event.t === "HandEnd") {
       const waitingCount = this.waitingPlayers.size;
       if (waitingCount > 0) {
-        logger.info(`🧹 [EventEngine] Hand ended - cleared ${waitingCount} waiting players; they can now participate`);
+        logger.info(
+          `🧹 [EventEngine] Hand ended - cleared ${waitingCount} waiting players; they can now participate`,
+        );
         this.waitingPlayers.clear();
         this.emit("waitingPlayersCleared", { count: waitingCount });
       }
@@ -527,7 +590,7 @@ export class EventEngine extends EventEmitter {
     // Avoid starting duplicate timers here to prevent race conditions.
 
     // Emit state change for external listeners AFTER state is fully consistent
-    // Use getState() to include derived sittingOut field
+    // Use getState() to include derived action field
     const stateWithSittingOut = this.getState();
     this.emit("stateChanged", stateWithSittingOut);
     this.emit("eventProcessed", event, stateWithSittingOut);
@@ -554,7 +617,9 @@ export class EventEngine extends EventEmitter {
     logger.debug(`   ✅ PostBlinds completed`);
 
     // Generate and deal hole cards to all active players
-    logger.debug(`   → Dispatching DealHole (cards will be generated by reducer)...`);
+    logger.debug(
+      `   → Dispatching DealHole (cards will be generated by reducer)...`,
+    );
     await this.dispatch({
       t: "DealHole",
       cards: {}, // Empty - let reducer generate from table deck
@@ -568,77 +633,90 @@ export class EventEngine extends EventEmitter {
    */
   private async processShowdown(): Promise<void> {
     logger.info(`🃏 [EventEngine] Processing showdown - evaluating hands`);
-    
+
     // Get players still in hand with their hole cards
     const playersInHand = this.table.seats.filter(
-      (seat) => 
-        seat.pid && 
-        seat.holeCards && 
-        (seat.status === "active" || seat.status === "allin")
+      (seat) =>
+        seat.pid &&
+        seat.holeCards &&
+        (seat.status === "active" || seat.status === "allin"),
     );
-    
+
     if (playersInHand.length === 0) {
       logger.error(`❌ [EventEngine] No players in hand for showdown`);
       return;
     }
-    
+
     if (playersInHand.length === 1) {
       // Only one player left - they win without showing cards
       const winner = playersInHand[0];
-      logger.info(`🏆 [EventEngine] ${winner.pid} wins by elimination (fold-to-one scenario)`);
-      
+      logger.info(
+        `🏆 [EventEngine] ${winner.pid} wins by elimination (fold-to-one scenario)`,
+      );
+
       // Handle uncalled bets properly using potManager logic
       const distributions = handleUncalledBet(this.table);
-      
+
       if (distributions.length === 0) {
         // No uncalled bet scenario - winner gets all pots
-        const totalPotAmount = this.table.pots.reduce((sum, pot) => sum + pot.amount, 0);
+        const totalPotAmount = this.table.pots.reduce(
+          (sum, pot) => sum + pot.amount,
+          0,
+        );
         distributions.push({
           pid: winner.pid!,
           amount: totalPotAmount,
           potIndex: 0,
-          reason: "win" as const
+          reason: "win" as const,
         });
-        logger.info(`💰 [EventEngine] ${winner.pid} wins ${totalPotAmount} chips (no uncalled bet)`);
+        logger.info(
+          `💰 [EventEngine] ${winner.pid} wins ${totalPotAmount} chips (no uncalled bet)`,
+        );
       } else {
-        logger.info(`💰 [EventEngine] Uncalled bet handling: ${distributions.length} distributions`);
-        distributions.forEach(dist => {
+        logger.info(
+          `💰 [EventEngine] Uncalled bet handling: ${distributions.length} distributions`,
+        );
+        distributions.forEach((dist) => {
           logger.info(`   ${dist.pid}: ${dist.amount} chips (${dist.reason})`);
         });
       }
-      
+
       await this.dispatch({ t: "Payout", distributions });
       return;
     }
-    
+
     // Evaluate each player's hand
-    const evaluatedHands: PlayerHand[] = playersInHand.map(seat => {
+    const evaluatedHands: PlayerHand[] = playersInHand.map((seat) => {
       const handRank = evaluateHand(seat.holeCards!, this.table.communityCards);
-      
+
       logger.info(`   🃏 ${seat.pid}: ${handRank.description}`);
-      
+
       return {
         pid: seat.pid!,
         handRank,
-        holeCards: seat.holeCards!
+        holeCards: seat.holeCards!,
       };
     });
-    
+
     // Determine winners and rankings
     const results = determineWinners(evaluatedHands);
-    
+
     // Log results
-    results.forEach(result => {
+    results.forEach((result) => {
       if (result.rank === 1) {
-        logger.info(`🏆 [EventEngine] Winner: ${result.pid} with ${result.description}`);
+        logger.info(
+          `🏆 [EventEngine] Winner: ${result.pid} with ${result.description}`,
+        );
       } else {
-        logger.info(`   ${result.rank}. ${result.pid} with ${result.description}`);
+        logger.info(
+          `   ${result.rank}. ${result.pid} with ${result.description}`,
+        );
       }
     });
-    
+
     // Calculate payouts based on hand rankings
     const distributions = calculatePayouts(this.table.pots, results);
-    
+
     // Dispatch payout after a brief delay to show cards
     await this.dispatch({ t: "Payout", distributions });
   }
@@ -655,20 +733,22 @@ export class EventEngine extends EventEmitter {
 
     // Schedule streets with proper async delays and client-driven countdowns
     for (const street of remainingStreets) {
-      logger.debug(`   ⏱️ Waiting ${STREET_DEAL_DELAY_MS}ms before dealing ${street}...`);
-      
+      logger.debug(
+        `   ⏱️ Waiting ${STREET_DEAL_DELAY_MS}ms before dealing ${street}...`,
+      );
+
       // Start client-driven countdown for street delay
       const countdownManager = getCountdownManager(this.table.id);
       const countdownEvent = countdownManager.startCountdown(
         `street_deal_${this.table.id}_${street}_${Date.now()}`,
         "street_deal",
         STREET_DEAL_DELAY_MS,
-        { street }
+        { street },
       );
 
       // Emit countdown event for clients
       this.emit("streetDealCountdown", countdownEvent);
-      
+
       await this.delay(STREET_DEAL_DELAY_MS);
 
       await this.dispatch({
@@ -681,19 +761,19 @@ export class EventEngine extends EventEmitter {
 
     // Schedule showdown after all streets with final delay
     logger.debug(`   ⏱️ Waiting ${STREET_DEAL_DELAY_MS}ms before showdown...`);
-    
+
     // Start client-driven countdown for showdown delay
     const countdownManager = getCountdownManager(this.table.id);
     const showdownCountdownEvent = countdownManager.startCountdown(
       `showdown_delay_${this.table.id}_${Date.now()}`,
       "street_deal",
       STREET_DEAL_DELAY_MS,
-      { phase: "showdown" }
+      { phase: "showdown" },
     );
 
     // Emit countdown event for clients
     this.emit("streetDealCountdown", showdownCountdownEvent);
-    
+
     await this.delay(STREET_DEAL_DELAY_MS);
     await this.dispatch({ t: "Showdown", results: [] });
   }
@@ -716,7 +796,9 @@ export class EventEngine extends EventEmitter {
    * NOTE: This method should NOT be called from checkAutomaticTransitions to prevent loops
    */
   private async processPayout(): Promise<void> {
-    logger.info(`💰 [EventEngine] Payout complete, waiting ${NEW_HAND_DELAY_MS}ms before signaling ready`);
+    logger.info(
+      `💰 [EventEngine] Payout complete, waiting ${NEW_HAND_DELAY_MS}ms before signaling ready`,
+    );
 
     // Start client-driven countdown for new hand delay
     const countdownManager = getCountdownManager(this.table.id);
@@ -724,7 +806,7 @@ export class EventEngine extends EventEmitter {
       `new_hand_${this.table.id}_${Date.now()}`,
       "new_hand",
       NEW_HAND_DELAY_MS,
-      { handNumber: this.table.handNumber }
+      { handNumber: this.table.handNumber },
     );
 
     // Emit countdown event for clients
@@ -747,7 +829,12 @@ export class EventEngine extends EventEmitter {
   private commandToEvents(command: GameCommand): PokerEvent[] {
     switch (command.type) {
       case "join":
-        if (command.playerId && command.seatId !== undefined && command.chips && command.chips > 0) {
+        if (
+          command.playerId &&
+          command.seatId !== undefined &&
+          command.chips &&
+          command.chips > 0
+        ) {
           return [
             {
               t: "PlayerJoin",
@@ -758,7 +845,9 @@ export class EventEngine extends EventEmitter {
             },
           ];
         }
-        throw new Error("JOIN command missing required fields (playerId, seatId, chips>0)");
+        throw new Error(
+          "JOIN command missing required fields (playerId, seatId, chips>0)",
+        );
 
       case "leave":
         if (command.playerId && command.seatId !== undefined) {
@@ -770,7 +859,9 @@ export class EventEngine extends EventEmitter {
             },
           ];
         }
-        throw new Error("LEAVE command missing required fields (playerId, seatId)");
+        throw new Error(
+          "LEAVE command missing required fields (playerId, seatId)",
+        );
 
       case "action":
         if (command.seatId !== undefined && command.action) {
@@ -783,7 +874,9 @@ export class EventEngine extends EventEmitter {
             },
           ];
         }
-        throw new Error("ACTION command missing required fields (seatId, action)");
+        throw new Error(
+          "ACTION command missing required fields (seatId, action)",
+        );
 
       case "start_hand":
         return [
@@ -803,19 +896,19 @@ export class EventEngine extends EventEmitter {
    */
   private async checkGameStart(): Promise<void> {
     const sitOutManager = getSitOutManager(this.table.id);
-    
+
     // Count only active players (not in waiting state and not sitting out)
-    const eligibleSeats = this.table.seats.filter(s => {
+    const eligibleSeats = this.table.seats.filter((s) => {
       if (!s.pid) return false; // Empty seat
       if (this.waitingPlayers.has(s.pid)) return false; // Waiting for next hand
       if (sitOutManager.isPlayerSittingOut(s.pid)) return false; // Sitting out
       return s.chips > 0; // Has chips to play
     });
-    
+
     const activePlayerCount = eligibleSeats.length;
-    const totalPlayerCount = this.table.seats.filter(s => s.pid).length;
-    const sittingOutCount = this.table.seats.filter(s => 
-      s.pid && sitOutManager.isPlayerSittingOut(s.pid)
+    const totalPlayerCount = this.table.seats.filter((s) => s.pid).length;
+    const sittingOutCount = this.table.seats.filter(
+      (s) => s.pid && sitOutManager.isPlayerSittingOut(s.pid),
     ).length;
 
     console.log(
@@ -823,7 +916,10 @@ export class EventEngine extends EventEmitter {
     );
 
     // Only start if we have enough active players and game is waiting
-    if (activePlayerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
+    if (
+      activePlayerCount >= MIN_PLAYERS_TO_START &&
+      this.table.phase === "waiting"
+    ) {
       // Don't start multiple countdowns
       if (this.gameStartTimer) {
         console.log(`⏰ [EventEngine] Game countdown already in progress`);
@@ -843,8 +939,8 @@ export class EventEngine extends EventEmitter {
         {
           activePlayerCount,
           totalPlayerCount,
-          sittingOutCount
-        }
+          sittingOutCount,
+        },
       );
 
       // Emit countdown event for clients
@@ -862,53 +958,58 @@ export class EventEngine extends EventEmitter {
     console.log(
       `⏰ [EventEngine] Starting ${GAME_START_COUNTDOWN_MS / 1000}s countdown...`,
     );
-    
+
     // Clear any existing timer
     if (this.gameStartTimer) {
       clearTimeout(this.gameStartTimer);
     }
-    
+
     this.gameStartTimer = setTimeout(async () => {
       try {
         const sitOutManager = getSitOutManager(this.table.id);
-        
+
         // Count eligible players at countdown end (not waiting and not sitting out)
-        const eligibleSeats = this.table.seats.filter(s => {
+        const eligibleSeats = this.table.seats.filter((s) => {
           if (!s.pid) return false; // Empty seat
           if (this.waitingPlayers.has(s.pid)) return false; // Waiting for next hand
           if (sitOutManager.isPlayerSittingOut(s.pid)) return false; // Sitting out
           return s.chips > 0; // Has chips to play
         });
         const activePlayerCount = eligibleSeats.length;
-        
-        if (activePlayerCount >= MIN_PLAYERS_TO_START && this.table.phase === "waiting") {
+
+        if (
+          activePlayerCount >= MIN_PLAYERS_TO_START &&
+          this.table.phase === "waiting"
+        ) {
           console.log(
             `✅ [EventEngine] Countdown complete, starting hand with ${activePlayerCount} active players`,
           );
-          
+
           // Clear the timer
           this.gameStartTimer = undefined;
-          
+
           // Start the hand with active players only
           await this.dispatch({
             t: "StartHand",
             handNumber: this.table.handNumber + 1,
             timestamp: Date.now(),
           });
-          
+
           // Emit game started event
           this.emit("gameStarted", { activePlayerCount });
         } else {
           console.log(
             `❌ [EventEngine] Countdown cancelled - insufficient players (${activePlayerCount}) or game already started`,
           );
-          
+
           // Clear the timer
           this.gameStartTimer = undefined;
-          
+
           // If still waiting but insufficient players, may need to restart countdown when more join
           if (this.table.phase === "waiting") {
-            console.log(`⏰ [EventEngine] Will restart countdown when more players join`);
+            console.log(
+              `⏰ [EventEngine] Will restart countdown when more players join`,
+            );
           }
         }
       } catch (error) {
@@ -916,19 +1017,20 @@ export class EventEngine extends EventEmitter {
         this.gameStartTimer = undefined;
       }
     }, GAME_START_COUNTDOWN_MS);
-    
+
     const sitOutManager = getSitOutManager(this.table.id);
-    const currentEligibleCount = this.table.seats.filter(s => 
-      s.pid && 
-      !this.waitingPlayers.has(s.pid) && 
-      !sitOutManager.isPlayerSittingOut(s.pid) &&
-      s.chips > 0
+    const currentEligibleCount = this.table.seats.filter(
+      (s) =>
+        s.pid &&
+        !this.waitingPlayers.has(s.pid) &&
+        !sitOutManager.isPlayerSittingOut(s.pid) &&
+        s.chips > 0,
     ).length;
-    
+
     // Emit countdown started event
-    this.emit("countdownStarted", { 
+    this.emit("countdownStarted", {
       countdownMs: GAME_START_COUNTDOWN_MS,
-      activePlayerCount: currentEligibleCount
+      activePlayerCount: currentEligibleCount,
     });
   }
 
@@ -971,7 +1073,6 @@ export class EventEngine extends EventEmitter {
       `⏰ [EventEngine] Started timer for ${seat.pid} at seat ${this.table.actor}`,
     );
   }
-
 
   /**
    * Start action timer if we're in a betting phase with an active player
@@ -1074,7 +1175,9 @@ export class EventEngine extends EventEmitter {
    * Execute individual side effect
    */
   private async executeSideEffect(effect: SideEffect): Promise<void> {
-    logger.debug(`🔄 [EventEngine] Executing side effect: ${effect.type} ${JSON.stringify(effect.payload)}`);
+    logger.debug(
+      `🔄 [EventEngine] Executing side effect: ${effect.type} ${JSON.stringify(effect.payload)}`,
+    );
 
     switch (effect.type) {
       case "START_TIMER":
@@ -1133,7 +1236,10 @@ export class EventEngine extends EventEmitter {
         try {
           // Collect players still in hand
           const playersInHand = this.table.seats.filter(
-            (seat) => seat.pid && seat.holeCards && (seat.status === "active" || seat.status === "allin")
+            (seat) =>
+              seat.pid &&
+              seat.holeCards &&
+              (seat.status === "active" || seat.status === "allin"),
           );
 
           if (playersInHand.length === 0) {
@@ -1146,18 +1252,29 @@ export class EventEngine extends EventEmitter {
             const solo = playersInHand[0]!;
             const dists = handleUncalledBet(this.table);
             if (dists.length === 0) {
-              const totalPotAmount = this.table.pots.reduce((sum, pot) => sum + pot.amount, 0);
-              dists.push({ pid: solo.pid!, amount: totalPotAmount, potIndex: 0, reason: "win" as const });
+              const totalPotAmount = this.table.pots.reduce(
+                (sum, pot) => sum + pot.amount,
+                0,
+              );
+              dists.push({
+                pid: solo.pid!,
+                amount: totalPotAmount,
+                potIndex: 0,
+                reason: "win" as const,
+              });
             }
             await this.dispatch({ t: "Payout", distributions: dists });
             break;
           }
 
           // Evaluate in hash format (lower score is better)
-          const evaluated = playersInHand.map(seat => ({
+          const evaluated = playersInHand.map((seat) => ({
             pid: seat.pid!,
-            score: evaluateCodes([...(seat.holeCards as number[]), ...this.table.communityCards]),
-            holeCards: seat.holeCards as [number, number]
+            score: evaluateCodes([
+              ...(seat.holeCards as number[]),
+              ...this.table.communityCards,
+            ]),
+            holeCards: seat.holeCards as [number, number],
           }));
 
           // Compute rank numbers (1 = best), ties share same rank
@@ -1171,10 +1288,10 @@ export class EventEngine extends EventEmitter {
             ranks.set(sorted[i].pid, currentRank);
           }
 
-          const handRankings = evaluated.map(e => ({
+          const handRankings = evaluated.map((e) => ({
             pid: e.pid,
             rank: ranks.get(e.pid) || 999,
-            description: `score ${e.score}`
+            description: `score ${e.score}`,
           }));
 
           // Calculate payouts using pot manager (handles side pots and ties)
@@ -1197,64 +1314,74 @@ export class EventEngine extends EventEmitter {
    */
   private async evaluateHandsWithHashFormat(): Promise<any[]> {
     logger.info(`🃏 [EventEngine] Evaluating hands using hash format`);
-    
+
     // Get players still in hand with their hole cards
     const playersInHand = this.table.seats.filter(
-      (seat) => 
-        seat.pid && 
-        seat.holeCards && 
-        (seat.status === "active" || seat.status === "allin")
+      (seat) =>
+        seat.pid &&
+        seat.holeCards &&
+        (seat.status === "active" || seat.status === "allin"),
     );
-    
+
     if (playersInHand.length === 0) {
       logger.error(`❌ [EventEngine] No players in hand for showdown`);
       return [];
     }
-    
+
     if (playersInHand.length === 1) {
       // Only one player left - they win without showing cards
       const winner = playersInHand[0];
       logger.info(`🏆 [EventEngine] ${winner.pid} wins by elimination`);
-      
-      const totalPotAmount = this.table.pots.reduce((sum, pot) => sum + pot.amount, 0);
-      return [{
-        pid: winner.pid!,
-        amount: totalPotAmount,
-        potIndex: 0,
-        reason: "win" as const
-      }];
+
+      const totalPotAmount = this.table.pots.reduce(
+        (sum, pot) => sum + pot.amount,
+        0,
+      );
+      return [
+        {
+          pid: winner.pid!,
+          amount: totalPotAmount,
+          potIndex: 0,
+          reason: "win" as const,
+        },
+      ];
     }
-    
+
     // Evaluate each player's hand using hash format (no conversion needed)
-    const evaluatedHands = playersInHand.map(seat => {
+    const evaluatedHands = playersInHand.map((seat) => {
       const allCards = [...seat.holeCards!, ...this.table.communityCards];
       const handRank = evaluateCodes(allCards);
-      
+
       logger.info(`   🃏 ${seat.pid}: Score ${handRank}`);
-      
+
       return {
         pid: seat.pid!,
         handRank,
-        holeCards: seat.holeCards!
+        holeCards: seat.holeCards!,
       };
     });
-    
+
     // Determine winners (lower score is better)
     const sortedHands = evaluatedHands.sort((a, b) => a.handRank - b.handRank);
     const bestScore = sortedHands[0].handRank;
-    const winners = sortedHands.filter(h => h.handRank === bestScore);
-    
-    logger.info(`🏆 [EventEngine] Winners determined: ${winners.map(w => w.pid).join(', ')}`);
-    
+    const winners = sortedHands.filter((h) => h.handRank === bestScore);
+
+    logger.info(
+      `🏆 [EventEngine] Winners determined: ${winners.map((w) => w.pid).join(", ")}`,
+    );
+
     // Calculate distributions (simple equal split for now)
-    const totalPotAmount = this.table.pots.reduce((sum, pot) => sum + pot.amount, 0);
+    const totalPotAmount = this.table.pots.reduce(
+      (sum, pot) => sum + pot.amount,
+      0,
+    );
     const amountPerWinner = Math.floor(totalPotAmount / winners.length);
-    
-    return winners.map(winner => ({
+
+    return winners.map((winner) => ({
       pid: winner.pid,
       amount: amountPerWinner,
       potIndex: 0,
-      reason: "win" as const
+      reason: "win" as const,
     }));
   }
 
@@ -1268,19 +1395,19 @@ export class EventEngine extends EventEmitter {
       this.gameStartTimer = undefined;
       logger.info(`🧹 [EventEngine] Cleaned up game start timer`);
     }
-    
+
     // Clear waiting players
     if (this.waitingPlayers.size > 0) {
       this.waitingPlayers.clear();
       logger.info(`🧹 [EventEngine] Cleared waiting players`);
     }
-    
+
     // Clear timer manager if available
     if (this.timerManager) {
       this.timerManager.clearAllTimers("engine-cleanup");
       logger.info(`🧹 [EventEngine] Cleared all action timers`);
     }
-    
+
     logger.info(`🧹 [EventEngine] Cleanup complete`);
   }
 
@@ -1292,7 +1419,10 @@ export class EventEngine extends EventEmitter {
     try {
       return getAvailableActions(this.table, seatId);
     } catch (error) {
-      logger.error(`❌ [EventEngine] Error getting available actions for seat ${seatId}:`, error);
+      logger.error(
+        `❌ [EventEngine] Error getting available actions for seat ${seatId}:`,
+        error,
+      );
       return [];
     }
   }
