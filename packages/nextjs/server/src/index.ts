@@ -27,7 +27,7 @@ import { SessionManager, Session } from "./sessionManager";
 import { WebSocketFSMBridge } from "./pokerWebSocketServer";
 import { logger } from "../game-engine/utils/logger";
 import { TABLES } from "./tableConfig";
-import { saveRoom, loadAllRooms } from "./persistence";
+import { saveSession, saveRoom, loadAllRooms } from "./persistence";
 
 // Environment Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
