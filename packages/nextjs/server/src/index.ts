@@ -161,7 +161,6 @@ function broadcast(roomId: string, event: ServerEvent, publish = true): void {
   if (publish) {
     void bus.publish({ roomId, event, origin: INSTANCE_ID });
   }
-
 }
 
 /**
@@ -181,8 +180,8 @@ void (async () => {
       }
     });
     logger.info("📡 Event bus ready");
-  } catch (err) {
-    logger.error("❌ Failed to initialize event bus", err);
+  } catch {
+    logger.warn("📡 Event bus unavailable; running single-instance mode");
   }
 })();
 
@@ -196,7 +195,6 @@ wss.on("connection", (ws: WebSocket) => {
 
   let session = sessions.create(ws);
   void saveSession(session);
-
 
   // Send session info to client
   ws.send(
@@ -233,7 +231,6 @@ wss.on("connection", (ws: WebSocket) => {
         case "JOIN_TABLE":
           session.roomId = command.tableId;
           void saveSession(session);
-
 
           try {
             const table = bridge.getTableState(command.tableId);
