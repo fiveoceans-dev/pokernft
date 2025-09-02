@@ -12,6 +12,7 @@ import "dotenv/config";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
+import { bus, BusMessage } from "./eventBus";
 
 // Import pure FSM components (no legacy types)
 import { createEventEngine, EventEngine } from "../game-engine";
@@ -69,6 +70,7 @@ const server = createServer((req, res) => {
 const wss = new WebSocketServer({ server });
 const sessions = new SessionManager();
 const bridge = new WebSocketFSMBridge(sessions);
+const INSTANCE_ID = randomUUID();
 
 // Connection tracking
 let connectionCount = 0;
@@ -127,7 +129,7 @@ function sanitizeTableForSession(table: Table, session: Session): Table {
   return { ...table, seats, communityCards, burns };
 }
 
-function broadcast(roomId: string, event: ServerEvent): void {
+function broadcast(roomId: string, event: ServerEvent, publish = true): void {
   let sentCount = 0;
 
   wss.clients.forEach((client) => {
@@ -155,6 +157,11 @@ function broadcast(roomId: string, event: ServerEvent): void {
   logger.debug(
     `📡 Event: ${event.type}, Room: ${roomId}, Clients: ${sentCount}`,
   );
+
+  if (publish) {
+    void bus.publish({ roomId, event, origin: INSTANCE_ID });
+  }
+
 }
 
 /**
@@ -165,6 +172,20 @@ bridge.on("error", (roomId: string, error: ServerEvent) => {
   broadcast(roomId, error);
 });
 
+void (async () => {
+  try {
+    await bus.connect();
+    await bus.subscribe(({ roomId, event, origin }: BusMessage) => {
+      if (origin !== INSTANCE_ID) {
+        broadcast(roomId, event, false);
+      }
+    });
+    logger.info("📡 Event bus ready");
+  } catch (err) {
+    logger.error("❌ Failed to initialize event bus", err);
+  }
+})();
+
 /**
  * WebSocket Connection Handler
  */
@@ -174,7 +195,8 @@ wss.on("connection", (ws: WebSocket) => {
   logger.info(`🔗 [${clientId}] Connected (Total: ${wss.clients.size})`);
 
   let session = sessions.create(ws);
-  void sessions.save(session);
+  void saveSession(session);
+
 
   // Send session info to client
   ws.send(
@@ -210,7 +232,8 @@ wss.on("connection", (ws: WebSocket) => {
 
         case "JOIN_TABLE":
           session.roomId = command.tableId;
-          void sessions.save(session);
+          void saveSession(session);
+
 
           try {
             const table = bridge.getTableState(command.tableId);
@@ -268,7 +291,7 @@ wss.on("connection", (ws: WebSocket) => {
             sessions.handleReconnect(existing);
             sessions.expire(session);
             session = existing;
-            void sessions.save(existing);
+            void saveSession(existing);
 
             ws.send(
               JSON.stringify({
@@ -298,8 +321,7 @@ wss.on("connection", (ws: WebSocket) => {
             session.userId = attached.userId;
             session.roomId = session.roomId || attached.roomId;
             sessions.handleReconnect(attached);
-            void sessions.save(session);
-
+            void saveSession(session);
             ws.send(
               JSON.stringify({
                 tableId: session.roomId ?? "",
