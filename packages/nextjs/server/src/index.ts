@@ -1,6 +1,6 @@
 /**
  * Professional Production WebSocket Poker Server
- * 
+ *
  * Pure Event-Driven FSM Architecture:
  * - Direct EventEngine integration (no adapter layer)
  * - EventEngine as single source of truth
@@ -8,30 +8,25 @@
  * - Complete event sourcing and auditability
  */
 
-import 'dotenv/config';
+import "dotenv/config";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
 
 // Import pure FSM components (no legacy types)
 import { createEventEngine, EventEngine } from "../game-engine";
-import type { 
+import type {
   Table,
   ServerEvent,
   ClientCommand,
-  LobbyTable
+  LobbyTable,
 } from "../game-engine";
 
 import { SessionManager, Session } from "./sessionManager";
 import { WebSocketFSMBridge } from "./pokerWebSocketServer";
 import { logger } from "../game-engine/utils/logger";
 import { TABLES } from "./tableConfig";
-import {
-  saveSession,
-  saveRoom,
-  loadAllRooms,
-  loadSession,
-} from "./persistence";
+import { saveRoom, loadAllRooms } from "./persistence";
 
 // Environment Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
@@ -40,30 +35,32 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
  * HTTP Server with Health Endpoints
  */
 const server = createServer((req, res) => {
-  const url = new URL(req.url || '/', `http://${req.headers.host}`);
-  
+  const url = new URL(req.url || "/", `http://${req.headers.host}`);
+
   // Health check endpoint
-  if (url.pathname === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ 
-      status: 'healthy', 
-      timestamp: new Date().toISOString(),
-      connections: wss.clients.size,
-      tables: bridge.getTables().length
-    }));
+  if (url.pathname === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        connections: wss.clients.size,
+        tables: bridge.getTables().length,
+      }),
+    );
     return;
   }
-  
+
   // API endpoint to list tables
-  if (url.pathname === '/api/tables') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+  if (url.pathname === "/api/tables") {
+    res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ tables: bridge.getTables() }));
     return;
   }
-  
+
   // Default response
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Pure Event-Driven FSM Poker Server - Use WebSocket for game play');
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Pure Event-Driven FSM Poker Server - Use WebSocket for game play");
 });
 
 /**
@@ -82,15 +79,19 @@ let connectionCount = 0;
 function createPersistentTables(): void {
   TABLES.forEach((tableConfig) => {
     const engine = bridge.getEngine(
-      tableConfig.id, 
-      tableConfig.blinds.small, 
-      tableConfig.blinds.big
+      tableConfig.id,
+      tableConfig.blinds.small,
+      tableConfig.blinds.big,
     );
-    
-    logger.info(`🎯 Created table: ${tableConfig.name} (${tableConfig.blinds.small}/${tableConfig.blinds.big}) - Buy-in: ${tableConfig.buyIn.min}-${tableConfig.buyIn.max} chips [${tableConfig.stakeLevel}]`);
+
+    logger.info(
+      `🎯 Created table: ${tableConfig.name} (${tableConfig.blinds.small}/${tableConfig.blinds.big}) - Buy-in: ${tableConfig.buyIn.min}-${tableConfig.buyIn.max} chips [${tableConfig.stakeLevel}]`,
+    );
   });
-  
-  logger.info(`✅ Created ${TABLES.length} persistent tables across ${new Set(TABLES.map(t => t.stakeLevel)).size} stake levels`);
+
+  logger.info(
+    `✅ Created ${TABLES.length} persistent tables across ${new Set(TABLES.map((t) => t.stakeLevel)).size} stake levels`,
+  );
 }
 
 /**
@@ -107,12 +108,20 @@ function sanitizeTableForSession(table: Table, session: Session): Table {
     return s;
   });
   // Enforce numeric-only arrays for community and burns
-  const communityCards = (table.communityCards || []).filter((c: any) => typeof c === 'number');
+  const communityCards = (table.communityCards || []).filter(
+    (c: any) => typeof c === "number",
+  );
   const burns = table.burns
     ? {
-        flop: (table.burns.flop || []).filter((c: any) => typeof c === 'number'),
-        turn: (table.burns.turn || []).filter((c: any) => typeof c === 'number'),
-        river: (table.burns.river || []).filter((c: any) => typeof c === 'number'),
+        flop: (table.burns.flop || []).filter(
+          (c: any) => typeof c === "number",
+        ),
+        turn: (table.burns.turn || []).filter(
+          (c: any) => typeof c === "number",
+        ),
+        river: (table.burns.river || []).filter(
+          (c: any) => typeof c === "number",
+        ),
       }
     : undefined;
   return { ...table, seats, communityCards, burns };
@@ -128,7 +137,10 @@ function broadcast(roomId: string, event: ServerEvent): void {
         // Sanitize TABLE_SNAPSHOT per viewer to avoid leaking others' hole cards
         let payload: ServerEvent = event;
         if (event.type === "TABLE_SNAPSHOT") {
-          const sanitized = sanitizeTableForSession((event as any).table, session);
+          const sanitized = sanitizeTableForSession(
+            (event as any).table,
+            session,
+          );
           payload = { ...event, table: sanitized } as ServerEvent;
         }
         const msg = JSON.stringify({ ...payload, tableId: roomId });
@@ -140,14 +152,16 @@ function broadcast(roomId: string, event: ServerEvent): void {
     }
   });
 
-  logger.debug(`📡 Event: ${event.type}, Room: ${roomId}, Clients: ${sentCount}`);
+  logger.debug(
+    `📡 Event: ${event.type}, Room: ${roomId}, Clients: ${sentCount}`,
+  );
 }
 
 /**
  * Setup FSM bridge event forwarding
  */
-bridge.on('broadcast', broadcast);
-bridge.on('error', (roomId: string, error: ServerEvent) => {
+bridge.on("broadcast", broadcast);
+bridge.on("error", (roomId: string, error: ServerEvent) => {
   broadcast(roomId, error);
 });
 
@@ -158,17 +172,19 @@ wss.on("connection", (ws: WebSocket) => {
   connectionCount++;
   const clientId = `client-${connectionCount}`;
   logger.info(`🔗 [${clientId}] Connected (Total: ${wss.clients.size})`);
-  
+
   let session = sessions.create(ws);
-  void saveSession(session);
-  
+  void sessions.save(session);
+
   // Send session info to client
-  ws.send(JSON.stringify({
-    tableId: "",
-    type: "SESSION",
-    sessionId: session.sessionId,
-    userId: session.userId,
-  } satisfies ServerEvent));
+  ws.send(
+    JSON.stringify({
+      tableId: "",
+      type: "SESSION",
+      sessionId: session.sessionId,
+      userId: session.userId,
+    } satisfies ServerEvent),
+  );
 
   /**
    * Message Handler - Convert WebSocket commands to FSM events
@@ -176,38 +192,44 @@ wss.on("connection", (ws: WebSocket) => {
   ws.on("message", async (data) => {
     try {
       const command: ClientCommand = JSON.parse(data.toString());
-      
+
       logger.debug(`📨 [${clientId}] Command: ${command.type}`);
-      
+
       // Handle session-level commands
       switch (command.type) {
         case "LIST_TABLES":
           const tables = bridge.getTables();
-          ws.send(JSON.stringify({
-            tableId: "",
-            type: "TABLE_LIST",
-            tables,
-          } satisfies ServerEvent));
+          ws.send(
+            JSON.stringify({
+              tableId: "",
+              type: "TABLE_LIST",
+              tables,
+            } satisfies ServerEvent),
+          );
           break;
 
         case "JOIN_TABLE":
           session.roomId = command.tableId;
-          void saveSession(session);
-          
+          void sessions.save(session);
+
           try {
             const table = bridge.getTableState(command.tableId);
-            ws.send(JSON.stringify({
-              tableId: command.tableId,
-              type: "TABLE_SNAPSHOT",
-              table, // Send Table format directly
-            } satisfies ServerEvent));
+            ws.send(
+              JSON.stringify({
+                tableId: command.tableId,
+                type: "TABLE_SNAPSHOT",
+                table, // Send Table format directly
+              } satisfies ServerEvent),
+            );
           } catch (error) {
-            ws.send(JSON.stringify({
-              tableId: command.tableId,
-              type: "ERROR",
-              code: "TABLE_NOT_FOUND",
-              msg: `Table ${command.tableId} not found`,
-            } satisfies ServerEvent));
+            ws.send(
+              JSON.stringify({
+                tableId: command.tableId,
+                type: "ERROR",
+                code: "TABLE_NOT_FOUND",
+                msg: `Table ${command.tableId} not found`,
+              } satisfies ServerEvent),
+            );
           }
           break;
 
@@ -215,53 +237,57 @@ wss.on("connection", (ws: WebSocket) => {
           const tableId = randomUUID();
           const engine = bridge.getEngine(tableId);
           const table = bridge.getTableState(tableId);
-          
-          ws.send(JSON.stringify({
-            tableId,
-            type: "TABLE_CREATED",
-            table: {
-              id: tableId,
-              name: command.name,
-              gameType: "No Limit Hold'em", 
-              playerCount: table.seats.filter(s => s.pid).length,
-              maxPlayers: 9,
-              smallBlind: table.smallBlind,
-              bigBlind: table.bigBlind
-            } as LobbyTable,
-          } satisfies ServerEvent));
+
+          ws.send(
+            JSON.stringify({
+              tableId,
+              type: "TABLE_CREATED",
+              table: {
+                id: tableId,
+                name: command.name,
+                gameType: "No Limit Hold'em",
+                playerCount: table.seats.filter((s) => s.pid).length,
+                maxPlayers: 9,
+                smallBlind: table.smallBlind,
+                bigBlind: table.bigBlind,
+              } as LobbyTable,
+            } satisfies ServerEvent),
+          );
           break;
 
         case "REATTACH":
           // Handle session reattachment
           let existing = sessions.getBySessionId(command.sessionId);
           if (!existing) {
-            const data = await loadSession(command.sessionId);
-            if (data) {
-              existing = sessions.restore(data, ws);
-            }
+            existing = await sessions.restore(command.sessionId, ws);
+          } else {
+            sessions.replaceSocket(existing, ws);
           }
-          
+
           if (existing) {
             sessions.handleReconnect(existing);
             sessions.expire(session);
-            sessions.replaceSocket(existing, ws);
             session = existing;
-            void saveSession(existing);
-            
-            ws.send(JSON.stringify({
-              tableId: existing.roomId ?? "",
-              type: "SESSION",
-              sessionId: existing.sessionId,
-              userId: existing.userId,
-            } satisfies ServerEvent));
-            
+            void sessions.save(existing);
+
+            ws.send(
+              JSON.stringify({
+                tableId: existing.roomId ?? "",
+                type: "SESSION",
+                sessionId: existing.sessionId,
+                userId: existing.userId,
+              } satisfies ServerEvent),
+            );
+
             if (existing.roomId) {
               const table = bridge.getTableState(existing.roomId);
-              ws.send(JSON.stringify({
-                tableId: existing.roomId,
-                type: "TABLE_SNAPSHOT", 
-                table,
-              } satisfies ServerEvent));
+              ws.send(
+                JSON.stringify({
+                  tableId: existing.roomId,
+                  type: "TABLE_SNAPSHOT",
+                  table,
+                } satisfies ServerEvent),
+              );
             }
           }
           break;
@@ -272,22 +298,26 @@ wss.on("connection", (ws: WebSocket) => {
             session.userId = attached.userId;
             session.roomId = session.roomId || attached.roomId;
             sessions.handleReconnect(attached);
-            void saveSession(session);
-            
-            ws.send(JSON.stringify({
-              tableId: session.roomId ?? "",
-              type: "SESSION",
-              sessionId: attached.sessionId,
-              userId: attached.userId,
-            } satisfies ServerEvent));
-            
+            void sessions.save(session);
+
+            ws.send(
+              JSON.stringify({
+                tableId: session.roomId ?? "",
+                type: "SESSION",
+                sessionId: attached.sessionId,
+                userId: attached.userId,
+              } satisfies ServerEvent),
+            );
+
             if (session.roomId) {
               const table = bridge.getTableState(session.roomId);
-              ws.send(JSON.stringify({
-                tableId: session.roomId,
-                type: "TABLE_SNAPSHOT",
-                table,
-              } satisfies ServerEvent));
+              ws.send(
+                JSON.stringify({
+                  tableId: session.roomId,
+                  type: "TABLE_SNAPSHOT",
+                  table,
+                } satisfies ServerEvent),
+              );
             }
           }
           break;
@@ -297,15 +327,16 @@ wss.on("connection", (ws: WebSocket) => {
           await bridge.handleCommand(ws, session, command);
           break;
       }
-      
     } catch (error) {
       logger.error(`❌ [${clientId}] Message processing failed:`, error);
-      ws.send(JSON.stringify({
-        tableId: session.roomId || "",
-        type: "ERROR",
-        code: "BAD_MESSAGE",
-        msg: String(error),
-      } satisfies ServerEvent));
+      ws.send(
+        JSON.stringify({
+          tableId: session.roomId || "",
+          type: "ERROR",
+          code: "BAD_MESSAGE",
+          msg: String(error),
+        } satisfies ServerEvent),
+      );
     }
   });
 
@@ -313,8 +344,10 @@ wss.on("connection", (ws: WebSocket) => {
    * Disconnect Handler
    */
   ws.on("close", (code, reason) => {
-    logger.info(`🔌 [${clientId}] Disconnected (Code: ${code}, Remaining: ${wss.clients.size - 1})`);
-    
+    logger.info(
+      `🔌 [${clientId}] Disconnected (Code: ${code}, Remaining: ${wss.clients.size - 1})`,
+    );
+
     sessions.handleDisconnect(session, (s: Session) => {
       if (s.roomId && s.seat !== undefined) {
         broadcast(s.roomId, {
@@ -331,21 +364,21 @@ wss.on("connection", (ws: WebSocket) => {
 /**
  * Server Startup
  */
-logger.info('🎮 Starting Pure Event-Driven FSM Poker Server...');
+logger.info("🎮 Starting Pure Event-Driven FSM Poker Server...");
 createPersistentTables();
 
 // Load persisted game state (non-blocking)
 (async () => {
   try {
-    logger.info('📂 Loading persisted game state...');
+    logger.info("📂 Loading persisted game state...");
     const rooms = await loadAllRooms();
     logger.info(`📂 Loaded ${rooms.length} persisted rooms`);
-    
+
     // Using pure Table format for persistence
-    logger.info('ℹ️ Pure FSM architecture - using Table format only');
+    logger.info("ℹ️ Pure FSM architecture - using Table format only");
   } catch (error) {
-    logger.error('❌ Room restoration failed:', error);
-    logger.info('ℹ️ Continuing with fresh tables');
+    logger.error("❌ Room restoration failed:", error);
+    logger.info("ℹ️ Continuing with fresh tables");
   }
 })();
 
@@ -354,19 +387,19 @@ createPersistentTables();
  */
 function gracefulShutdown(signal: string): void {
   logger.info(`📶 Received ${signal}, starting graceful shutdown...`);
-  
+
   // Close WebSocket server
   wss.close(() => {
-    logger.info('🔌 WebSocket server closed');
+    logger.info("🔌 WebSocket server closed");
   });
-  
+
   // Close HTTP server
   server.close(() => {
-    logger.info('🌐 HTTP server closed');
+    logger.info("🌐 HTTP server closed");
   });
-  
+
   // Cleanup all engines
-  bridge.getTables().forEach(table => {
+  bridge.getTables().forEach((table) => {
     try {
       const engine = bridge.getEngine(table.id);
       // Engines have their own cleanup via TimerIntegration.shutdown()
@@ -375,21 +408,21 @@ function gracefulShutdown(signal: string): void {
       logger.error(`❌ Error cleaning up table ${table.id}:`, error);
     }
   });
-  
-  logger.info('✅ Graceful shutdown completed');
+
+  logger.info("✅ Graceful shutdown completed");
   process.exit(0);
 }
 
 // Handle shutdown signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 /**
  * Start Server
  */
 server.listen(PORT, () => {
   logger.info(`🚀 Pure FSM Poker Server running on port ${PORT}`);
-  logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
   logger.info(`🏥 Health: http://localhost:${PORT}/health`);
   logger.info(`📊 Tables API: http://localhost:${PORT}/api/tables`);
   logger.info(`🎯 WebSocket: ws://localhost:${PORT}`);
