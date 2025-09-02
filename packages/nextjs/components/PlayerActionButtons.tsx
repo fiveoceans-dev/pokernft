@@ -256,13 +256,14 @@ export default function PlayerActionButtons({
 
           {/* Reveal area */}
           <div className="flex items-center gap-2 px-2 py-1 rounded bg-black/20">
-            <button
-              onClick={() => walletSeat >= 0 && revealCards(walletSeat)}
-              disabled={!canShowCards}
-              className={`px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm ${canShowCards ? "bg-yellow-600 hover:bg-yellow-700" : "bg-gray-600/50 cursor-not-allowed"}`}
-            >
-              Show Cards
-            </button>
+            {canShowCards && (
+              <button
+                onClick={() => walletSeat >= 0 && revealCards(walletSeat)}
+                className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-yellow-600 hover:bg-yellow-700"
+              >
+                Show Cards
+              </button>
+            )}
             <label className="flex items-center gap-1 text-[10px] text-white/80 cursor-pointer select-none">
               <input
                 type="checkbox"
