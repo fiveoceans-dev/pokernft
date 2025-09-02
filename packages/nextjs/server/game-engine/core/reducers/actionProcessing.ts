@@ -1,6 +1,6 @@
 /**
  * Action Processing Reducer
- * 
+ *
  * Handles player action events in the poker engine:
  * - Action: Process player actions (fold, check, call, bet, raise, allin)
  * - TimeoutAutoFold: Handle player timeouts with automatic fold
@@ -28,14 +28,22 @@ export function applyAction(
   amount: number = 0,
 ): StateTransition {
   const seat = table.seats[seatId];
-  
+
   // Comprehensive validation logging for debugging
-  console.log(`🎯 [Reducer] Action validation - Phase: ${table.phase}, Actor: ${table.actor}, Action: seat ${seatId} ${action} ${amount || ''}`);
-  console.log(`   Player: ${seat?.pid || 'EMPTY'} (status: ${seat?.status || 'N/A'}, chips: ${seat?.chips || 0})`);
-  console.log(`   Game State: currentBet=${table.currentBet}, streetCommitted=${seat?.streetCommitted || 0}`);
-  
+  console.log(
+    `🎯 [Reducer] Action validation - Phase: ${table.phase}, Actor: ${table.actor}, Action: seat ${seatId} ${action} ${amount || ""}`,
+  );
+  console.log(
+    `   Player: ${seat?.pid || "EMPTY"} (status: ${seat?.status || "N/A"}, chips: ${seat?.chips || 0})`,
+  );
+  console.log(
+    `   Game State: currentBet=${table.currentBet}, streetCommitted=${seat?.streetCommitted || 0}`,
+  );
+
   if (!seat || seat.status !== "active") {
-    console.warn(`❌ [Reducer] Invalid player state - seat ${seatId}: ${!seat ? 'NO SEAT' : `status=${seat.status}`}`);
+    console.warn(
+      `❌ [Reducer] Invalid player state - seat ${seatId}: ${!seat ? "NO SEAT" : `status=${seat.status}`}`,
+    );
     return { nextState: table, sideEffects: [] }; // Invalid action
   }
 
@@ -44,8 +52,11 @@ export function applyAction(
     console.warn(
       `❌ [Reducer] Out of turn action - seat ${seatId} (${seat.pid}) acted, but current actor is seat ${table.actor}`,
     );
-    const actorSeat = table.actor !== undefined ? table.seats[table.actor] : null;
-    console.warn(`   Current actor details: ${actorSeat?.pid || 'none'} at seat ${table.actor}`);
+    const actorSeat =
+      table.actor !== undefined ? table.seats[table.actor] : null;
+    console.warn(
+      `   Current actor details: ${actorSeat?.pid || "none"} at seat ${table.actor}`,
+    );
     return { nextState: table, sideEffects: [] }; // State unchanged - invalid action
   }
 
@@ -53,8 +64,12 @@ export function applyAction(
   const validation = validatePokerAction(table, seatId, action, amount);
   if (!validation.valid) {
     console.error(`❌ [Reducer] Action validation failed: ${validation.error}`);
-    console.error(`   Validation context: ${action} action by ${seat.pid} for ${amount || 'default'} chips`);
-    console.error(`   Table context: phase=${table.phase}, currentBet=${table.currentBet}, playerChips=${seat.chips}`);
+    console.error(
+      `   Validation context: ${action} action by ${seat.pid} for ${amount || "default"} chips`,
+    );
+    console.error(
+      `   Table context: phase=${table.phase}, currentBet=${table.currentBet}, playerChips=${seat.chips}`,
+    );
     return { nextState: table, sideEffects: [] };
   }
 
@@ -133,26 +148,33 @@ export function applyAction(
         streetCommitted: allInStreetCommitted,
         status: "allin",
       };
-      
+
       // Handle all-in bet/raise logic with proper short all-in rules
       if (allInStreetCommitted > table.currentBet) {
         const raiseIncrement = allInStreetCommitted - table.currentBet;
         const minRaise = table.lastRaiseSize || table.bigBlind;
-        
+
         // Only count as full raise if it meets minimum raise requirement
         if (raiseIncrement >= minRaise) {
           newLastRaiseSize = raiseIncrement;
           newLastAggressor = seatId;
-          console.log(`🎯 [Reducer] All-in qualifies as full raise: $${raiseIncrement} (min: $${minRaise})`);
+          console.log(
+            `🎯 [Reducer] All-in qualifies as full raise: $${raiseIncrement} (min: $${minRaise})`,
+          );
         } else {
-          console.log(`🎯 [Reducer] Short all-in: $${raiseIncrement} raise (min: $${minRaise}) - no aggressor change`);
+          console.log(
+            `🎯 [Reducer] Short all-in: $${raiseIncrement} raise (min: $${minRaise}) - no aggressor change`,
+          );
           // Don't change lastRaiseSize or lastAggressor for short all-ins
         }
-        
+
         newCurrentBet = allInStreetCommitted;
       }
       break;
   }
+
+  // Record action for UI display
+  newSeats[seatId] = { ...newSeats[seatId], action };
 
   // Track BB action in preflop using game rules
   let bbHasActed = table.bbHasActed;
@@ -164,11 +186,13 @@ export function applyAction(
   // Track action sequence for proper round completion logic
   const playersActedThisRound = new Set(table.playersActedThisRound || []);
   playersActedThisRound.add(seatId);
-  
+
   // Set round start actor if not already set (first action of the round)
   const roundStartActor = table.roundStartActor ?? seatId;
-  
-  console.log(`🎯 [Reducer] Player ${seatId} acted (${playersActedThisRound.size} players acted this round)`);
+
+  console.log(
+    `🎯 [Reducer] Player ${seatId} acted (${playersActedThisRound.size} players acted this round)`,
+  );
 
   // Create intermediate table state to check betting round completion
   const updatedTable = {
@@ -222,26 +246,48 @@ export function applyAction(
   const roundState = getBettingRoundState(nextState);
   if (roundState.isComplete) {
     // Collect into pots for current street
-    sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'CloseStreet' } } });
+    sideEffects.push({
+      type: "DISPATCH_EVENT",
+      payload: { event: { t: "CloseStreet" } },
+    });
 
     const currentStreet = nextState.street;
-    const nextStreet = currentStreet ? getNextStreet(currentStreet as Street) : null;
+    const nextStreet = currentStreet
+      ? getNextStreet(currentStreet as Street)
+      : null;
     const atRiver = !nextStreet;
 
-    if (roundState.reason === 'fold-to-one') {
+    if (roundState.reason === "fold-to-one") {
       // Immediate showdown on fold-to-one
-      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
-    } else if (roundState.reason === 'all-players-allin') {
+      sideEffects.push({
+        type: "DISPATCH_EVENT",
+        payload: { event: { t: "Showdown", results: [] } },
+      });
+    } else if (roundState.reason === "all-players-allin") {
       // Auto-deal remaining streets before showdown
       if (nextStreet) {
-        sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet, isAutoDealt: true } } });
+        sideEffects.push({
+          type: "DISPATCH_EVENT",
+          payload: {
+            event: { t: "EnterStreet", street: nextStreet, isAutoDealt: true },
+          },
+        });
       } else {
-        sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
+        sideEffects.push({
+          type: "DISPATCH_EVENT",
+          payload: { event: { t: "Showdown", results: [] } },
+        });
       }
     } else if (atRiver) {
-      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
+      sideEffects.push({
+        type: "DISPATCH_EVENT",
+        payload: { event: { t: "Showdown", results: [] } },
+      });
     } else if (nextStreet) {
-      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet } } });
+      sideEffects.push({
+        type: "DISPATCH_EVENT",
+        payload: { event: { t: "EnterStreet", street: nextStreet } },
+      });
     }
   }
 
@@ -251,7 +297,10 @@ export function applyAction(
 /**
  * Handle player timeout with automatic fold
  */
-export function handleTimeoutAutoFold(table: Table, seatId: number): StateTransition {
+export function handleTimeoutAutoFold(
+  table: Table,
+  seatId: number,
+): StateTransition {
   console.log(`⏰ [Reducer] Processing timeout auto-fold for seat ${seatId}`);
 
   // Check if seat is still the current actor
@@ -295,7 +344,10 @@ export function handleTimeoutAutoFold(table: Table, seatId: number): StateTransi
   // Handle timeout through PlayerStateManager for unified state management
   const { getPlayerStateManager } = require("../../managers/sitOutManager");
   const playerStateManager = getPlayerStateManager(table.id);
-  const stateManagerEffects = playerStateManager.handleTimeout(seat.pid, table.id);
+  const stateManagerEffects = playerStateManager.handleTimeout(
+    seat.pid,
+    table.id,
+  );
 
   // Add timeout-specific side effects
   const timeoutSideEffects: SideEffect[] = [
@@ -305,13 +357,14 @@ export function handleTimeoutAutoFold(table: Table, seatId: number): StateTransi
   ];
 
   // If player was auto-sat out, dispatch PlayerSitOut event
-  const hasSitOutEffect = stateManagerEffects.some((effect: SideEffect) => 
-    effect.type === 'EMIT_STATE_CHANGE' && 
-    'reason' in effect.payload &&
-    typeof effect.payload.reason === 'string' &&
-    effect.payload.reason.includes('sit_out_timeout')
+  const hasSitOutEffect = stateManagerEffects.some(
+    (effect: SideEffect) =>
+      effect.type === "EMIT_STATE_CHANGE" &&
+      "reason" in effect.payload &&
+      typeof effect.payload.reason === "string" &&
+      effect.payload.reason.includes("sit_out_timeout"),
   );
-  
+
   if (hasSitOutEffect) {
     timeoutSideEffects.push({
       type: "DISPATCH_EVENT",
@@ -320,9 +373,9 @@ export function handleTimeoutAutoFold(table: Table, seatId: number): StateTransi
           t: "PlayerSitOut",
           seat: seatId,
           pid: seat.pid,
-          reason: "timeout"
-        }
-      }
+          reason: "timeout",
+        },
+      },
     });
   }
 

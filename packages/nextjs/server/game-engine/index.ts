@@ -1,6 +1,6 @@
 /**
  * Pure Event-Driven FSM Poker Engine
- * 
+ *
  * Professional production architecture featuring:
  * - Event-sourced state management with complete audit trail
  * - Pure functional state transitions via reducer pattern
@@ -9,11 +9,11 @@
  */
 
 // Core Event-Driven FSM Architecture
-export { EventEngine } from './core/eventEngine';
-export { reduce } from './core/reducer';
+export { EventEngine } from "./core/eventEngine";
+export { reduce } from "./core/reducer";
 
 // Import for type annotations
-import { EventEngine } from './core/eventEngine';
+import { EventEngine } from "./core/eventEngine";
 
 // Pure FSM Types (Table is single source of truth)
 export type {
@@ -23,7 +23,9 @@ export type {
   Phase,
   Street,
   ActionType,
+  SeatAction,
   SeatStatus,
+  SeatUIState,
   PokerEvent,
   StateTransition,
   SideEffect,
@@ -32,25 +34,38 @@ export type {
   ActionValidation,
   Card,
   Suit,
-  Rank
-} from './core/types';
+  Rank,
+} from "./core/types";
 
 // Game Logic Modules
-export * from './logic/betting';
-export * from './logic/potManager';
-export { validateAction, getAvailableActions, getBettingLimits } from './logic/validation';
+export * from "./logic/betting";
+export * from "./logic/potManager";
+export {
+  validateAction,
+  getAvailableActions,
+  getBettingLimits,
+} from "./logic/validation";
 
 // Utility Functions
-export * from './utils/ringOrder';
-export { indexToCard, cardToIndex, hashIdToCard, cardToHashId } from "./utils/utils";
+export * from "./utils/ringOrder";
+export {
+  indexToCard,
+  cardToIndex,
+  hashIdToCard,
+  cardToHashId,
+} from "./utils/utils";
 export * from "./utils/hashEvaluator";
 export * from "./utils/rng";
 
 // Timer System
-export * from './managers/timerEvents';
+export * from "./managers/timerEvents";
 
 // Networking Types (Table format only)
-export type { ServerEvent, ClientCommand, LobbyTable } from "./network/networking";
+export type {
+  ServerEvent,
+  ClientCommand,
+  LobbyTable,
+} from "./network/networking";
 
 // Hand Evaluation
 export * from "./hashTables";
@@ -62,7 +77,7 @@ export * from "./hashTables";
 export function createEventEngine(
   tableId: string,
   smallBlind = 5,
-  bigBlind = 10
+  bigBlind = 10,
 ): EventEngine {
   return new EventEngine(tableId, smallBlind, bigBlind);
 }

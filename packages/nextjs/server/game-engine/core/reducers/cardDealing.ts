@@ -1,17 +1,12 @@
 /**
  * Card Dealing Reducer
- * 
+ *
  * Handles card-related events in the poker engine:
  * - DealHole: Deal hole cards to players
  * - EnterStreet: Enter new betting street with community cards
  */
 
-import {
-  Table,
-  Street,
-  StateTransition,
-  SideEffect,
-} from "../types";
+import { Table, Street, StateTransition, SideEffect } from "../types";
 import * as CardLedger from "../../logic/cardLedger";
 import { getBettingRoundState } from "../../utils/ringOrder";
 import { getFirstActor } from "../../logic/gameRules";
@@ -43,7 +38,9 @@ export function applyHoleCards(
     assignments.forEach((pair, seatId) => {
       newSeats[seatId] = { ...newSeats[seatId], holeCards: pair };
     });
-    console.log(`🎴 [Reducer] Dealt hole cards to ${assignments.size} players, next index: ${nextDeckIndex}`);
+    console.log(
+      `🎴 [Reducer] Dealt hole cards to ${assignments.size} players, next index: ${nextDeckIndex}`,
+    );
   } else {
     // Apply provided mapping (pid -> [n,n])
     newSeats.forEach((seat, i) => {
@@ -80,6 +77,7 @@ export function enterStreet(
     ...seat,
     // Only reset streetCommitted for postflop streets, not preflop
     streetCommitted: street === "preflop" ? seat.streetCommitted : 0,
+    action: undefined,
   }));
 
   // Generate cards from deck if not provided
@@ -96,20 +94,27 @@ export function enterStreet(
       (street === "river" && ccLen >= 5);
 
     if (alreadyDealt) {
-      console.warn(`⚠️ [Reducer] ${street} already dealt (community length=${ccLen}). Skipping re-deal.`);
+      console.warn(
+        `⚠️ [Reducer] ${street} already dealt (community length=${ccLen}). Skipping re-deal.`,
+      );
     } else if (!cards || cards.length === 0) {
       if (street === "flop") {
         const { burn, cards: drawn, nextIndex } = CardLedger.dealFlop(table);
         burns = { ...burns, flop: burns.flop.length ? burns.flop : [burn] };
         communityCards = [...table.communityCards, ...drawn];
         nextDeckIndex = nextIndex;
-        console.log(`🎴 [Reducer] Flop dealt: burn=${burn}, cards=${drawn.join(',')}`);
+        console.log(
+          `🎴 [Reducer] Flop dealt: burn=${burn}, cards=${drawn.join(",")}`,
+        );
       } else {
         const { burn, card, nextIndex } = CardLedger.dealTurnOrRiver(table);
         if (street === "turn") {
           burns = { ...burns, turn: burns.turn.length ? burns.turn : [burn] };
         } else {
-          burns = { ...burns, river: burns.river.length ? burns.river : [burn] };
+          burns = {
+            ...burns,
+            river: burns.river.length ? burns.river : [burn],
+          };
         }
         communityCards = [...table.communityCards, card];
         nextDeckIndex = nextIndex;
@@ -124,25 +129,34 @@ export function enterStreet(
   let actor: number | undefined = undefined;
   let currentBet = 0;
   let lastRaiseSize = table.bigBlind;
-  
+
   if (!isAutoDealt) {
     const tableWithSeats = { ...table, seats: newSeats };
-    
+
     if (street === "preflop") {
       // Preflop: Use existing blind state and calculate first actor
       const actionOrder = getFirstActor(tableWithSeats, true); // true = preflop
       actor = actionOrder.actor === -1 ? undefined : actionOrder.actor;
       currentBet = table.bigBlind || 0; // Big blind is the current bet
       lastRaiseSize = table.bigBlind || 0; // Minimum raise is BB
-      console.log(`🎯 [Reducer] Preflop first actor: seat ${actor} (${actor !== undefined ? newSeats[actor]?.pid : "none"}), BB: ${currentBet}`);
-      console.log(`   Active players: ${newSeats.filter(s => s.status === 'active' && s.pid).map(s => `${s.pid}(${s.id})`).join(', ')}`);
+      console.log(
+        `🎯 [Reducer] Preflop first actor: seat ${actor} (${actor !== undefined ? newSeats[actor]?.pid : "none"}), BB: ${currentBet}`,
+      );
+      console.log(
+        `   Active players: ${newSeats
+          .filter((s) => s.status === "active" && s.pid)
+          .map((s) => `${s.pid}(${s.id})`)
+          .join(", ")}`,
+      );
     } else {
       // Postflop: Reset betting and get first actor
       const actionOrder = getFirstActor(tableWithSeats, false); // false = postflop
       actor = actionOrder.actor === -1 ? undefined : actionOrder.actor;
       currentBet = 0;
       lastRaiseSize = table.bigBlind;
-      console.log(`🎯 [Reducer] ${street} first actor: seat ${actor} (${actor !== undefined ? newSeats[actor]?.pid : "none"})`);
+      console.log(
+        `🎯 [Reducer] ${street} first actor: seat ${actor} (${actor !== undefined ? newSeats[actor]?.pid : "none"})`,
+      );
     }
   }
 
@@ -194,23 +208,47 @@ export function enterStreet(
 
   // Only auto-progress if everyone is all-in (no betting possible)
   const roundState = getBettingRoundState(nextState);
-  if (roundState.isComplete && roundState.reason === 'all-players-allin') {
-    console.log(`🎯 [Reducer] All players all-in on ${street}, auto-dealing remaining streets`);
+  if (roundState.isComplete && roundState.reason === "all-players-allin") {
+    console.log(
+      `🎯 [Reducer] All players all-in on ${street}, auto-dealing remaining streets`,
+    );
     // Auto-deal remaining streets when no betting is possible
-    sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'CloseStreet' } } });
+    sideEffects.push({
+      type: "DISPATCH_EVENT",
+      payload: { event: { t: "CloseStreet" } },
+    });
     const currentStreet = nextState.street;
-    const nextStreet = currentStreet ? getNextStreet(currentStreet as Street) : null;
+    const nextStreet = currentStreet
+      ? getNextStreet(currentStreet as Street)
+      : null;
     if (nextStreet) {
-      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'EnterStreet', street: nextStreet, isAutoDealt: true } } });
+      sideEffects.push({
+        type: "DISPATCH_EVENT",
+        payload: {
+          event: { t: "EnterStreet", street: nextStreet, isAutoDealt: true },
+        },
+      });
     } else {
       // No more streets, go to showdown
-      sideEffects.push({ type: 'DISPATCH_EVENT', payload: { event: { t: 'Showdown', results: [] } } });
+      sideEffects.push({
+        type: "DISPATCH_EVENT",
+        payload: { event: { t: "Showdown", results: [] } },
+      });
     }
   } else if (actor === undefined) {
     // ERROR: Can't determine first actor but players can act
-    console.error(`❌ [Reducer] Failed to determine first actor for ${street} - this should not happen`);
-    console.error(`   Active players: ${nextState.seats.filter(s => s.status === 'active' && s.pid).map(s => `${s.pid}(${s.id})`).join(', ')}`);
-    console.error(`   Button: ${nextState.button}, IsAutoDealt: ${isAutoDealt}`);
+    console.error(
+      `❌ [Reducer] Failed to determine first actor for ${street} - this should not happen`,
+    );
+    console.error(
+      `   Active players: ${nextState.seats
+        .filter((s) => s.status === "active" && s.pid)
+        .map((s) => `${s.pid}(${s.id})`)
+        .join(", ")}`,
+    );
+    console.error(
+      `   Button: ${nextState.button}, IsAutoDealt: ${isAutoDealt}`,
+    );
     // Don't auto-progress - wait for manual fix or debugging
   }
 

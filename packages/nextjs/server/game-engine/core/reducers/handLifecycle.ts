@@ -1,6 +1,6 @@
 /**
  * Hand Lifecycle Reducer
- * 
+ *
  * Handles the lifecycle events of a poker hand:
  * - StartHand: Initialize new hand with deck and button
  * - PostBlinds: Post blinds and prepare for betting
@@ -34,25 +34,31 @@ export function startHand(
   timestamp: number,
 ): StateTransition {
   const sitOutManager = getSitOutManager(table.id);
-  
+
   // Randomize first dealer (button) deterministically on first hand using timestamp
   let button = table.button;
   if (table.handNumber === 0) {
     // Only consider players who are not sitting out for initial button
     const eligible = table.seats
-      .filter((s) => s.pid && s.chips > 0 && !sitOutManager.isPlayerSittingOut(s.pid))
+      .filter(
+        (s) => s.pid && s.chips > 0 && !sitOutManager.isPlayerSittingOut(s.pid),
+      )
       .map((s) => s.id);
     if (eligible.length > 1) {
       const idx = timestamp % eligible.length;
       button = eligible[idx];
-      console.log(`🎲 [Reducer] Randomized initial button to seat ${button} from eligible ${eligible.join(',')}`);
+      console.log(
+        `🎲 [Reducer] Randomized initial button to seat ${button} from eligible ${eligible.join(",")}`,
+      );
     }
   }
 
   // Generate deck seed and create shuffled deck (numeric codes)
   const deckSeed = generateDeckSeed(handNumber, timestamp);
   const deckCodes = CardLedger.shuffle(deckSeed);
-  console.log(`🎰 [Reducer] Created shuffled deck with seed: ${deckSeed} (codes length=${deckCodes.length})`);
+  console.log(
+    `🎰 [Reducer] Created shuffled deck with seed: ${deckSeed} (codes length=${deckCodes.length})`,
+  );
 
   const nextState = {
     ...table,
@@ -81,26 +87,33 @@ export function startHand(
           streetCommitted: 0,
           status: "empty" as SeatStatus,
           holeCards: undefined,
+          action: undefined,
         };
       }
-      
+
       // Players participating in hand are always active
       // Players sitting out should NOT participate in hands at all
-      const shouldParticipate = seat.chips > 0 && !sitOutManager.isPlayerSittingOut(seat.pid);
-      
+      const shouldParticipate =
+        seat.chips > 0 && !sitOutManager.isPlayerSittingOut(seat.pid);
+
       return {
         ...seat,
         committed: 0,
         streetCommitted: 0,
-        status: shouldParticipate ? "active" : "empty" as SeatStatus,
+        status: shouldParticipate ? "active" : ("empty" as SeatStatus),
         holeCards: undefined,
+        action: undefined,
       };
     }),
   };
-  
+
   // Count eligible players for logging
-  const eligiblePlayers = nextState.seats.filter(s => s.status === "active").length;
-  console.log(`🏁 [Reducer] Starting hand ${handNumber} with ${eligiblePlayers} eligible players`);
+  const eligiblePlayers = nextState.seats.filter(
+    (s) => s.status === "active",
+  ).length;
+  console.log(
+    `🏁 [Reducer] Starting hand ${handNumber} with ${eligiblePlayers} eligible players`,
+  );
 
   // Side effects: automatically post blinds and deal hole cards
   const sideEffects: SideEffect[] = [
@@ -127,14 +140,20 @@ export function postBlinds(
   ante?: number,
 ): StateTransition {
   const newSeats = [...table.seats];
-  
-  // Only count players who are not sitting out as active
-  const activePlayers = newSeats.filter((seat) => seat.status === "active" && seat.pid);
 
-  console.log(`🎲 [Reducer] PostBlinds: ${activePlayers.length} active players`);
+  // Only count players who are not sitting out as active
+  const activePlayers = newSeats.filter(
+    (seat) => seat.status === "active" && seat.pid,
+  );
+
+  console.log(
+    `🎲 [Reducer] PostBlinds: ${activePlayers.length} active players`,
+  );
 
   if (activePlayers.length < 2) {
-    console.log(`⚠️ [Reducer] Insufficient active players for hand: ${activePlayers.length}`);
+    console.log(
+      `⚠️ [Reducer] Insufficient active players for hand: ${activePlayers.length}`,
+    );
     return { nextState: table, sideEffects: [] }; // Need at least 2 players
   }
 
@@ -228,7 +247,7 @@ export function postBlinds(
       },
     },
     {
-      type: "DISPATCH_EVENT", 
+      type: "DISPATCH_EVENT",
       payload: {
         event: { t: "EnterStreet", street: "preflop" }, // Proper FSM transition
       },
@@ -254,7 +273,9 @@ export function endHand(table: Table): StateTransition {
   // Remove broke players (0 chips) from the table
   const newSeats = table.seats.map((seat) => {
     if (seat.pid && seat.chips === 0) {
-      console.log(`💸 [Reducer] Removing broke player ${seat.pid} from seat ${seat.id}`);
+      console.log(
+        `💸 [Reducer] Removing broke player ${seat.pid} from seat ${seat.id}`,
+      );
       return {
         id: seat.id,
         chips: 0,
@@ -275,7 +296,9 @@ export function endHand(table: Table): StateTransition {
   );
 
   // Count remaining players with chips
-  const playersWithChips = newSeats.filter(seat => seat.pid && seat.chips > 0).length;
+  const playersWithChips = newSeats.filter(
+    (seat) => seat.pid && seat.chips > 0,
+  ).length;
   console.log(`👥 [Reducer] ${playersWithChips} players remaining with chips`);
 
   const nextState = {
@@ -306,10 +329,10 @@ export function endHand(table: Table): StateTransition {
   }
 
   // Emit notification if players were removed
-  const brokePlayersRemoved = table.seats.filter((seat, index) => 
-    seat.pid && newSeats[index].status === "empty"
+  const brokePlayersRemoved = table.seats.filter(
+    (seat, index) => seat.pid && newSeats[index].status === "empty",
   ).length;
-  
+
   if (brokePlayersRemoved > 0) {
     sideEffects.push({
       type: "EMIT_STATE_CHANGE",

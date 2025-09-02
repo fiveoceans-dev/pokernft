@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 import { useTableViewModel } from "../hooks/useTableViewModel";
 import { useGameStore } from "../hooks/useGameStore";
 import Card from "./Card";
-import { hashIdToCard, SeatStatus } from "../game-engine";
+import { hashIdToCard } from "../game-engine";
 import PlayerSeat from "./PlayerSeat";
 import type { Card as TCard } from "../game-engine";
 import { useWalletGameSync } from "../hooks/useWalletGameSync";
@@ -61,13 +61,19 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   // Debug logging for player data
   console.log("🎲 Table component debug:", {
-    playersCount: players.filter(p => p).length,
-    players: players.map((p, i) => ({ seat: i, name: p })).filter(p => p.name),
-    playerIds: playerIds.map((id, i) => ({ seat: i, id: id?.slice(0, 10) + "..." })).filter(p => p.id && p.id !== "undefined..."),
-    chips: chips.map((c, i) => ({ seat: i, chips: c })).filter(c => c.chips > 0),
+    playersCount: players.filter((p) => p).length,
+    players: players
+      .map((p, i) => ({ seat: i, name: p }))
+      .filter((p) => p.name),
+    playerIds: playerIds
+      .map((id, i) => ({ seat: i, id: id?.slice(0, 10) + "..." }))
+      .filter((p) => p.id && p.id !== "undefined..."),
+    chips: chips
+      .map((c, i) => ({ seat: i, chips: c }))
+      .filter((c) => c.chips > 0),
     currentTurn,
     dealerIndex,
-    displayTimer
+    displayTimer,
   });
 
   const handleSeatRequest = (idx: number) => {
@@ -79,44 +85,71 @@ export default function Table({ timer }: { timer?: number | null }) {
       if (modal) modal.checked = true;
       return;
     }
-    
+
     // Enhanced address validation - ensure navbar address matches game store
     const gameStoreAddress = gameStore.currentWalletId;
-    const storedAddress = typeof window !== "undefined" ? localStorage.getItem("walletAddress") : null;
-    
+    const storedAddress =
+      typeof window !== "undefined"
+        ? localStorage.getItem("walletAddress")
+        : null;
+
     console.log("🔍 Address validation for seating:", {
       navbarAddress: address.slice(0, 10) + "...",
       gameStoreAddress: gameStoreAddress?.slice(0, 10) + "..." || "null",
-      storedAddress: storedAddress?.slice(0, 10) + "..." || "null"
+      storedAddress: storedAddress?.slice(0, 10) + "..." || "null",
     });
-    
+
     // Priority validation: navbar address should match game store and localStorage
     if (gameStoreAddress !== address) {
-      console.warn("🚫 Address mismatch: navbar vs game store", { navbar: address, gameStore: gameStoreAddress });
+      console.warn("🚫 Address mismatch: navbar vs game store", {
+        navbar: address,
+        gameStore: gameStoreAddress,
+      });
       alert("Wallet address mismatch detected. Please reconnect your wallet.");
       return;
     }
-    
+
     if (storedAddress !== address) {
-      console.warn("🚫 Address mismatch: navbar vs localStorage", { navbar: address, stored: storedAddress });
+      console.warn("🚫 Address mismatch: navbar vs localStorage", {
+        navbar: address,
+        stored: storedAddress,
+      });
       alert("Wallet address mismatch detected. Please reconnect your wallet.");
       return;
     }
-    
+
     // Prevent seating if this wallet is already seated at the table
     if (playerIds.some((id) => id?.toLowerCase() === address.toLowerCase())) {
       alert("You are already seated at this table");
       return;
     }
-    
+
     // Additional validation: check if any other address variants are seated
-    if (gameStoreAddress && playerIds.some((id) => id && id.toLowerCase() === gameStoreAddress.toLowerCase() && id.toLowerCase() !== address.toLowerCase())) {
-      console.warn("🚫 Different address variant already seated", { seated: gameStoreAddress, requesting: address });
-      alert("A different variant of your wallet address is already seated. Please refresh the page.");
+    if (
+      gameStoreAddress &&
+      playerIds.some(
+        (id) =>
+          id &&
+          id.toLowerCase() === gameStoreAddress.toLowerCase() &&
+          id.toLowerCase() !== address.toLowerCase(),
+      )
+    ) {
+      console.warn("🚫 Different address variant already seated", {
+        seated: gameStoreAddress,
+        requesting: address,
+      });
+      alert(
+        "A different variant of your wallet address is already seated. Please refresh the page.",
+      );
       return;
     }
-    
-    console.log("✅ Address validation passed, joining seat", idx, "with address:", address.slice(0, 10) + "...");
+
+    console.log(
+      "✅ Address validation passed, joining seat",
+      idx,
+      "with address:",
+      address.slice(0, 10) + "...",
+    );
     // Join seat using the validated address
     joinSeat(idx);
   };
@@ -126,23 +159,26 @@ export default function Table({ timer }: { timer?: number | null }) {
   const holeCardSize = "sm";
 
   /* helper – calculate position along oval border from seat toward center */
-  const getOvalPosition = (seatPos: { x: string; y: string }, percentage: number) => {
+  const getOvalPosition = (
+    seatPos: { x: string; y: string },
+    percentage: number,
+  ) => {
     // Parse seat position percentages
     const seatX = parseFloat(seatPos.x);
     const seatY = parseFloat(seatPos.y);
-    
+
     // Center is at 50%, 50%
     const centerX = 50;
     const centerY = 50;
-    
+
     // Calculate direction vector from seat to center
     const dx = centerX - seatX;
     const dy = centerY - seatY;
-    
+
     // Apply percentage along the line from seat toward center
-    const targetX = seatX + (dx * percentage / 100);
-    const targetY = seatY + (dy * percentage / 100);
-    
+    const targetX = seatX + (dx * percentage) / 100;
+    const targetY = seatY + (dy * percentage) / 100;
+
     return { x: targetX, y: targetY };
   };
 
@@ -165,9 +201,9 @@ export default function Table({ timer }: { timer?: number | null }) {
 
     // Position dealer button at 40% from seat toward center (20% closer than chips)
     const dealerPosition = getOvalPosition(pos, 40);
-    const dealerOffset = { 
-      x: (dealerPosition.x - parseFloat(pos.x)) * (baseW / 100), 
-      y: (dealerPosition.y - parseFloat(pos.y)) * (baseH / 100) 
+    const dealerOffset = {
+      x: (dealerPosition.x - parseFloat(pos.x)) * (baseW / 100),
+      y: (dealerPosition.y - parseFloat(pos.y)) * (baseH / 100),
     };
     /* ── empty seat → button ─────────────────────────────── */
     if (!nickname) {
@@ -200,7 +236,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       ? [hashIdToCard(handCodes[0]), hashIdToCard(handCodes[1])]
       : null;
     const state = playerStates[idx];
-    // TODO: visually mark auto-folded players (Action Plan 1.2)  
+    // TODO: visually mark auto-folded players (Action Plan 1.2)
     const player = {
       name: nickname,
       address: addr ?? "",
@@ -245,24 +281,31 @@ export default function Table({ timer }: { timer?: number | null }) {
       const x = amt / base;
       if (x >= 50) return "bg-orange-600"; // 50bb+
       if (x >= 25) return "bg-purple-600"; // 25–49bb
-      if (x >= 10) return "bg-black";      // 10–24bb
-      if (x >= 5)  return "bg-blue-600";  // 5–9bb
-      if (x >= 2)  return "bg-red-600";   // 2–4bb
-      if (x > 0)   return "bg-green-600"; // <2bb
-      return "bg-gray-500";               // no bet
+      if (x >= 10) return "bg-black"; // 10–24bb
+      if (x >= 5) return "bg-blue-600"; // 5–9bb
+      if (x >= 2) return "bg-red-600"; // 2–4bb
+      if (x > 0) return "bg-green-600"; // <2bb
+      return "bg-gray-500"; // no bet
     };
     const betBg = getBetChipColor(betAmount, bigBlind);
 
     // Calculate blind positions (SB = dealer + 1, BB = dealer + 2 for multi-way games)
-    const totalPlayers = players.filter(p => p).length;
-    const isSmallBlind = totalPlayers > 2 && dealerIndex !== null && 
-      ((dealerIndex + 1) % players.length === idx);
-    const isBigBlind = totalPlayers > 2 && dealerIndex !== null && 
-      ((dealerIndex + 2) % players.length === idx);
+    const totalPlayers = players.filter((p) => p).length;
+    const isSmallBlind =
+      totalPlayers > 2 &&
+      dealerIndex !== null &&
+      (dealerIndex + 1) % players.length === idx;
+    const isBigBlind =
+      totalPlayers > 2 &&
+      dealerIndex !== null &&
+      (dealerIndex + 2) % players.length === idx;
     // For heads-up, dealer is SB
-    const isHeadsUpSmallBlind = totalPlayers === 2 && dealerIndex !== null && dealerIndex === idx;
-    const isHeadsUpBigBlind = totalPlayers === 2 && dealerIndex !== null && 
-      ((dealerIndex + 1) % players.length === idx);
+    const isHeadsUpSmallBlind =
+      totalPlayers === 2 && dealerIndex !== null && dealerIndex === idx;
+    const isHeadsUpBigBlind =
+      totalPlayers === 2 &&
+      dealerIndex !== null &&
+      (dealerIndex + 1) % players.length === idx;
 
     return (
       <Fragment key={idx}>
@@ -332,7 +375,7 @@ export default function Table({ timer }: { timer?: number | null }) {
         {/* Centered concentric oval, same shape as table (rounded-full), sized as a fraction of table */}
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-transparent z-10 pointer-events-none"
-          style={{ width: '110%', height: '180%' }}
+          style={{ width: "110%", height: "180%" }}
         />
         {/* Cards above the oval */}
         <div className="relative z-20 flex items-center gap-2 px-4">
@@ -365,14 +408,13 @@ export default function Table({ timer }: { timer?: number | null }) {
           </div>
         </div>
       )}
-      
+
       {/* Legacy timer fallback for compatibility */}
       {countdownInfo.timeLeft === null && displayTimer !== null && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 translate-y-10 text-3xl font-mono text-white bg-black/50 px-3 py-1 rounded z-50">
           {displayTimer.toString().padStart(2, "0")}
         </div>
       )}
-
 
       {/* poker-table oval */}
       <div
@@ -385,19 +427,18 @@ export default function Table({ timer }: { timer?: number | null }) {
         }}
       >
         {communityRow}
-        
+
         {/* Pot Display Bubbles */}
-        <PotDisplayBubbles 
+        <PotDisplayBubbles
           currentRoundBetting={currentRoundBetting}
           totalPot={totalPot}
           isMobile={isMobile}
         />
-        
+
         {/* seats */}
         {layout.map((_, i) => seatAt(i))}
       </div>
 
-      
       {/* Show-cards control moved into PlayerActionButtons */}
     </div>
   );

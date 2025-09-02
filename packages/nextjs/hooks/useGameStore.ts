@@ -1,7 +1,7 @@
 // src/hooks/useGameStore.ts
 import { create } from "zustand";
 import {
-  type SeatStatus,
+  type SeatUIState,
   type Phase,
   type ServerEvent,
   type ClientCommand,
@@ -10,15 +10,15 @@ import { shortAddress } from "../utils/address";
 
 /** Map Phase strings to numeric street indices used by the UI */
 const phaseToStreet: Record<string, number> = {
-  waiting: -1,    // Not in active play
-  deal: -1,       // Cards being dealt, no street yet
-  preflop: 0,     // Preflop betting round
-  flop: 1,        // Flop betting round
-  turn: 2,        // Turn betting round  
-  river: 3,       // River betting round
-  showdown: 4,    // Showdown phase
-  payout: 4,      // Payout phase (maintain showdown display)
-  handEnd: -1     // Hand complete, back to waiting
+  waiting: -1, // Not in active play
+  deal: -1, // Cards being dealt, no street yet
+  preflop: 0, // Preflop betting round
+  flop: 1, // Flop betting round
+  turn: 2, // Turn betting round
+  river: 3, // River betting round
+  showdown: 4, // Showdown phase
+  payout: 4, // Payout phase (maintain showdown display)
+  handEnd: -1, // Hand complete, back to waiting
 };
 
 let socket: WebSocket | null = null;
@@ -37,7 +37,7 @@ interface GameStoreState {
   community: (number | null)[];
   chips: number[];
   playerBets: number[];
-  playerStates: SeatStatus[];
+  playerStates: SeatUIState[];
   /** which seat is the dealer */
   dealerIndex: number | null;
   pot: number;
@@ -62,7 +62,10 @@ interface GameStoreState {
   /** unified countdown timer from server (legacy) */
   timer: number | null;
   /** client-driven countdown data by type */
-  countdowns: Map<string, { startTime: number; duration: number; metadata?: any }>;
+  countdowns: Map<
+    string,
+    { startTime: number; duration: number; metadata?: any }
+  >;
   /** track which players have revealed their cards at showdown */
   cardsRevealed: boolean[];
   /** user preference: reveal own cards automatically at showdown */
@@ -73,12 +76,12 @@ interface GameStoreState {
   /** last action label per seat (UI-ready, event-driven) */
   lastActionLabels: (string | null)[];
   /** WebSocket connection state */
-  connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+  connectionState: "disconnected" | "connecting" | "connected" | "reconnecting";
   /** Connection error message */
   connectionError: string | null;
   /** Action history for the current hand */
   actionHistory: Array<{ playerId: string; action: string; amount?: number }>;
-  
+
   connectWallet: (address: string) => void;
   handleDisconnect: () => Promise<void>;
   joinTable: (tableId: string) => void;
@@ -107,7 +110,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
   function applySnapshot(room: any) {
     console.log("📸 Applying TABLE_SNAPSHOT:", {
       seatsCount: room.seats?.length || 0,
-      phase: room.phase
+      phase: room.phase,
     });
 
     // Start with completely fresh arrays to ensure proper cleanup
@@ -116,7 +119,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const hands = Array(9).fill(null) as ([number, number] | null)[];
     const chips = Array(9).fill(0) as number[];
     const bets = Array(9).fill(0) as number[];
-    const states = Array(9).fill("empty" as SeatStatus) as SeatStatus[];
+    const states = Array(9).fill("empty") as SeatUIState[];
+    const labels = Array(9).fill(null) as (string | null)[];
 
     // Populate only seats that have active players
     // Handle both new EventEngine format (seats array) and legacy format (players array)
@@ -126,41 +130,73 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (seat.pid) {
           seats[index] = seat.nickname || seat.pid;
           ids[index] = seat.pid;
-          
+
           if (seat.holeCards?.length === 2) {
             hands[index] = [seat.holeCards[0], seat.holeCards[1]];
           }
-          
+
           chips[index] = seat.chips ?? 0;
-          bets[index] = seat.committed ?? 0;
-          
-          // Use derived sittingOut field if present, otherwise use status
-          const state = seat.sittingOut ? "sittingOut" : (seat.status || "empty");
-          states[index] = state;
-          
-          console.log(`👤 Seat ${index}: ${seat.pid?.slice(0, 10)}... (${chips[index]} chips, ${seat.committed} committed, state: ${seat.status})`);
+          bets[index] = seat.streetCommitted ?? 0;
+
+          // Use action field for sitting out or last action label
+          const state =
+            seat.action === "SITTING_OUT"
+              ? "sittingOut"
+              : seat.status || "empty";
+          states[index] = state as any;
+
+          if (seat.action && seat.action !== "SITTING_OUT") {
+            switch (seat.action) {
+              case "FOLD":
+                labels[index] = "Fold";
+                break;
+              case "CHECK":
+                labels[index] = "Check";
+                break;
+              case "CALL":
+                labels[index] = "Call";
+                break;
+              case "BET":
+                labels[index] = "Bet";
+                break;
+              case "RAISE":
+                labels[index] = "Raise";
+                break;
+              case "ALLIN":
+                labels[index] = "All In";
+                break;
+            }
+          }
+
+          console.log(
+            `👤 Seat ${index}: ${seat.pid?.slice(0, 10)}... (${chips[index]} chips, ${seat.streetCommitted} streetCommitted, state: ${seat.status})`,
+          );
         }
       });
     } else {
-      // No valid format found - initialize with empty state  
-      console.warn('⚠️ No valid room format found, using empty state');
+      // No valid format found - initialize with empty state
+      console.warn("⚠️ No valid room format found, using empty state");
     }
 
     const comm = Array(5).fill(null) as (number | null)[];
     const newCards = room.communityCards ?? room.board ?? [];
-    
+
     // Preserve existing community cards during betting if the snapshot sends none,
     // but continue updating players and other fields to avoid stale UI state.
     if (newCards.length === 0) {
       const existingCards = get().community || [];
-      const hasExistingCards = existingCards.some(c => c !== null);
-      if (hasExistingCards && room.phase && !["waiting", "deal"].includes(room.phase)) {
+      const hasExistingCards = existingCards.some((c) => c !== null);
+      if (
+        hasExistingCards &&
+        room.phase &&
+        !["waiting", "deal"].includes(room.phase)
+      ) {
         for (let i = 0; i < Math.min(existingCards.length, comm.length); i++) {
           comm[i] = existingCards[i];
         }
       }
     } else {
-      // Update community cards with new data  
+      // Update community cards with new data
       newCards.forEach((c: any, i: number) => {
         // Cards are now always in hash format (numeric IDs)
         comm[i] = c as number;
@@ -180,27 +216,28 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       chips,
       playerBets: bets,
       playerStates: states,
+      lastActionLabels: labels,
       dealerIndex: room.dealerIndex ?? null,
       pot,
       currentTurn: (() => {
         // Debug logging for currentTurn calculation
         console.log(`🔍 [useGameStore] Calculating currentTurn:`, {
-          hasActor: 'actor' in room,
+          hasActor: "actor" in room,
           actor: (room as any).actor,
           currentTurnIndex: room.currentTurnIndex,
           playersLength: room.players?.length,
-          playerWithTurn: room.players?.find(p => p.isTurn)?.seat,
-          actingIndex: (room as any).actingIndex
+          playerWithTurn: room.players?.find((p) => p.isTurn)?.seat,
+          actingIndex: (room as any).actingIndex,
         });
-        
+
         // New EventEngine format: use actor directly
-        if ('actor' in room && (room as any).actor !== undefined) {
+        if ("actor" in room && (room as any).actor !== undefined) {
           console.log(`   → Using EventEngine actor: ${(room as any).actor}`);
           return (room as any).actor;
         }
-        
+
         // No legacy format support in pure FSM
-        
+
         console.log(`   → No current turn found, returning null`);
         return null;
       })(),
@@ -221,13 +258,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     }
 
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
-    console.log(`🔗 Connecting to WebSocket: ${wsUrl} (attempt ${reconnectAttempts + 1})`);
-    
-    set({ connectionState: 'connecting', connectionError: null });
-    
+    console.log(
+      `🔗 Connecting to WebSocket: ${wsUrl} (attempt ${reconnectAttempts + 1})`,
+    );
+
+    set({ connectionState: "connecting", connectionError: null });
+
     try {
       socket = new WebSocket(wsUrl);
-      
+
       // Set up message handler immediately after creating socket
       socket.onmessage = (ev) => {
         try {
@@ -259,14 +298,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 // Use nickname if available, otherwise use playerId for display
                 arr[msg.seat] = (msg as any).nickname || msg.playerId;
                 ids[msg.seat] = msg.playerId;
-                
+
                 // If this is our wallet joining, update table seats tracking
                 if (msg.playerId === s.currentWalletId) {
                   const newTableSeats = new Map(s.tableSeats);
                   newTableSeats.set(msg.tableId || s.tableId || "", msg.seat);
-                  return { players: arr, playerIds: ids, tableSeats: newTableSeats };
+                  return {
+                    players: arr,
+                    playerIds: ids,
+                    tableSeats: newTableSeats,
+                  };
                 }
-                
+
                 return { players: arr, playerIds: ids };
               });
               get().addLog(`${shortAddress(msg.playerId)} joined`);
@@ -279,7 +322,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 const chips = [...s.chips];
                 const bets = [...s.playerBets];
                 const hands = [...s.playerHands];
-                
+
                 // Clear all data for the leaving player's seat
                 arr[msg.seat] = null;
                 ids[msg.seat] = null;
@@ -287,31 +330,33 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 chips[msg.seat] = 0;
                 bets[msg.seat] = 0;
                 hands[msg.seat] = null;
-                
-                console.log(`🚪 Player left seat ${msg.seat}, cleared all seat data`);
-                
+
+                console.log(
+                  `🚪 Player left seat ${msg.seat}, cleared all seat data`,
+                );
+
                 // If this is our wallet leaving, update table seats tracking
                 if (msg.playerId === s.currentWalletId) {
                   const newTableSeats = new Map(s.tableSeats);
                   newTableSeats.delete(msg.tableId || s.tableId || "");
-                  return { 
-                    players: arr, 
-                    playerIds: ids, 
-                    playerStates: states, 
-                    chips, 
-                    playerBets: bets, 
+                  return {
+                    players: arr,
+                    playerIds: ids,
+                    playerStates: states,
+                    chips,
+                    playerBets: bets,
                     playerHands: hands,
-                    tableSeats: newTableSeats 
+                    tableSeats: newTableSeats,
                   };
                 }
-                
-                return { 
-                  players: arr, 
-                  playerIds: ids, 
-                  playerStates: states, 
-                  chips, 
-                  playerBets: bets, 
-                  playerHands: hands 
+
+                return {
+                  players: arr,
+                  playerIds: ids,
+                  playerStates: states,
+                  chips,
+                  playerBets: bets,
+                  playerHands: hands,
                 };
               });
               get().addLog(`${shortAddress(msg.playerId)} left`);
@@ -327,7 +372,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                     tableId,
                   } as any;
                   socket.send(JSON.stringify(cmd));
-                  console.log(`🔄 [useGameStore] Requested TABLE_SNAPSHOT after PLAYER_SIT_OUT`);
+                  console.log(
+                    `🔄 [useGameStore] Requested TABLE_SNAPSHOT after PLAYER_SIT_OUT`,
+                  );
                 }
               } catch {}
               get().addLog(`${shortAddress(msg.playerId)} sat out`);
@@ -343,7 +390,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                     tableId,
                   } as any;
                   socket.send(JSON.stringify(cmd));
-                  console.log(`🔄 [useGameStore] Requested TABLE_SNAPSHOT after PLAYER_SIT_IN`);
+                  console.log(
+                    `🔄 [useGameStore] Requested TABLE_SNAPSHOT after PLAYER_SIT_IN`,
+                  );
                 }
               } catch {}
               get().addLog(`${shortAddress(msg.playerId)} sat in`);
@@ -377,8 +426,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 states[msg.seat] = "active";
                 const names = [...s.players];
                 const ids = [...s.playerIds];
-                if (!names[msg.seat])
-                  names[msg.seat] = msg.playerId;
+                if (!names[msg.seat]) names[msg.seat] = msg.playerId;
                 ids[msg.seat] = msg.playerId;
                 return { playerStates: states, players: names, playerIds: ids };
               });
@@ -409,28 +457,60 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   break;
               }
               if (text) get().addLog(text);
-              // Record action in history and update lastActionLabels for that seat
-              set(s => {
+              // Record action in history and update lastActionLabels/playerStates for that seat
+              set((s) => {
                 const actionHistory = [
                   ...s.actionHistory,
-                  { playerId: msg.playerId, action: msg.action, amount: (msg as any).amount }
+                  {
+                    playerId: msg.playerId,
+                    action: msg.action,
+                    amount: (msg as any).amount,
+                  },
                 ];
                 const labels = [...s.lastActionLabels];
-                const seatIdx = s.playerIds.findIndex(id => id && id.toLowerCase() === (msg.playerId || '').toLowerCase());
+                const states = [...s.playerStates];
+                const seatIdx = s.playerIds.findIndex(
+                  (id) =>
+                    id &&
+                    id.toLowerCase() === (msg.playerId || "").toLowerCase(),
+                );
                 if (seatIdx >= 0) {
-                  let label = '';
+                  let label = "";
                   switch (msg.action) {
-                    case 'FOLD': label = 'Fold'; break;
-                    case 'CHECK': label = 'Check'; break;
-                    case 'CALL': label = 'Call'; break;
-                    case 'BET': label = 'Bet'; break;
-                    case 'RAISE': label = 'Raise'; break;
-                    case 'ALLIN': label = 'All In'; break;
-                    default: label = msg.action;
+                    case "FOLD":
+                      label = "Fold";
+                      states[seatIdx] = "folded";
+                      break;
+                    case "CHECK":
+                      label = "Check";
+                      states[seatIdx] = "active";
+                      break;
+                    case "CALL":
+                      label = "Call";
+                      states[seatIdx] = "active";
+                      break;
+                    case "BET":
+                      label = "Bet";
+                      states[seatIdx] = "active";
+                      break;
+                    case "RAISE":
+                      label = "Raise";
+                      states[seatIdx] = "active";
+                      break;
+                    case "ALLIN":
+                      label = "All In";
+                      states[seatIdx] = "allin";
+                      break;
+                    default:
+                      label = msg.action;
                   }
                   labels[seatIdx] = label;
                 }
-                return { actionHistory, lastActionLabels: labels };
+                return {
+                  actionHistory,
+                  lastActionLabels: labels,
+                  playerStates: states,
+                };
               });
               break;
             }
@@ -438,9 +518,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               set((s) => {
                 const comm = [...s.community];
                 msg.cards.forEach((c, i) => (comm[i] = c as number));
-                return { 
+                return {
                   community: comm,
-                  lastActionLabels: Array(9).fill(null) // Clear action labels on new street
+                  lastActionLabels: Array(9).fill(null), // Clear action labels on new street
+                  playerBets: Array(9).fill(0), // Clear street bets
                 };
               });
               break;
@@ -448,9 +529,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               set((s) => {
                 const comm = [...s.community];
                 comm[3] = msg.card as number;
-                return { 
+                return {
                   community: comm,
-                  lastActionLabels: Array(9).fill(null) // Clear action labels on new street
+                  lastActionLabels: Array(9).fill(null), // Clear action labels on new street
+                  playerBets: Array(9).fill(0),
                 };
               });
               break;
@@ -458,9 +540,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               set((s) => {
                 const comm = [...s.community];
                 comm[4] = msg.card as number;
-                return { 
+                return {
                   community: comm,
-                  lastActionLabels: Array(9).fill(null) // Clear action labels on new street
+                  lastActionLabels: Array(9).fill(null), // Clear action labels on new street
+                  playerBets: Array(9).fill(0),
                 };
               });
               break;
@@ -469,7 +552,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               get().resetCardReveals(); // Reset card reveals for new hand
               get().clearWinners(); // Clear previous winners for new hand
               // Reset action history at the beginning of each hand
-              set({ actionHistory: [], lastActionLabels: Array(9).fill(null) });
+              set({
+                actionHistory: [],
+                lastActionLabels: Array(9).fill(null),
+                playerBets: Array(9).fill(0),
+              });
               break;
             case "HAND_END":
               get().addLog("Dealer: Hand complete");
@@ -489,11 +576,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 countdowns.set(msg.countdownType, {
                   startTime: msg.startTime,
                   duration: msg.duration,
-                  metadata: msg.metadata
+                  metadata: msg.metadata,
                 });
-                
-                console.log(`⏱️ [useGameStore] Started ${msg.countdownType} countdown: ${msg.duration}ms`, msg.metadata);
-                
+
+                console.log(
+                  `⏱️ [useGameStore] Started ${msg.countdownType} countdown: ${msg.duration}ms`,
+                  msg.metadata,
+                );
+
                 return { countdowns };
               });
               break;
@@ -506,13 +596,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   duration: msg.countdown * 1000,
                   metadata: {
                     activePlayerCount: msg.activePlayerCount,
-                    totalPlayerCount: msg.totalPlayerCount
-                  }
+                    totalPlayerCount: msg.totalPlayerCount,
+                  },
                 });
                 // Also set legacy timer for backward compatibility
                 return { countdowns, timer: msg.countdown };
               });
-              console.log(`🚀 Game starting in ${msg.countdown} seconds with ${msg.activePlayerCount || 0} players`);
+              console.log(
+                `🚀 Game starting in ${msg.countdown} seconds with ${msg.activePlayerCount || 0} players`,
+              );
               break;
             case "TABLE_RESET":
               // Handle table reset due to idle timeout
@@ -526,7 +618,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 community: Array(5).fill(null),
                 chips: Array(9).fill(0),
                 playerBets: Array(9).fill(0),
-                playerStates: Array(9).fill("empty"),
+                playerStates: Array(9).fill("empty") as SeatUIState[],
                 dealerIndex: null,
                 pot: 0,
                 currentTurn: null,
@@ -545,9 +637,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               get().addLog(`🎯 Dealer: ${msg.message}`);
               break;
             case "WINNER_ANNOUNCEMENT":
-              console.log("🏆 Winner announcement:", msg.winners, "pot:", msg.potAmount);
+              console.log(
+                "🏆 Winner announcement:",
+                msg.winners,
+                "pot:",
+                msg.potAmount,
+              );
               // Trigger sparkle effects for all winners
-              msg.winners.forEach(winner => {
+              msg.winners.forEach((winner) => {
                 if (winner.seat >= 0) {
                   console.log("✨ Triggering sparkle for seat:", winner.seat);
                   get().markWinner(winner.seat);
@@ -557,10 +654,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                     revealed[winner.seat] = true;
                     return { cardsRevealed: revealed };
                   });
-                  
+
                   // Clear winner effect after 5 seconds
                   setTimeout(() => {
-                    set(s => {
+                    set((s) => {
                       const newWinners = new Set(s.recentWinners);
                       newWinners.delete(winner.seat);
                       return { recentWinners: newWinners };
@@ -575,28 +672,41 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 const arr = [...s.players];
                 const ids = [...s.playerIds];
                 const states = [...s.playerStates];
-                
+
                 // Use nickname if available, otherwise use playerId for display
-                const nickname = (msg as any).nickname || shortAddress(msg.playerId);
+                const nickname =
+                  (msg as any).nickname || shortAddress(msg.playerId);
                 arr[msg.seat] = nickname;
                 ids[msg.seat] = msg.playerId;
                 states[msg.seat] = "active"; // Show as sitting out until next hand
-                
+
                 // If this is our wallet, update table seats tracking
                 if (msg.playerId === s.currentWalletId) {
                   const newTableSeats = new Map(s.tableSeats);
                   newTableSeats.set(msg.tableId || s.tableId || "", msg.seat);
-                  console.log(`🪑 [GameStore] Updated our seat tracking: table ${msg.tableId} -> seat ${msg.seat}`);
-                  return { players: arr, playerIds: ids, playerStates: states, tableSeats: newTableSeats };
+                  console.log(
+                    `🪑 [GameStore] Updated our seat tracking: table ${msg.tableId} -> seat ${msg.seat}`,
+                  );
+                  return {
+                    players: arr,
+                    playerIds: ids,
+                    playerStates: states,
+                    tableSeats: newTableSeats,
+                  };
                 }
-                
+
                 return { players: arr, playerIds: ids, playerStates: states };
               });
-              get().addLog(`${shortAddress(msg.playerId)} waiting for next hand`);
+              get().addLog(
+                `${shortAddress(msg.playerId)} waiting for next hand`,
+              );
               break;
             case "WAITING_FOR_NEXT_HAND":
               // Handle personal message about waiting for next hand
-              console.log(`⏳ [GameStore] Waiting for next hand at seat ${msg.seat}:`, msg.msg);
+              console.log(
+                `⏳ [GameStore] Waiting for next hand at seat ${msg.seat}:`,
+                msg.msg,
+              );
               get().addLog(`⏳ ${msg.msg}`);
               // This is sent directly to the requesting player, so no state updates needed
               break;
@@ -612,10 +722,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                     tableId,
                   } as any;
                   socket.send(JSON.stringify(cmd));
-                  console.log("🔄 [useGameStore] Requested fresh TABLE_SNAPSHOT after error");
+                  console.log(
+                    "🔄 [useGameStore] Requested fresh TABLE_SNAPSHOT after error",
+                  );
                 }
               } catch (e) {
-                console.error("❌ Failed to request TABLE_SNAPSHOT after error:", e);
+                console.error(
+                  "❌ Failed to request TABLE_SNAPSHOT after error:",
+                  e,
+                );
               }
               break;
           }
@@ -623,12 +738,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           /* ignore malformed */
         }
       };
-      
+
       const connectionTimeout = setTimeout(() => {
         if (socket && socket.readyState !== WebSocket.OPEN) {
           console.error("🚫 WebSocket connection timeout");
           socket.close();
-          set({ connectionState: 'disconnected', connectionError: 'Connection timeout' });
+          set({
+            connectionState: "disconnected",
+            connectionError: "Connection timeout",
+          });
           scheduleReconnect();
         }
       }, 10000);
@@ -637,13 +755,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         clearTimeout(connectionTimeout);
         console.log("✅ WebSocket connected successfully");
         reconnectAttempts = 0;
-        set({ connectionState: 'connected', connectionError: null });
-        
+        set({ connectionState: "connected", connectionError: null });
+
         // Use walletAddress as the single source of truth for connected wallet
         const address = localStorage.getItem("walletAddress");
-        
+
         console.log("🔍 Checking for stored wallet address:", address);
-        
+
         if (address) {
           try {
             const cmd: ClientCommand = {
@@ -656,10 +774,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             set({ currentWalletId: address });
           } catch (error) {
             console.error("🚫 Failed to attach wallet:", error);
-            set({ connectionError: 'Failed to attach wallet' });
+            set({ connectionError: "Failed to attach wallet" });
           }
         } else {
-          console.log("ℹ️ No wallet address found, continuing without attachment");
+          console.log(
+            "ℹ️ No wallet address found, continuing without attachment",
+          );
         }
 
         const pendingTable = get().tableId;
@@ -680,9 +800,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       socket.onclose = (event) => {
         clearTimeout(connectionTimeout);
-        console.log(`🔌 WebSocket closed: Code ${event.code}, Reason: ${event.reason}`);
-        set({ connectionState: 'disconnected', connectionError: event.reason || `Connection closed (${event.code})` });
-        
+        console.log(
+          `🔌 WebSocket closed: Code ${event.code}, Reason: ${event.reason}`,
+        );
+        set({
+          connectionState: "disconnected",
+          connectionError: event.reason || `Connection closed (${event.code})`,
+        });
+
         // Don't auto-reconnect for normal closures or if explicitly disconnected
         if (event.code !== 1000 && event.code !== 1001) {
           scheduleReconnect();
@@ -692,15 +817,20 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       socket.onerror = (error) => {
         clearTimeout(connectionTimeout);
         console.error("🚫 WebSocket error:", error);
-        set({ connectionState: 'disconnected', connectionError: 'Connection error' });
+        set({
+          connectionState: "disconnected",
+          connectionError: "Connection error",
+        });
       };
-
     } catch (error) {
       console.error("🚫 Failed to create WebSocket:", error);
-      set({ connectionState: 'disconnected', connectionError: 'Failed to create connection' });
+      set({
+        connectionState: "disconnected",
+        connectionError: "Failed to create connection",
+      });
       scheduleReconnect();
     }
-    
+
     // Update socket reference in store
     set({ socket });
   };
@@ -708,7 +838,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
   const scheduleReconnect = () => {
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
       console.error("🚫 Max reconnection attempts reached");
-      set({ connectionState: 'disconnected', connectionError: 'Max reconnection attempts reached' });
+      set({
+        connectionState: "disconnected",
+        connectionError: "Max reconnection attempts reached",
+      });
       return;
     }
 
@@ -718,15 +851,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
     console.log(`🔄 Scheduling reconnect in ${delay}ms`);
-    
-    set({ connectionState: 'reconnecting' });
+
+    set({ connectionState: "reconnecting" });
     reconnectAttempts++;
-    
+
     reconnectTimeout = setTimeout(() => {
       connectWebSocket();
     }, delay);
   };
-
 
   if (typeof window !== "undefined" && !socket) {
     connectWebSocket();
@@ -739,7 +871,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     community: Array(5).fill(null),
     chips: Array(9).fill(0),
     playerBets: Array(9).fill(0),
-    playerStates: Array(9).fill("empty"),
+    playerStates: Array(9).fill("empty") as SeatUIState[],
     dealerIndex: null,
     pot: 0,
     currentTurn: null,
@@ -749,10 +881,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     logs: [],
     addLog: (msg) => set((s) => ({ logs: [...s.logs, msg] })),
     cardsRevealed: Array(9).fill(false),
-    autoRevealAtShowdown: (typeof window !== "undefined" ? (localStorage.getItem('autoRevealAtShowdown') ?? 'true') : 'true') === 'true',
+    autoRevealAtShowdown:
+      (typeof window !== "undefined"
+        ? (localStorage.getItem("autoRevealAtShowdown") ?? "true")
+        : "true") === "true",
     setAutoRevealAtShowdown: (v: boolean) => {
-      if (typeof window !== 'undefined') {
-        try { localStorage.setItem('autoRevealAtShowdown', v ? 'true' : 'false'); } catch {}
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("autoRevealAtShowdown", v ? "true" : "false");
+        } catch {}
       }
       set({ autoRevealAtShowdown: v });
     },
@@ -788,82 +925,99 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     tableSeats: new Map<string, number>(),
     tableId: null,
     timer: null,
-    countdowns: new Map<string, { startTime: number; duration: number; metadata?: any }>(),
-    connectionState: 'disconnected',
+    countdowns: new Map<
+      string,
+      { startTime: number; duration: number; metadata?: any }
+    >(),
+    connectionState: "disconnected",
     connectionError: null,
     actionHistory: [],
 
     connectWallet: (address: string) => {
       const previousWallet = get().currentWalletId;
-      
-      if (!address || typeof address !== 'string') {
+
+      if (!address || typeof address !== "string") {
         console.error("🚫 Invalid wallet address provided");
-        set({ connectionError: 'Invalid wallet address' });
+        set({ connectionError: "Invalid wallet address" });
         return;
       }
-      
-      console.log(`💼 Connecting wallet: ${address.slice(0, 10)}... (Previous: ${previousWallet?.slice(0, 10) + "..." || "none"})`);
-      
+
+      console.log(
+        `💼 Connecting wallet: ${address.slice(0, 10)}... (Previous: ${previousWallet?.slice(0, 10) + "..." || "none"})`,
+      );
+
       // If switching wallets, disconnect from previous wallet's sessions
       if (previousWallet && previousWallet !== address) {
         console.log("🔄 Switching wallets - cleaning up previous state");
-        get().handleDisconnect().then(() => {
-          // After cleanup, connect with new wallet and ensure clean state
-          set({ 
-            currentWalletId: address, 
-            tableSeats: new Map(), 
-            connectionError: null,
-            // Clear any game state that might be tied to previous wallet
-            players: Array(9).fill(null),
-            playerIds: Array(9).fill(null),
-            chips: Array(9).fill(0),
-            playerBets: Array(9).fill(0),
-            playerStates: Array(9).fill("empty"),
+        get()
+          .handleDisconnect()
+          .then(() => {
+            // After cleanup, connect with new wallet and ensure clean state
+            set({
+              currentWalletId: address,
+              tableSeats: new Map(),
+              connectionError: null,
+              // Clear any game state that might be tied to previous wallet
+              players: Array(9).fill(null),
+              playerIds: Array(9).fill(null),
+              chips: Array(9).fill(0),
+              playerBets: Array(9).fill(0),
+              playerStates: Array(9).fill("empty") as SeatUIState[],
+            });
+
+            if (typeof window !== "undefined") {
+              // Validate localStorage consistency - ensure only this address is stored
+              const storedAddress = localStorage.getItem("walletAddress");
+              if (storedAddress !== address) {
+                console.log(
+                  `🧹 Cleaning inconsistent localStorage: ${storedAddress} → ${address}`,
+                );
+                localStorage.setItem("walletAddress", address);
+              }
+            }
+
+            // Ensure WebSocket is connected before attaching
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              try {
+                const cmd: ClientCommand = {
+                  cmdId: crypto.randomUUID(),
+                  type: "ATTACH",
+                  userId: address,
+                } as any;
+                socket.send(JSON.stringify(cmd));
+                console.log(
+                  "📤 Sent ATTACH command with new wallet:",
+                  address.slice(0, 10) + "...",
+                );
+              } catch (error) {
+                console.error("🚫 Failed to attach new wallet:", error);
+                set({ connectionError: "Failed to attach wallet" });
+              }
+            } else {
+              console.log(
+                "🔗 WebSocket not connected, attempting connection...",
+              );
+              connectWebSocket();
+            }
+          })
+          .catch((error) => {
+            console.error("🚫 Failed to disconnect previous wallet:", error);
+            set({ connectionError: "Failed to switch wallets" });
           });
-          
-          if (typeof window !== "undefined") {
-            // Validate localStorage consistency - ensure only this address is stored
-            const storedAddress = localStorage.getItem("walletAddress");
-            if (storedAddress !== address) {
-              console.log(`🧹 Cleaning inconsistent localStorage: ${storedAddress} → ${address}`);
-              localStorage.setItem("walletAddress", address);
-            }
-          }
-          
-          // Ensure WebSocket is connected before attaching
-          if (socket && socket.readyState === WebSocket.OPEN) {
-            try {
-              const cmd: ClientCommand = {
-                cmdId: crypto.randomUUID(),
-                type: "ATTACH",
-                userId: address,
-              } as any;
-              socket.send(JSON.stringify(cmd));
-              console.log("📤 Sent ATTACH command with new wallet:", address.slice(0, 10) + "...");
-            } catch (error) {
-              console.error("🚫 Failed to attach new wallet:", error);
-              set({ connectionError: 'Failed to attach wallet' });
-            }
-          } else {
-            console.log("🔗 WebSocket not connected, attempting connection...");
-            connectWebSocket();
-          }
-        }).catch(error => {
-          console.error("🚫 Failed to disconnect previous wallet:", error);
-          set({ connectionError: 'Failed to switch wallets' });
-        });
       } else {
         // First time connecting or same wallet - validate consistency
         if (typeof window !== "undefined") {
           const storedAddress = localStorage.getItem("walletAddress");
           if (storedAddress !== address) {
-            console.log(`🧹 Syncing localStorage: ${storedAddress} → ${address}`);
+            console.log(
+              `🧹 Syncing localStorage: ${storedAddress} → ${address}`,
+            );
             localStorage.setItem("walletAddress", address);
           }
         }
-        
+
         set({ currentWalletId: address, connectionError: null });
-        
+
         // Ensure WebSocket is connected before attaching
         if (socket && socket.readyState === WebSocket.OPEN) {
           try {
@@ -873,10 +1027,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               userId: address,
             } as any;
             socket.send(JSON.stringify(cmd));
-            console.log("📤 Sent ATTACH command with wallet address:", address.slice(0, 10) + "...");
+            console.log(
+              "📤 Sent ATTACH command with wallet address:",
+              address.slice(0, 10) + "...",
+            );
           } catch (error) {
             console.error("🚫 Failed to attach wallet:", error);
-            set({ connectionError: 'Failed to attach wallet' });
+            set({ connectionError: "Failed to attach wallet" });
           }
         } else {
           console.log("🔗 WebSocket not connected, attempting connection...");
@@ -888,7 +1045,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     handleDisconnect: async () => {
       console.log("🔌 Handling wallet disconnect...");
       const { currentWalletId, tableSeats } = get();
-      
+
       if (!currentWalletId) return;
 
       // Auto-fold and leave all tables where this wallet is seated
@@ -901,29 +1058,32 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               await get().playerAction({ type: "FOLD" });
             } catch (error) {
               // Ignore fold errors - player might not be on turn
-              console.log("Failed to auto-fold (expected if not on turn):", error);
+              console.log(
+                "Failed to auto-fold (expected if not on turn):",
+                error,
+              );
             }
-            
+
             // Leave the table
             try {
               await get().leaveSeat(tableId);
             } catch (error) {
               console.error("Failed to leave table", tableId, error);
             }
-          })()
+          })(),
         );
       });
-      
+
       await Promise.all(promises);
-      
+
       // Clear all wallet-related state and storage
       if (typeof window !== "undefined") {
         localStorage.removeItem("walletAddress");
         localStorage.removeItem("sessionId");
       }
-      
-      set({ 
-        currentWalletId: null, 
+
+      set({
+        currentWalletId: null,
         tableSeats: new Map(),
         tableId: null,
         // Reset game state for safety
@@ -932,11 +1092,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         playerHands: Array(9).fill(null),
         chips: Array(9).fill(0),
         playerBets: Array(9).fill(0),
-        playerStates: Array(9).fill("empty"),
+        playerStates: Array(9).fill("empty") as SeatUIState[],
         currentTurn: null,
-        pot: 0
+        pot: 0,
       });
-      
+
       console.log("✅ Wallet disconnect handled successfully");
     },
 
@@ -967,30 +1127,37 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     joinSeat: async (seatIdx: number, tableId?: string) => {
       const currentTableId = tableId || get().tableId;
-      console.log(`🪑 Attempting to join seat ${seatIdx} at table ${currentTableId}`);
-      
+      console.log(
+        `🪑 Attempting to join seat ${seatIdx} at table ${currentTableId}`,
+      );
+
       if (!currentTableId) {
         console.error("🚫 No table selected");
         set({ error: "No table selected" });
         return;
       }
-      
+
       const { currentWalletId, tableSeats } = get();
       if (!currentWalletId) {
         console.error("🚫 No wallet connected");
         set({ error: "No wallet connected" });
         return;
       }
-      
-      console.log(`👤 Wallet: ${currentWalletId.slice(0, 10)}... attempting to join seat ${seatIdx}`);
-      
+
+      console.log(
+        `👤 Wallet: ${currentWalletId.slice(0, 10)}... attempting to join seat ${seatIdx}`,
+      );
+
       // Check if already seated at this table
       if (tableSeats.has(currentTableId)) {
-        console.error(`🚫 Already seated at table ${currentTableId}:`, tableSeats.get(currentTableId));
+        console.error(
+          `🚫 Already seated at table ${currentTableId}:`,
+          tableSeats.get(currentTableId),
+        );
         set({ error: "Already seated at this table" });
         return;
       }
-      
+
       if (socket && socket.readyState === WebSocket.OPEN) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
@@ -1000,9 +1167,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           buyIn: 10000, // Always $10k per seat
           playerId: currentWalletId, // Send client wallet as authoritative
         } as ClientCommand;
-        console.log("📤 Sending SIT command:", { tableId: currentTableId, seat: seatIdx, buyIn: 10000, playerId: currentWalletId?.slice(0, 10) + "..." });
+        console.log("📤 Sending SIT command:", {
+          tableId: currentTableId,
+          seat: seatIdx,
+          buyIn: 10000,
+          playerId: currentWalletId?.slice(0, 10) + "...",
+        });
         socket.send(JSON.stringify(cmd));
-        
+
         // Optimistically update local state
         const newTableSeats = new Map(tableSeats);
         newTableSeats.set(currentTableId, seatIdx);
@@ -1018,10 +1190,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     leaveSeat: async (tableId?: string) => {
       const currentTableId = tableId || get().tableId;
       if (!currentTableId) return;
-      
+
       const { currentWalletId, tableSeats } = get();
       if (!currentWalletId || !tableSeats.has(currentTableId)) return;
-      
+
       if (socket && socket.readyState === WebSocket.OPEN) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
@@ -1030,12 +1202,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         } as ClientCommand;
         socket.send(JSON.stringify(cmd));
       }
-      
+
       // Update local state
       const newTableSeats = new Map(tableSeats);
       newTableSeats.delete(currentTableId);
       set({ tableSeats: newTableSeats });
-      
+
       // If leaving current table, clear player state
       if (currentTableId === get().tableId) {
         set((s) => {
@@ -1055,18 +1227,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     leaveAllTables: async () => {
       const { tableSeats } = get();
       const promises: Promise<void>[] = [];
-      
+
       tableSeats.forEach((seatIndex, tableId) => {
         promises.push(get().leaveSeat(tableId));
       });
-      
+
       await Promise.all(promises);
     },
 
     sitOut: async (tableId?: string) => {
       const currentTableId = tableId || get().tableId;
       if (!currentTableId) return;
-      
+
       if (socket && socket.readyState === WebSocket.OPEN) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
@@ -1080,11 +1252,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     sitIn: async (tableId?: string) => {
       const currentTableId = tableId || get().tableId;
       if (!currentTableId) return;
-      
+
       if (socket && socket.readyState === WebSocket.OPEN) {
         const cmd: ClientCommand = {
           cmdId: crypto.randomUUID(),
-          type: "SIT_IN", 
+          type: "SIT_IN",
           tableId: currentTableId,
         } as ClientCommand;
         socket.send(JSON.stringify(cmd));
@@ -1099,13 +1271,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     playerAction: async (action) => {
       if (!action || !action.type) {
         console.error("🚫 Invalid action provided");
-        throw new Error('Invalid action');
+        throw new Error("Invalid action");
       }
 
       if (!socket || socket.readyState !== WebSocket.OPEN) {
         console.error("🚫 WebSocket not connected for player action");
-        set({ connectionError: 'Not connected to game server' });
-        throw new Error('WebSocket not connected');
+        set({ connectionError: "Not connected to game server" });
+        throw new Error("WebSocket not connected");
       }
 
       try {
@@ -1117,12 +1289,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           amount: action.amount,
           playerId: currentWalletId || undefined, // Safely handle null
         };
-        
+
         socket.send(JSON.stringify(cmd));
-        console.log("🎯 Sent player action:", { type: action.type, amount: action.amount });
+        console.log("🎯 Sent player action:", {
+          type: action.type,
+          amount: action.amount,
+        });
       } catch (error) {
         console.error("🚫 Failed to send player action:", error);
-        set({ connectionError: 'Failed to send action' });
+        set({ connectionError: "Failed to send action" });
         throw error;
       }
     },

@@ -23,7 +23,13 @@ export type Street = "preflop" | "flop" | "turn" | "river";
 
 export type ActionType = "FOLD" | "CHECK" | "CALL" | "BET" | "RAISE" | "ALLIN";
 
+// UI-facing action flag that also represents sitting out state
+export type SeatAction = ActionType | "SITTING_OUT";
+
 export type SeatStatus = "active" | "folded" | "allin" | "empty";
+
+// UI helper state used by client stores/components
+export type SeatUIState = SeatStatus | "sittingOut";
 
 /**
  * Seat represents a single position at the poker table
@@ -38,7 +44,12 @@ export interface Seat {
   status: SeatStatus; // current seat state (active/folded/allin/empty only)
   holeCards?: [number, number]; // card indices if dealt
   nickname?: string; // display name
-  sittingOut?: boolean; // UI display flag - derived from SitOutManager
+  /**
+   * UI action flag for table rendering
+   * - Derived "SITTING_OUT" from SitOutManager when player is sitting out
+   * - Last action taken during the current street (FOLD, CHECK, CALL, BET, RAISE, ALLIN)
+   */
+  action?: SeatAction;
 }
 
 /**
@@ -88,8 +99,8 @@ export interface Table {
   };
 
   // Deck management
-  deck?: Card[];        // Deprecated: use deckCodes; kept for backward compatibility
-  deckIndex?: number;   // Next index into deckCodes
+  deck?: Card[]; // Deprecated: use deckCodes; kept for backward compatibility
+  deckIndex?: number; // Next index into deckCodes
 
   // Configuration
   blinds: {
@@ -139,7 +150,12 @@ export type PokerEvent =
       nickname?: string;
     }
   | { t: "PlayerLeave"; seat: number; pid: string }
-  | { t: "PlayerSitOut"; seat: number; pid: string; reason: "voluntary" | "timeout" | "busted" }
+  | {
+      t: "PlayerSitOut";
+      seat: number;
+      pid: string;
+      reason: "voluntary" | "timeout" | "busted";
+    }
   | { t: "PlayerSitIn"; seat: number; pid: string }
   | { t: "GameCountdownStart"; countdown: number }
   | { t: "GameCountdownStop"; reason: string };
