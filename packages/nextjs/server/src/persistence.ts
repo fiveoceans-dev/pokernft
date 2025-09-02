@@ -2,7 +2,9 @@ import type { Session } from "./sessionManager";
 import type { Table } from "../game-engine";
 import { logger } from "../game-engine/utils/logger";
 
-type RedisClientType = import("redis").RedisClientType;
+type RedisClientType =
+  | import("redis").RedisClientType
+  | import("redis").RedisClusterType;
 
 let client: RedisClientType | null;
 const memorySessions = new Map<string, Omit<Session, "socket" | "timeout">>();
@@ -16,22 +18,29 @@ async function getClient(): Promise<RedisClientType | null> {
     redisConnectionAttempted = true;
     try {
       const mod = await import("redis");
-      const c = mod.createClient({ url: process.env.REDIS_URL });
-      
+      const url = process.env.REDIS_URL;
+      let c: RedisClientType;
+      if (url && url.includes(",")) {
+        const nodes = url.split(",").map((u) => ({ url: u }));
+        c = (mod as any).createCluster({ rootNodes: nodes });
+      } else {
+        c = mod.createClient({ url });
+      }
+
       // Silence error logging after first attempt
       let errorCount = 0;
-      c.on("error", (err) => {
+      c.on("error", () => {
         errorCount++;
         if (errorCount === 1) {
           logger.warn("📡 Redis connection failed, using in-memory storage");
         }
         // Don't log subsequent Redis errors to avoid spam
       });
-      
-      await c.connect();
+
+      await (c as any).connect();
       logger.info("📡 Redis connected successfully");
-      client = c as any;
-    } catch (err) {
+      client = c;
+    } catch {
       logger.warn("📡 Redis unavailable, using in-memory storage");
       client = null;
     }
