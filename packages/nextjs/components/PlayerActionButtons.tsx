@@ -61,13 +61,14 @@ export default function PlayerActionButtons({
     try {
       await captureAndDownloadScreen();
     } catch (error) {
-      console.error('Failed to capture screen:', error);
+      console.error("Failed to capture screen:", error);
     }
   };
 
   // Show-cards UI state
   const {
     street,
+    phase,
     players,
     playerIds,
     playerStates,
@@ -76,10 +77,28 @@ export default function PlayerActionButtons({
     revealCards,
     autoRevealAtShowdown,
     setAutoRevealAtShowdown,
+    showCards,
+    muckCards,
   } = useGameStore();
 
-  const walletSeat = currentWalletId ? playerIds.findIndex(id => id?.toLowerCase() === currentWalletId.toLowerCase()) : -1;
-  const canShowCards = street === 4 && walletSeat >= 0 && playerStates[walletSeat] !== 'folded' && playerStates[walletSeat] !== 'empty' && !cardsRevealed[walletSeat];
+  const walletSeat = currentWalletId
+    ? playerIds.findIndex(
+        (id) => id?.toLowerCase() === currentWalletId.toLowerCase(),
+      )
+    : -1;
+  // Professional poker card reveal logic
+  const isShowdown = phase === "showdown";
+  const isValidPhase = ["showdown", "payout"].includes(phase || "");
+  const hasValidSeat = walletSeat >= 0;
+  const notFolded = playerStates[walletSeat] !== "folded" && playerStates[walletSeat] !== "empty";
+  const hasCards = hasValidSeat && notFolded;
+  
+  // Show Muck/Show buttons during showdown when player has cards
+  const canRevealCards = isValidPhase && hasCards && !cardsRevealed[walletSeat];
+  const canMuckCards = isValidPhase && hasCards && cardsRevealed[walletSeat];
+  
+  // Legacy show cards button (keep existing logic for compatibility)
+  const canShowCards = street === 4 && hasCards && !cardsRevealed[walletSeat];
 
   return (
     <div
@@ -234,20 +253,45 @@ export default function PlayerActionButtons({
             className="w-8 h-8 flex items-center justify-center rounded font-medium transition-all duration-200 text-black shadow-sm hover:shadow-md transform hover:scale-105 bg-black/40 hover:bg-black/60"
             title="Capture Screenshot"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 15.5c1.93 0 3.5-1.57 3.5-3.5S13.93 8.5 12 8.5 8.5 10.07 8.5 12s1.57 3.5 3.5 3.5zM17.5 9c.28 0 .5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5zM20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M12 15.5c1.93 0 3.5-1.57 3.5-3.5S13.93 8.5 12 8.5 8.5 10.07 8.5 12s1.57 3.5 3.5 3.5zM17.5 9c.28 0 .5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5zM20 4h-3.17L15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" />
             </svg>
           </button>
 
-          {/* Dashed reveal area */}
-          <div className="flex items-center gap-2 px-2 py-1 rounded border border-dashed border-gray-400/60 bg-black/20">
-            <button
-              onClick={() => walletSeat >= 0 && revealCards(walletSeat)}
-              disabled={!canShowCards}
-              className={`px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm ${canShowCards ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-600/50 cursor-not-allowed'}`}
-            >
-              Show Cards
-            </button>
+          {/* Professional Muck/Show Cards area */}
+          <div className="flex items-center gap-2 px-2 py-1 rounded bg-black/20">
+            {/* Show Muck/Show buttons during showdown */}
+            {canRevealCards && (
+              <button
+                onClick={() => showCards()}
+                className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-green-600 hover:bg-green-700"
+              >
+                Show
+              </button>
+            )}
+            {canMuckCards && (
+              <button
+                onClick={() => muckCards()}
+                className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-red-600 hover:bg-red-700"
+              >
+                Muck
+              </button>
+            )}
+            {/* Legacy Show Cards button (fallback for non-showdown situations) */}
+            {canShowCards && !isValidPhase && (
+              <button
+                onClick={() => walletSeat >= 0 && revealCards(walletSeat)}
+                className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-yellow-600 hover:bg-yellow-700"
+              >
+                Show Cards
+              </button>
+            )}
             <label className="flex items-center gap-1 text-[10px] text-white/80 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -284,15 +328,19 @@ export default function PlayerActionButtons({
           </div>
         ) : (
           <div className="opacity-0 pointer-events-none flex items-center gap-1">
-            <div className="min-w-[50px] h-8 px-2 text-xs flex items-center justify-center">2BB</div>
-            <div className="min-w-[50px] h-8 px-2 text-xs flex items-center justify-center">3BB</div>
+            <div className="min-w-[50px] h-8 px-2 text-xs flex items-center justify-center">
+              2BB
+            </div>
+            <div className="min-w-[50px] h-8 px-2 text-xs flex items-center justify-center">
+              3BB
+            </div>
           </div>
         )}
       </div>
 
       {/* Row 3 - Betting Controls (Full width) */}
       <div
-        className={`w-full flex items-center ${isMobile ? 'gap-0.5' : 'gap-1'}`}
+        className={`w-full flex items-center ${isMobile ? "gap-0.5" : "gap-1"}`}
         style={{ minHeight: "32px" }}
       >
         {showActions && canRaise && maxRaise > effectiveMinRaise ? (
@@ -344,42 +392,46 @@ export default function PlayerActionButtons({
               max={maxRaise}
               value={raiseAmount}
               onChange={handleRaiseAmountChange}
-              className={`${isMobile ? 'w-12' : 'w-16'} h-8 px-1 bg-black/40 text-white rounded text-center hover:bg-black/60 transition-colors text-xs flex-shrink-0`}
+              className={`${isMobile ? "w-12" : "w-16"} h-8 px-1 bg-black/40 text-white rounded text-center hover:bg-black/60 transition-colors text-xs flex-shrink-0`}
             />
           </>
         ) : (
-          <div className={`opacity-0 pointer-events-none flex items-center ${isMobile ? 'gap-0.5' : 'gap-1'} w-full`}>
+          <div
+            className={`opacity-0 pointer-events-none flex items-center ${isMobile ? "gap-0.5" : "gap-1"} w-full`}
+          >
             <div className="w-8 h-8">-</div>
             <div className="flex-1 h-2">slider</div>
             <div className="w-8 h-8">+</div>
-            <div className={`${isMobile ? 'w-12' : 'w-16'} h-8 px-1`}>input</div>
+            <div className={`${isMobile ? "w-12" : "w-16"} h-8 px-1`}>
+              input
+            </div>
           </div>
         )}
       </div>
       <style jsx>{`
         /* Custom range slider styling to prevent overflow on small screens */
-        .slider { 
-          -webkit-appearance: none; 
-          appearance: none; 
-          height: 4px; 
-          background: rgba(255,255,255,0.25);
-          border-radius: 6px; 
-          outline: none; 
+        .slider {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 4px;
+          background: rgba(255, 255, 255, 0.25);
+          border-radius: 6px;
+          outline: none;
         }
         .slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 14px; 
-          height: 14px; 
+          width: 14px;
+          height: 14px;
           background: #fbbf24; /* amber-400 */
-          border: 2px solid rgba(0,0,0,0.6);
+          border: 2px solid rgba(0, 0, 0, 0.6);
           border-radius: 9999px;
         }
         .slider::-moz-range-thumb {
-          width: 14px; 
-          height: 14px; 
-          background: #fbbf24; 
-          border: 2px solid rgba(0,0,0,0.6);
+          width: 14px;
+          height: 14px;
+          background: #fbbf24;
+          border: 2px solid rgba(0, 0, 0, 0.6);
           border-radius: 9999px;
         }
         .slider::-webkit-slider-runnable-track {
