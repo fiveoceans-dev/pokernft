@@ -33,7 +33,7 @@ interface GameStoreState {
   players: (string | null)[];
   /** wallet addresses for each seated player */
   playerIds: (string | null)[];
-  playerHands: ([number, number] | null)[];
+  playerHands: ([number, number] | 'encrypted' | null)[];
   community: (number | null)[];
   chips: number[];
   playerBets: number[];
@@ -43,6 +43,8 @@ interface GameStoreState {
   pot: number;
   currentTurn: number | null;
   street: number;
+  /** current phase of the game */
+  phase: string | null;
   loading: boolean;
   error: string | null;
   logs: string[];
@@ -104,9 +106,24 @@ interface GameStoreState {
   resetCardReveals: () => void;
   markWinner: (seatIndex: number) => void;
   clearWinners: () => void;
+  showCards: () => Promise<void>;
+  muckCards: () => Promise<void>;
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => {
+  // Helper function to determine if a player should have cards dealt
+  function shouldHaveCards(seat: any, phase: string): boolean {
+    // Player should have cards if:
+    // 1. They are active (not folded, not sitting out)
+    // 2. Game has progressed past initial setup (preflop or later)
+    // 3. They haven't left the table
+    const hasValidStatus = seat.status && !["empty", "sittingOut"].includes(seat.status);
+    const gameStarted = ["preflop", "flop", "turn", "river", "showdown"].includes(phase);
+    const notFolded = seat.status !== "folded";
+    
+    return hasValidStatus && gameStarted && notFolded;
+  }
+
   function applySnapshot(room: any) {
     console.log("📸 Applying TABLE_SNAPSHOT:", {
       seatsCount: room.seats?.length || 0,
@@ -116,11 +133,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     // Start with completely fresh arrays to ensure proper cleanup
     const seats = Array(9).fill(null) as (string | null)[];
     const ids = Array(9).fill(null) as (string | null)[];
-    const hands = Array(9).fill(null) as ([number, number] | null)[];
+    const hands = Array(9).fill(null) as ([number, number] | 'encrypted' | null)[];
     const chips = Array(9).fill(0) as number[];
     const bets = Array(9).fill(0) as number[];
     const states = Array(9).fill("empty") as SeatUIState[];
     const labels = Array(9).fill(null) as (string | null)[];
+    
+    // Get current state to preserve player's own cards
+    const currentState = get();
+    const currentWalletId = currentState.currentWalletId;
 
     // Populate only seats that have active players
     // Handle both new EventEngine format (seats array) and legacy format (players array)
@@ -131,8 +152,21 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           seats[index] = seat.nickname || seat.pid;
           ids[index] = seat.pid;
 
+          // Handle card display logic:
+          // - If holeCards exist and have 2 cards: show real cards
+          // - If holeCards undefined but player should have cards: use 'encrypted' marker for card backs
+          // - For player's own seat: preserve cards even when folded
           if (seat.holeCards?.length === 2) {
             hands[index] = [seat.holeCards[0], seat.holeCards[1]];
+          } else if (shouldHaveCards(seat, room.phase)) {
+            // Player should have cards but holeCards undefined (server sanitized them)
+            // Use 'encrypted' marker to trigger card back display
+            hands[index] = 'encrypted' as any;
+          } else if (seat.pid === currentWalletId && currentState.playerHands[index] && 
+                     Array.isArray(currentState.playerHands[index]) &&
+                     ["preflop", "flop", "turn", "river", "showdown", "payout"].includes(room.phase)) {
+            // Preserve player's own cards throughout the hand, even when folded
+            hands[index] = currentState.playerHands[index];
           }
 
           chips[index] = seat.chips ?? 0;
@@ -242,6 +276,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         return null;
       })(),
       street: phaseToStreet[room.phase] ?? 0,
+      phase: room.phase ?? null,
       loading: false,
       error: null,
       smallBlind: room.smallBlind ?? get().smallBlind,
@@ -939,6 +974,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     pot: 0,
     currentTurn: null,
     street: 0,
+    phase: null,
     loading: false,
     error: null,
     logs: [],
@@ -1394,6 +1430,36 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
     clearWinners: () => {
       set({ recentWinners: new Set<number>() });
+    },
+    showCards: async () => {
+      const socket = get().socket;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.error("❌ Cannot show cards: WebSocket not connected");
+        return;
+      }
+      
+      const cmd: ClientCommand = {
+        cmdId: crypto.randomUUID(),
+        type: "SHOW_CARDS",
+      } as any;
+      
+      socket.send(JSON.stringify(cmd));
+      console.log("🃏 [useGameStore] Sent SHOW_CARDS command");
+    },
+    muckCards: async () => {
+      const socket = get().socket;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.error("❌ Cannot muck cards: WebSocket not connected");
+        return;
+      }
+      
+      const cmd: ClientCommand = {
+        cmdId: crypto.randomUUID(),
+        type: "MUCK_CARDS",
+      } as any;
+      
+      socket.send(JSON.stringify(cmd));
+      console.log("🃏 [useGameStore] Sent MUCK_CARDS command");
     },
   };
 });

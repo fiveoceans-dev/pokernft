@@ -105,19 +105,26 @@ class WebSocketFSMBridge extends EventEmitter {
       try {
         const table = this.getTableState(tableId);
         logger.debug(`🔍 [SeatResolve] FSM table seats:`, table.seats.map(s => ({ id: s.id, pid: s.pid })));
+        logger.debug(`🔍 [SeatResolve] Looking for canonicalId: ${canonicalId}`);
         
-        const foundSeat = table.seats.find(s => 
-          s.pid && this.normalizePlayerId(s.pid) === canonicalId
-        );
-        
-        if (foundSeat) {
-          // Repair the mapping
-          globalSeatMappings.setSeatMapping(tableId, canonicalId, foundSeat.id);
-          logger.warn(`🔧 [Identity] Recovered seat mapping: ${canonicalId} -> seat ${foundSeat.id}`);
-          return foundSeat.id;
-        } else {
-          logger.error(`❌ [Recovery] Player ${canonicalId} not found in FSM table state`);
+        // Search through seats by index since FSM uses array-based seats
+        for (let i = 0; i < table.seats.length; i++) {
+          const seat = table.seats[i];
+          if (seat?.pid) {
+            const normalizedSeatPid = this.normalizePlayerId(seat.pid);
+            logger.debug(`🔍 [SeatResolve] Comparing seat ${i}: "${normalizedSeatPid}" vs "${canonicalId}"`);
+            
+            if (normalizedSeatPid === canonicalId) {
+              // Repair the mapping
+              globalSeatMappings.setSeatMapping(tableId, canonicalId, i);
+              logger.warn(`🔧 [Recovery] Recovered seat mapping: ${canonicalId} -> seat ${i}`);
+              return i;
+            }
+          }
         }
+        
+        // Player not found in FSM
+        logger.error(`❌ [Recovery] Player ${canonicalId} not found in FSM table state`);
       } catch (error) {
         logger.error(`❌ [Identity] Failed to recover seat mapping for ${canonicalId}:`, error);
       }
@@ -369,6 +376,14 @@ class WebSocketFSMBridge extends EventEmitter {
           await this.handleSitInCommand(session);
           break;
 
+        case "SHOW_CARDS":
+          await this.handleShowCardsCommand(session);
+          break;
+
+        case "MUCK_CARDS":
+          await this.handleMuckCardsCommand(session);
+          break;
+
         default:
           this.emit('error', session.roomId || "", {
             type: "ERROR",
@@ -581,7 +596,7 @@ class WebSocketFSMBridge extends EventEmitter {
   }
 
   /**
-   * Handle sit out via SitOutManager integration
+   * Handle sit out via SitOutManager integration with auto-fold
    */
   private async handleSitOutCommand(session: Session): Promise<void> {
     if (!session.roomId || session.seat === undefined) return;
@@ -594,7 +609,26 @@ class WebSocketFSMBridge extends EventEmitter {
       return;
     }
 
-    // Dispatch PlayerSitOut event to FSM (authoritative path)
+    // Professional poker: Auto-fold if player has active hand (following handleLeaveCommand pattern)
+    const tableState = engine.getState();
+    const seat = tableState.seats[session.seat];
+    
+    // Check if player needs to fold (has cards or is current actor)
+    const needsFold = (seat?.holeCards && seat.holeCards.length > 0) || 
+                      tableState.actor === session.seat;
+    
+    if (needsFold && ["preflop", "flop", "turn", "river"].includes(tableState.phase)) {
+      logger.info(`😴 [WebSocket] Auto-folding ${canonicalId} before sitting out (has active hand)`);
+      
+      // Auto-fold first using existing Action event pattern
+      await engine.dispatch({
+        t: "Action",
+        seat: session.seat,
+        action: "FOLD"
+      });
+    }
+
+    // Then dispatch PlayerSitOut event to FSM (authoritative path)
     await engine.dispatch({
       t: "PlayerSitOut",
       seat: session.seat,
@@ -626,6 +660,66 @@ class WebSocketFSMBridge extends EventEmitter {
       pid: canonicalId
     });
     // No direct broadcast; rely on engine's stateChanged snapshots
+  }
+
+  /**
+   * Handle SHOW_CARDS command - reveal player's cards during showdown
+   */
+  private async handleShowCardsCommand(session: Session): Promise<void> {
+    if (!session.roomId || session.seat === undefined) return;
+    
+    const canonicalId = await this.getCanonicalId(session);
+    const engine = this.engines.get(session.roomId);
+    
+    if (!engine) {
+      console.error(`❌ [WebSocket] No engine found for table ${session.roomId}`);
+      return;
+    }
+
+    // Get current table state to validate showdown context
+    const tableState = engine.getState();
+    const isShowdown = tableState.phase === "showdown";
+    const isValidPhase = ["showdown", "payout"].includes(tableState.phase);
+
+    if (!isValidPhase) {
+      logger.warn(`⚠️ [SHOW_CARDS] Invalid phase for showing cards: ${tableState.phase}`);
+      return;
+    }
+
+    logger.info(`🃏 [SHOW_CARDS] Player ${canonicalId} revealing cards at seat ${session.seat}`);
+    
+    // Update cardsRevealed state - this will be broadcast via stateChanged
+    // For now, we'll handle this through the client-side store
+    // TODO: Add server-side card reveal tracking if needed
+  }
+
+  /**
+   * Handle MUCK_CARDS command - hide player's cards during showdown
+   */
+  private async handleMuckCardsCommand(session: Session): Promise<void> {
+    if (!session.roomId || session.seat === undefined) return;
+    
+    const canonicalId = await this.getCanonicalId(session);
+    const engine = this.engines.get(session.roomId);
+    
+    if (!engine) {
+      console.error(`❌ [WebSocket] No engine found for table ${session.roomId}`);
+      return;
+    }
+
+    // Get current table state to validate showdown context
+    const tableState = engine.getState();
+    const isValidPhase = ["showdown", "payout"].includes(tableState.phase);
+
+    if (!isValidPhase) {
+      logger.warn(`⚠️ [MUCK_CARDS] Invalid phase for mucking cards: ${tableState.phase}`);
+      return;
+    }
+
+    logger.info(`🃏 [MUCK_CARDS] Player ${canonicalId} mucking cards at seat ${session.seat}`);
+    
+    // Cards remain hidden - no action needed as server already sanitizes them
+    // Client will handle the muck state
   }
 
   /**

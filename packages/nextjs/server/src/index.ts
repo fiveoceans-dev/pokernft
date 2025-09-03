@@ -26,6 +26,7 @@ import { SessionManager, Session } from "./sessionManager";
 import { WebSocketFSMBridge } from "./pokerWebSocketServer";
 import { logger } from "../game-engine/utils/logger";
 import { TABLES } from "./tableConfig";
+import { globalSeatMappings } from "./seatMappingManager";
 import {
   saveSession,
   saveRoom,
@@ -196,6 +197,29 @@ wss.on("connection", (ws: WebSocket) => {
           
           try {
             const table = bridge.getTableState(command.tableId);
+            
+            // Proactively restore seat mapping on rejoin to prevent action failures
+            if (session.userId) {
+              const normalizedId = session.userId.toLowerCase().trim();
+              logger.debug(`🔧 [JOIN_TABLE] Attempting seat mapping recovery for ${normalizedId}`);
+              
+              // Check if player exists in FSM table state but not in seat mappings
+              for (let i = 0; i < table.seats.length; i++) {
+                const seat = table.seats[i];
+                if (seat?.pid && seat.pid.toLowerCase().trim() === normalizedId) {
+                  // Found player in FSM - restore their seat mapping
+                  const existingMapping = globalSeatMappings.findSeat(command.tableId, normalizedId);
+                  if (existingMapping === undefined) {
+                    globalSeatMappings.setSeatMapping(command.tableId, normalizedId, i);
+                    logger.info(`🔧 [JOIN_TABLE] Restored seat mapping: ${normalizedId} -> seat ${i}`);
+                  } else {
+                    logger.debug(`ℹ️ [JOIN_TABLE] Seat mapping already exists: ${normalizedId} -> seat ${existingMapping}`);
+                  }
+                  break;
+                }
+              }
+            }
+            
             ws.send(JSON.stringify({
               tableId: command.tableId,
               type: "TABLE_SNAPSHOT",

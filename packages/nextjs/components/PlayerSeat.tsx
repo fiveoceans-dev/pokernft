@@ -11,7 +11,7 @@ interface PlayerSeatProps {
     name: string;
     address: string;
     chips: number;
-    hand: [TCard, TCard] | null;
+    hand: [TCard, TCard] | 'encrypted' | null;
     folded: boolean;
     currentBet: number;
   }; // player object from your Zustand store
@@ -36,11 +36,14 @@ export default function PlayerSeat({
   isWinner = false,
   actionLabel,
 }: PlayerSeatProps) {
-  // If `player.hand` is null, we still may show card backs for opponents
-  const [hole1, hole2]: [TCard | null, TCard | null] = player.hand ?? [
-    null,
-    null,
-  ];
+  // Handle different card states:
+  // - 'encrypted': Player has cards but they're hidden (show card backs)
+  // - [TCard, TCard]: Real cards (show faces if revealCards=true, otherwise backs)
+  // - null: No cards (don't render anything)
+  const hasEncryptedCards = player.hand === 'encrypted';
+  const [hole1, hole2]: [TCard | null, TCard | null] = hasEncryptedCards 
+    ? [null, null] 
+    : (Array.isArray(player.hand) ? player.hand : [null, null]);
 
   const isPlaceholderAddress = (addr: string) =>
     addr.toLowerCase() === "white" || /^0x0{40}$/.test(addr);
@@ -54,15 +57,15 @@ export default function PlayerSeat({
   return (
     <div className={clsx("relative w-24 h-8", player.folded && "opacity-60")}>
       {/* Hole cards/back-of-cards display */}
-      {/* Render if cards dealt - show backs for opponents, faces when revealed */}
-      {player.hand && (
+      {/* Render if player has cards (encrypted or real) */}
+      {(player.hand && player.hand !== null) && (
         <div
           className="absolute w-full flex justify-center gap-1"
           style={{ bottom: "150%", marginBottom: "0.5rem" }}
         >
-          {/* Show faces only when revealCards is true; otherwise render backs */}
-          <Card card={hole1} hidden={!revealCards} size={cardSize} />
-          <Card card={hole2} hidden={!revealCards} size={cardSize} />
+          {/* Show faces only when revealCards is true and cards aren't encrypted */}
+          <Card card={hole1} hidden={!revealCards || hasEncryptedCards} size={cardSize} />
+          <Card card={hole2} hidden={!revealCards || hasEncryptedCards} size={cardSize} />
         </div>
       )}
 

@@ -68,6 +68,7 @@ export default function PlayerActionButtons({
   // Show-cards UI state
   const {
     street,
+    phase,
     players,
     playerIds,
     playerStates,
@@ -76,6 +77,8 @@ export default function PlayerActionButtons({
     revealCards,
     autoRevealAtShowdown,
     setAutoRevealAtShowdown,
+    showCards,
+    muckCards,
   } = useGameStore();
 
   const walletSeat = currentWalletId
@@ -83,12 +86,19 @@ export default function PlayerActionButtons({
         (id) => id?.toLowerCase() === currentWalletId.toLowerCase(),
       )
     : -1;
-  const canShowCards =
-    street === 4 &&
-    walletSeat >= 0 &&
-    playerStates[walletSeat] !== "folded" &&
-    playerStates[walletSeat] !== "empty" &&
-    !cardsRevealed[walletSeat];
+  // Professional poker card reveal logic
+  const isShowdown = phase === "showdown";
+  const isValidPhase = ["showdown", "payout"].includes(phase || "");
+  const hasValidSeat = walletSeat >= 0;
+  const notFolded = playerStates[walletSeat] !== "folded" && playerStates[walletSeat] !== "empty";
+  const hasCards = hasValidSeat && notFolded;
+  
+  // Show Muck/Show buttons during showdown when player has cards
+  const canRevealCards = isValidPhase && hasCards && !cardsRevealed[walletSeat];
+  const canMuckCards = isValidPhase && hasCards && cardsRevealed[walletSeat];
+  
+  // Legacy show cards button (keep existing logic for compatibility)
+  const canShowCards = street === 4 && hasCards && !cardsRevealed[walletSeat];
 
   return (
     <div
@@ -254,9 +264,27 @@ export default function PlayerActionButtons({
             </svg>
           </button>
 
-          {/* Reveal area */}
+          {/* Professional Muck/Show Cards area */}
           <div className="flex items-center gap-2 px-2 py-1 rounded bg-black/20">
-            {canShowCards && (
+            {/* Show Muck/Show buttons during showdown */}
+            {canRevealCards && (
+              <button
+                onClick={() => showCards()}
+                className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-green-600 hover:bg-green-700"
+              >
+                Show
+              </button>
+            )}
+            {canMuckCards && (
+              <button
+                onClick={() => muckCards()}
+                className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-red-600 hover:bg-red-700"
+              >
+                Muck
+              </button>
+            )}
+            {/* Legacy Show Cards button (fallback for non-showdown situations) */}
+            {canShowCards && !isValidPhase && (
               <button
                 onClick={() => walletSeat >= 0 && revealCards(walletSeat)}
                 className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-yellow-600 hover:bg-yellow-700"

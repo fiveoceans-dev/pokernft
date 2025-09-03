@@ -98,4 +98,6 @@ export type ClientCommand =
       amount?: number;
       playerId?: string; // Optional player ID for identity consistency
     }
-  | { cmdId: string; type: "REBUY"; amount: number };
+  | { cmdId: string; type: "REBUY"; amount: number }
+  | { cmdId: string; type: "SHOW_CARDS" }
+  | { cmdId: string; type: "MUCK_CARDS" };

@@ -391,28 +391,29 @@ export default function Table({ timer }: { timer?: number | null }) {
     <div className="relative flex flex-col items-center justify-center w-full h-full">
       {/* Client-driven countdown display with priority handling */}
       {countdownInfo.timeLeft !== null && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 translate-y-10 text-3xl font-mono text-white bg-black/50 px-3 py-1 rounded z-50">
-          <div className="text-center">
-            <div className="text-3xl">
-              {countdownInfo.timeLeft.toString().padStart(2, "0")}
-            </div>
-            {countdownInfo.activeType && (
-              <div className="text-xs opacity-75 mt-1">
-                {countdownInfo.activeType === "game_start" && "Game Starting"}
-                {countdownInfo.activeType === "action" && "Action Timer"}
-                {countdownInfo.activeType === "street_deal" && "Dealing Cards"}
-                {countdownInfo.activeType === "new_hand" && "New Hand"}
-                {countdownInfo.activeType === "reconnect" && "Reconnecting"}
-              </div>
-            )}
-          </div>
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white bg-black/70 px-4 py-2 rounded-lg z-50">
+          {countdownInfo.activeType && (
+            <span className="text-sm font-medium">
+              {countdownInfo.activeType === "game_start" && "Game Starting"}
+              {countdownInfo.activeType === "action" && "Action Timer"}
+              {countdownInfo.activeType === "street_deal" && "Dealing Cards"}
+              {countdownInfo.activeType === "new_hand" && "New Hand"}
+              {countdownInfo.activeType === "reconnect" && "Reconnecting"}
+            </span>
+          )}
+          <span className="text-2xl font-mono font-bold">
+            {countdownInfo.timeLeft.toString().padStart(2, "0")}
+          </span>
         </div>
       )}
 
       {/* Legacy timer fallback for compatibility */}
       {countdownInfo.timeLeft === null && displayTimer !== null && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 translate-y-10 text-3xl font-mono text-white bg-black/50 px-3 py-1 rounded z-50">
-          {displayTimer.toString().padStart(2, "0")}
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white bg-black/70 px-4 py-2 rounded-lg z-50">
+          <span className="text-sm font-medium">Timer</span>
+          <span className="text-2xl font-mono font-bold">
+            {displayTimer.toString().padStart(2, "0")}
+          </span>
         </div>
       )}
 
