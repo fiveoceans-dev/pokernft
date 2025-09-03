@@ -399,9 +399,63 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               break;
             case "PLAYER_DISCONNECTED":
               set((s) => {
-                const arr = [...s.playerStates];
-                arr[msg.seat] = "empty";
-                return { playerStates: arr };
+                const names = [...s.players];
+                const ids = [...s.playerIds];
+                const states = [...s.playerStates];
+                const chips = [...s.chips];
+                const bets = [...s.playerBets];
+                const hands = [...s.playerHands];
+                const labels = [...s.lastActionLabels];
+                const revealed = [...s.cardsRevealed];
+                const winners = new Set(s.recentWinners);
+
+                names[msg.seat] = null;
+                ids[msg.seat] = null;
+                states[msg.seat] = "empty";
+                chips[msg.seat] = 0;
+                bets[msg.seat] = 0;
+                hands[msg.seat] = null;
+                labels[msg.seat] = null;
+                revealed[msg.seat] = false;
+                winners.delete(msg.seat);
+
+                const dealerIndex =
+                  s.dealerIndex === msg.seat ? null : s.dealerIndex;
+                const currentTurn =
+                  s.currentTurn === msg.seat ? null : s.currentTurn;
+
+                if (msg.playerId === s.currentWalletId) {
+                  const newTableSeats = new Map(s.tableSeats);
+                  newTableSeats.delete(msg.tableId || s.tableId || "");
+                  return {
+                    players: names,
+                    playerIds: ids,
+                    playerStates: states,
+                    chips,
+                    playerBets: bets,
+                    playerHands: hands,
+                    lastActionLabels: labels,
+                    cardsRevealed: revealed,
+                    recentWinners: winners,
+                    dealerIndex,
+                    currentTurn,
+                    tableSeats: newTableSeats,
+                  };
+                }
+
+                return {
+                  players: names,
+                  playerIds: ids,
+                  playerStates: states,
+                  chips,
+                  playerBets: bets,
+                  playerHands: hands,
+                  lastActionLabels: labels,
+                  cardsRevealed: revealed,
+                  recentWinners: winners,
+                  dealerIndex,
+                  currentTurn,
+                };
               });
               get().addLog(`${shortAddress(msg.playerId)} disconnected`);
               break;
@@ -514,6 +568,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               });
               break;
             }
+            case "DEAL_HOLE":
+              set((s) => {
+                const hands = [...s.playerHands];
+                hands[msg.seat] = msg.cards as [number, number];
+                return { playerHands: hands };
+              });
+              break;
             case "DEAL_FLOP":
               set((s) => {
                 const comm = [...s.community];
@@ -556,6 +617,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 actionHistory: [],
                 lastActionLabels: Array(9).fill(null),
                 playerBets: Array(9).fill(0),
+                playerHands: Array(9).fill(null),
+                community: Array(5).fill(null),
               });
               break;
             case "HAND_END":
