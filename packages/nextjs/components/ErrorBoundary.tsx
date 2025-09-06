@@ -20,28 +20,28 @@ export class ErrorBoundary extends Component<Props, State> {
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: unknown): State {
     // Update state so the next render will show the fallback UI
-    return { hasError: true, error, errorInfo: null };
+    const err = error instanceof Error ? error : new Error(String(error));
+    return { hasError: true, error: err, errorInfo: null };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
+    // Normalize the error
+    const err = error instanceof Error ? error : new Error(String(error));
+
     // Log error details
-    console.error('🚫 React Error Boundary caught an error:', {
-      error: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack,
-    });
+    console.error("🚫 React Error Boundary caught an error:", err, errorInfo);
 
     // Update state with error info
     this.setState({
-      error,
+      error: err,
       errorInfo,
     });
 
     // Call optional error handler
     if (this.props.onError) {
-      this.props.onError(error, errorInfo);
+      this.props.onError(err, errorInfo);
     }
   }
 
@@ -64,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
             ⚠️ Something went wrong
           </div>
           <div className="text-red-300 text-sm mb-4 text-center max-w-md">
-            {this.state.error?.message || 'An unexpected error occurred'}
+            {this.state.error?.message || "An unexpected error occurred"}
           </div>
           <div className="flex gap-3">
             <button
@@ -80,14 +80,14 @@ export class ErrorBoundary extends Component<Props, State> {
               Refresh Page
             </button>
           </div>
-          {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
+          {process.env.NODE_ENV === "development" && this.state.errorInfo && (
             <details className="mt-4 text-xs text-gray-400 max-w-full overflow-auto">
               <summary className="cursor-pointer hover:text-gray-300">
                 Show Error Details (Development)
               </summary>
               <pre className="mt-2 p-3 bg-black/20 rounded text-left whitespace-pre-wrap">
                 {this.state.error?.stack}
-                {'\n\nComponent Stack:'}
+                {"\n\nComponent Stack:"}
                 {this.state.errorInfo.componentStack}
               </pre>
             </details>
@@ -104,15 +104,15 @@ export class ErrorBoundary extends Component<Props, State> {
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   fallback?: ReactNode,
-  onError?: (error: Error, errorInfo: ErrorInfo) => void
+  onError?: (error: Error, errorInfo: ErrorInfo) => void,
 ) {
   const WrappedComponent = (props: P) => (
     <ErrorBoundary fallback={fallback} onError={onError}>
       <Component {...props} />
     </ErrorBoundary>
   );
-  
+
   WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
-  
+
   return WrappedComponent;
 }
