@@ -13,6 +13,7 @@ import { useWalletGameSync } from "../../hooks/useWalletGameSync";
 import { useTableViewModel } from "../../hooks/useTableViewModel";
 import { usePlayViewModel } from "../../hooks/usePlayViewModel";
 import useIsMobile from "../../hooks/useIsMobile";
+import useGameEvents from "../../hooks/useGameEvents";
 
 // TODO: display connected address and handle signature (Action Plan 1.3)
 
@@ -41,6 +42,8 @@ export default function PlayPage() {
   const isMobile = useIsMobile();
   const [tableScale, setTableScale] = useState(1);
   const [uiScale, setUiScale] = useState(1);
+
+  useGameEvents();
 
   // Check if current player is sitting out based on game state
   const mySeatIndex = playerIds.findIndex((id) => id === currentWalletId);

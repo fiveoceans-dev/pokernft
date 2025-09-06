@@ -12,6 +12,7 @@ import { useWalletGameSync } from "../hooks/useWalletGameSync";
 import { PotDisplayBubbles } from "./PotDisplayBubbles";
 import useIsMobile from "../hooks/useIsMobile";
 import { useCountdownWithPriority } from "../hooks/useCountdown";
+import { seatStore } from "../stores/seatStore";
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -58,6 +59,7 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   // Use new client-driven countdown system
   const countdownInfo = useCountdownWithPriority(gameStore.countdowns);
+  const seats = seatStore((state) => state.seats);
 
   // Debug logging for player data
   console.log("🎲 Table component debug:", {
@@ -184,12 +186,7 @@ export default function Table({ timer }: { timer?: number | null }) {
 
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
-    let nickname = players[idx] ?? "";
-    const addr = playerIds[idx];
-    // If we have a wallet address, show shortened version for display
-    if (nickname && /^0x[a-fA-F0-9]{40,}$/.test(nickname)) {
-      nickname = `${nickname.slice(0, 6)}...${nickname.slice(-4)}`;
-    }
+    const seat = seats.get(idx);
     const handCodes = playerHands[idx];
     const pos = layout[idx];
     if (!pos) return null;
@@ -206,7 +203,7 @@ export default function Table({ timer }: { timer?: number | null }) {
       y: (dealerPosition.y - parseFloat(pos.y)) * (baseH / 100),
     };
     /* ── empty seat → button ─────────────────────────────── */
-    if (!nickname) {
+    if (!seat) {
       const badge = (
         <span
           className="absolute -top-5 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full
@@ -236,15 +233,8 @@ export default function Table({ timer }: { timer?: number | null }) {
       ? [hashIdToCard(handCodes[0]), hashIdToCard(handCodes[1])]
       : null;
     const state = playerStates[idx];
-    // TODO: visually mark auto-folded players (Action Plan 1.2)
-    const player = {
-      name: nickname,
-      address: addr ?? "",
-      chips: chips[idx] ?? 0,
-      hand,
-      folded: state === "folded",
-      currentBet: playerBets[idx] ?? 0,
-    };
+    const playerChips = chips[idx] ?? 0;
+    const betAmount = playerBets[idx] ?? 0;
     const isDealer = idx === dealerIndex;
     const isActive = idx === currentTurn;
     const isWinner = recentWinners.has(idx);
@@ -262,8 +252,8 @@ export default function Table({ timer }: { timer?: number | null }) {
                   bg-black/60 text-white text-xs flex items-center justify-center
                   font-mono tabular-nums whitespace-nowrap pointer-events-none"
       >
-        {/* show bet if you prefer: `$${player.currentBet}` */}
-        {`$${player.chips.toLocaleString()}`}
+        {/* show bet if you prefer: `$${betAmount}` */}
+        {`$${playerChips.toLocaleString()}`}
       </span>
     );
 
@@ -274,7 +264,6 @@ export default function Table({ timer }: { timer?: number | null }) {
       top: `${chipPosition.y}%`,
       transform: "translate(-50%, -50%)",
     } as CSSProperties;
-    const betAmount = player.currentBet ?? 0;
     // Color-code bet chip based on size relative to big blind for consistency across stakes
     const getBetChipColor = (amt: number, bb: number | undefined) => {
       const base = Math.max(1, bb || 1);
@@ -314,15 +303,16 @@ export default function Table({ timer }: { timer?: number | null }) {
             {badge}
             <div style={{ transform: `rotate(${pos.r}deg)` }}>
               <PlayerSeat
-                player={player}
+                seat={seat}
+                status={state}
                 isDealer={isDealer}
                 isActive={isActive}
                 revealCards={reveal}
                 cardSize={holeCardSize}
                 dealerOffset={dealerOffset}
-                state={state}
                 isWinner={isWinner}
                 actionLabel={lastActionLabels[idx] || undefined}
+                hand={hand}
               />
             </div>
           </div>
