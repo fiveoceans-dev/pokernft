@@ -36,6 +36,8 @@ interface GameStoreState {
   chips: number[];
   playerBets: number[];
   playerStates: SeatUIState[];
+  players: (string | null)[];
+  playerIds: (string | null)[];
   /** which seat is the dealer */
   dealerIndex: number | null;
   pot: number;
@@ -224,6 +226,23 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           );
         }
       });
+    } else if (room.players && Array.isArray(room.players)) {
+      // Legacy format
+      room.players.forEach((p: any) => {
+        if (p.seat === undefined) return;
+        const idx = p.seat;
+        const currentName = currentState.players[idx];
+        const newName = p.nickname || p.name || p.playerId;
+        seats[idx] = newName || currentName || p.playerId;
+        ids[idx] = p.playerId;
+
+        if (p.cards?.length === 2) {
+          hands[idx] = [p.cards[0], p.cards[1]];
+        }
+        chips[idx] = p.chips ?? 0;
+        bets[idx] = p.bet ?? 0;
+        states[idx] = (p.state || "empty") as SeatUIState;
+      });
     } else {
       // No valid format found - initialize with empty state
       console.warn("⚠️ No valid room format found, using empty state");
@@ -265,6 +284,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       chips,
       playerBets: bets,
       playerStates: states,
+      players: seats,
+      playerIds: ids,
       lastActionLabels: labels,
       dealerIndex: room.dealerIndex ?? null,
       pot,
@@ -359,12 +380,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 const chips = [...s.chips];
                 const bets = [...s.playerBets];
                 const hands = [...s.playerHands];
+                const names = [...s.players];
+                const ids = [...s.playerIds];
 
                 // Clear all data for the leaving player's seat
                 states[msg.seat] = "empty";
                 chips[msg.seat] = 0;
                 bets[msg.seat] = 0;
                 hands[msg.seat] = null;
+                names[msg.seat] = null;
+                ids[msg.seat] = null;
 
                 console.log(
                   `🚪 Player left seat ${msg.seat}, cleared all seat data`,
@@ -379,6 +404,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                     chips,
                     playerBets: bets,
                     playerHands: hands,
+                    players: names,
+                    playerIds: ids,
                     tableSeats: newTableSeats,
                   };
                 }
@@ -388,6 +415,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   chips,
                   playerBets: bets,
                   playerHands: hands,
+                  players: names,
+                  playerIds: ids,
                 };
               });
               get().addLog(`${shortAddress(msg.playerId)} left`);
@@ -437,6 +466,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 const labels = [...s.lastActionLabels];
                 const revealed = [...s.cardsRevealed];
                 const winners = new Set(s.recentWinners);
+                const names = [...s.players];
+                const ids = [...s.playerIds];
 
                 states[msg.seat] = "empty";
                 chips[msg.seat] = 0;
@@ -444,6 +475,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 hands[msg.seat] = null;
                 labels[msg.seat] = null;
                 revealed[msg.seat] = false;
+                names[msg.seat] = null;
+                ids[msg.seat] = null;
                 winners.delete(msg.seat);
 
                 const dealerIndex =
@@ -464,6 +497,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                     recentWinners: winners,
                     dealerIndex,
                     currentTurn,
+                    players: names,
+                    playerIds: ids,
                     tableSeats: newTableSeats,
                   };
                 }
@@ -478,6 +513,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                   recentWinners: winners,
                   dealerIndex,
                   currentTurn,
+                  players: names,
+                  playerIds: ids,
                 };
               });
               get().addLog(`${shortAddress(msg.playerId)} disconnected`);
@@ -696,6 +733,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 chips: Array(9).fill(0),
                 playerBets: Array(9).fill(0),
                 playerStates: Array(9).fill("empty") as SeatUIState[],
+                players: Array(9).fill(null),
+                playerIds: Array(9).fill(null),
                 dealerIndex: null,
                 pot: 0,
                 currentTurn: null,
@@ -939,6 +978,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     chips: Array(9).fill(0),
     playerBets: Array(9).fill(0),
     playerStates: Array(9).fill("empty") as SeatUIState[],
+    players: Array(9).fill(null),
+    playerIds: Array(9).fill(null),
     dealerIndex: null,
     pot: 0,
     currentTurn: null,
@@ -1029,6 +1070,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               chips: Array(9).fill(0),
               playerBets: Array(9).fill(0),
               playerStates: Array(9).fill("empty") as SeatUIState[],
+              players: Array(9).fill(null),
+              playerIds: Array(9).fill(null),
             });
 
             if (typeof window !== "undefined") {
@@ -1158,6 +1201,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         chips: Array(9).fill(0),
         playerBets: Array(9).fill(0),
         playerStates: Array(9).fill("empty") as SeatUIState[],
+        players: Array(9).fill(null),
+        playerIds: Array(9).fill(null),
         currentTurn: null,
         pot: 0,
       });
@@ -1280,8 +1325,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           const idx = seatStore.getState().findSeatId(s.currentWalletId);
           if (idx === undefined) return {};
           const states = [...s.playerStates];
+          const names = [...s.players];
+          const ids = [...s.playerIds];
           states[idx] = "empty";
-          return { playerStates: states };
+          names[idx] = null;
+          ids[idx] = null;
+          return { playerStates: states, players: names, playerIds: ids };
         });
       }
     },
