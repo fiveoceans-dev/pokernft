@@ -882,9 +882,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         }
       };
 
-      socket.onerror = (error) => {
+      socket.onerror = (event: Event) => {
         clearTimeout(connectionTimeout);
-        console.error("🚫 WebSocket error:", error);
+        const details = event instanceof ErrorEvent ? event.message : "";
+        console.error("🚫 WebSocket error event:", event.type, details);
         set({
           connectionState: "disconnected",
           connectionError: "Connection error",
