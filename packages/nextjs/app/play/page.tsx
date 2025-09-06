@@ -28,8 +28,6 @@ export default function PlayPage() {
     playerAction,
     connectionState,
     playerStates,
-    currentWalletId,
-    playerIds,
     currentTurn,
     chips,
     playerBets,
@@ -46,7 +44,7 @@ export default function PlayPage() {
   useGameEvents();
 
   // Check if current player is sitting out based on game state
-  const mySeatIndex = playerIds.findIndex((id) => id === currentWalletId);
+  const mySeatIndex = walletSeatIdx;
   const isSittingOut =
     mySeatIndex >= 0 && playerStates[mySeatIndex] === "sittingOut";
 
