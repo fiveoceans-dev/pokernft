@@ -602,7 +602,7 @@ class WebSocketFSMBridge extends EventEmitter {
         seat: command.seat,
         pid: canonicalId,
         chips: buyInChips,
-        nickname: this.shortAddress(canonicalId),
+        nickname: command.nickname || this.shortAddress(canonicalId),
       });
 
       // Update session state

@@ -162,8 +162,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (seat.pid) {
           // Always ensure we have a display name - preserve existing name if new snapshot doesn't provide one
           const currentName = currentState.players[index];
-          const newName = seat.nickname || seat.pid;
-          seats[index] = newName || currentName || seat.pid;
+          seats[index] = seat.nickname || currentName || shortAddress(seat.pid);
           ids[index] = seat.pid;
 
           // Handle card display logic:
@@ -232,8 +231,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (p.seat === undefined) return;
         const idx = p.seat;
         const currentName = currentState.players[idx];
-        const newName = p.nickname || p.name || p.playerId;
-        seats[idx] = newName || currentName || p.playerId;
+        seats[idx] = p.nickname || p.name || currentName || shortAddress(p.playerId);
         ids[idx] = p.playerId;
 
         if (p.cards?.length === 2) {
