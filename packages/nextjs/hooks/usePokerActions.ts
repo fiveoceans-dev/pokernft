@@ -31,9 +31,13 @@ export function usePokerActions() {
     }
 
     // Defensive checks for array integrity
-    const safePlayerIds = Array.isArray(playerIds) ? playerIds : [];
-    const safePlayerBets = Array.isArray(playerBets) ? playerBets : [];
-    const safeChips = Array.isArray(chips) ? chips : [];
+    const safePlayerIds = Array.isArray(playerIds)
+      ? playerIds
+      : Array(9).fill(null);
+    const safePlayerBets = Array.isArray(playerBets)
+      ? playerBets
+      : Array(9).fill(0);
+    const safeChips = Array.isArray(chips) ? chips : Array(9).fill(0);
 
     // Log current state for debugging
     console.log("🎮 usePokerActions state:", {
@@ -70,7 +74,9 @@ export function usePokerActions() {
         : 0;
 
     // Check player state - don't allow actions if sitting out
-    const safePlayerStates = Array.isArray(playerStates) ? playerStates : [];
+    const safePlayerStates = Array.isArray(playerStates)
+      ? playerStates
+      : Array(9).fill("empty");
     const myPlayerState =
       mySeatIndex < safePlayerStates.length
         ? safePlayerStates[mySeatIndex]
@@ -99,11 +105,11 @@ export function usePokerActions() {
         myCurrentBet,
         maxBet,
         betToCall,
-        playerIds: playerIds.map((id, i) => ({
+        playerIds: safePlayerIds.map((id, i) => ({
           i,
           id: id?.slice(0, 10) + "...",
-          chips: chips[i] || 0,
-          bet: playerBets[i] || 0,
+          chips: safeChips[i] || 0,
+          bet: safePlayerBets[i] || 0,
         })),
       });
     }
@@ -113,7 +119,11 @@ export function usePokerActions() {
     const minRaiseAmount = minRaise || bigBlind;
 
     // Check if this is BB with option (preflop, I'm BB, everyone called)
-    const totalPlayers = safePlayerIds.length;
+    const totalPlayers =
+      safePlayerIds.filter(Boolean).length ||
+      safePlayerStates.filter(
+        (s) => s && s !== "empty" && s !== "sittingOut",
+      ).length;
     const bbIndex =
       dealerIndex !== null && totalPlayers > 2
         ? (dealerIndex + 2) % totalPlayers // Multi-way: BB is 2 seats after dealer

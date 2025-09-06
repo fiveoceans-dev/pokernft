@@ -69,7 +69,6 @@ export default function PlayerActionButtons({
   const {
     street,
     phase,
-    players,
     playerIds,
     playerStates,
     cardsRevealed,
@@ -81,8 +80,18 @@ export default function PlayerActionButtons({
     muckCards,
   } = useGameStore();
 
+  const safePlayerIds = Array.isArray(playerIds)
+    ? playerIds
+    : Array(9).fill(null);
+  const safePlayerStates = Array.isArray(playerStates)
+    ? playerStates
+    : Array(9).fill("empty");
+  const safeCardsRevealed = Array.isArray(cardsRevealed)
+    ? cardsRevealed
+    : Array(9).fill(false);
+
   const walletSeat = currentWalletId
-    ? playerIds.findIndex(
+    ? safePlayerIds.findIndex(
         (id) => id?.toLowerCase() === currentWalletId.toLowerCase(),
       )
     : -1;
@@ -90,15 +99,20 @@ export default function PlayerActionButtons({
   const isShowdown = phase === "showdown";
   const isValidPhase = ["showdown", "payout"].includes(phase || "");
   const hasValidSeat = walletSeat >= 0;
-  const notFolded = playerStates[walletSeat] !== "folded" && playerStates[walletSeat] !== "empty";
+  const notFolded =
+    safePlayerStates[walletSeat] !== "folded" &&
+    safePlayerStates[walletSeat] !== "empty";
   const hasCards = hasValidSeat && notFolded;
-  
+
   // Show Muck/Show buttons during showdown when player has cards
-  const canRevealCards = isValidPhase && hasCards && !cardsRevealed[walletSeat];
-  const canMuckCards = isValidPhase && hasCards && cardsRevealed[walletSeat];
-  
+  const canRevealCards =
+    isValidPhase && hasCards && !safeCardsRevealed[walletSeat];
+  const canMuckCards =
+    isValidPhase && hasCards && safeCardsRevealed[walletSeat];
+
   // Legacy show cards button (keep existing logic for compatibility)
-  const canShowCards = street === 4 && hasCards && !cardsRevealed[walletSeat];
+  const canShowCards =
+    street === 4 && hasCards && !safeCardsRevealed[walletSeat];
 
   return (
     <div
