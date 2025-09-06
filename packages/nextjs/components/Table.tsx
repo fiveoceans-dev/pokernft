@@ -61,16 +61,28 @@ export default function Table({ timer }: { timer?: number | null }) {
   const countdownInfo = useCountdownWithPriority(gameStore.countdowns);
   const seats = seatStore((state) => state.seats);
 
+  // Ensure arrays are always defined
+  const safePlayers = Array.isArray(players) ? players : Array(9).fill(null);
+  const safePlayerIds = Array.isArray(playerIds) ? playerIds : Array(9).fill(null);
+  const safePlayerHands = Array.isArray(playerHands)
+    ? playerHands
+    : Array(9).fill(null);
+  const safeChips = Array.isArray(chips) ? chips : Array(9).fill(0);
+  const safePlayerBets = Array.isArray(playerBets) ? playerBets : Array(9).fill(0);
+  const safePlayerStates = Array.isArray(playerStates)
+    ? playerStates
+    : Array(9).fill("empty");
+
   // Debug logging for player data
   console.log("🎲 Table component debug:", {
-    playersCount: players.filter((p) => p).length,
-    players: players
+    playersCount: safePlayers.filter((p) => p).length,
+    players: safePlayers
       .map((p, i) => ({ seat: i, name: p }))
       .filter((p) => p.name),
-    playerIds: playerIds
+    playerIds: safePlayerIds
       .map((id, i) => ({ seat: i, id: id?.slice(0, 10) + "..." }))
       .filter((p) => p.id && p.id !== "undefined..."),
-    chips: chips
+    chips: safeChips
       .map((c, i) => ({ seat: i, chips: c }))
       .filter((c) => c.chips > 0),
     currentTurn,
@@ -121,7 +133,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     }
 
     // Prevent seating if this wallet is already seated at the table
-    if (playerIds.some((id) => id?.toLowerCase() === address.toLowerCase())) {
+    if (safePlayerIds.some((id) => id?.toLowerCase() === address.toLowerCase())) {
       alert("You are already seated at this table");
       return;
     }
@@ -129,7 +141,7 @@ export default function Table({ timer }: { timer?: number | null }) {
     // Additional validation: check if any other address variants are seated
     if (
       gameStoreAddress &&
-      playerIds.some(
+      safePlayerIds.some(
         (id) =>
           id &&
           id.toLowerCase() === gameStoreAddress.toLowerCase() &&
@@ -187,7 +199,7 @@ export default function Table({ timer }: { timer?: number | null }) {
   /* helper – render a seat or an empty placeholder */
   const seatAt = (idx: number) => {
     const seat = seats.get(idx);
-    const handCodes = playerHands[idx];
+    const handCodes = safePlayerHands[idx];
     const pos = layout[idx];
     if (!pos) return null;
     const posStyle = {
@@ -232,9 +244,9 @@ export default function Table({ timer }: { timer?: number | null }) {
     const hand: [TCard, TCard] | null = handCodes
       ? [hashIdToCard(handCodes[0]), hashIdToCard(handCodes[1])]
       : null;
-    const state = playerStates[idx];
-    const playerChips = chips[idx] ?? 0;
-    const betAmount = playerBets[idx] ?? 0;
+    const state = safePlayerStates[idx];
+    const playerChips = safeChips[idx] ?? 0;
+    const betAmount = safePlayerBets[idx] ?? 0;
     const isDealer = idx === dealerIndex;
     const isActive = idx === currentTurn;
     const isWinner = recentWinners.has(idx);
@@ -279,22 +291,26 @@ export default function Table({ timer }: { timer?: number | null }) {
     const betBg = getBetChipColor(betAmount, bigBlind);
 
     // Calculate blind positions (SB = dealer + 1, BB = dealer + 2 for multi-way games)
-    const totalPlayers = players.filter((p) => p).length;
+    const totalPlayers =
+      safePlayers.filter((p) => p).length ||
+      safePlayerStates.filter(
+        (s) => s && s !== "empty" && s !== "sittingOut",
+      ).length;
     const isSmallBlind =
       totalPlayers > 2 &&
       dealerIndex !== null &&
-      (dealerIndex + 1) % players.length === idx;
+      (dealerIndex + 1) % safePlayers.length === idx;
     const isBigBlind =
       totalPlayers > 2 &&
       dealerIndex !== null &&
-      (dealerIndex + 2) % players.length === idx;
+      (dealerIndex + 2) % safePlayers.length === idx;
     // For heads-up, dealer is SB
     const isHeadsUpSmallBlind =
       totalPlayers === 2 && dealerIndex !== null && dealerIndex === idx;
     const isHeadsUpBigBlind =
       totalPlayers === 2 &&
       dealerIndex !== null &&
-      (dealerIndex + 1) % players.length === idx;
+      (dealerIndex + 1) % safePlayers.length === idx;
 
     return (
       <Fragment key={idx}>
