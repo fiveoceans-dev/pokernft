@@ -256,16 +256,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       room.pots?.reduce((sum: number, pt: any) => sum + pt.amount, 0) ??
       0;
 
-    const seatApi = seatStore.getState();
-    seats.forEach((name, idx) => {
-      const pid = ids[idx];
-      if (pid) {
-        seatApi.assignSeat(idx, { playerId: pid, name });
-      } else {
-        seatApi.clearSeat(idx);
-      }
-    });
-
     set({
       playerHands: hands,
       community: comm,
@@ -350,11 +340,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               break;
             case "PLAYER_JOINED":
               set((s) => {
-                seatStore.getState().assignSeat(msg.seat, {
-                  playerId: msg.playerId,
-                  name: (msg as any).nickname || msg.playerId,
-                });
-
                 if (msg.playerId === s.currentWalletId) {
                   const newTableSeats = new Map(s.tableSeats);
                   newTableSeats.set(msg.tableId || s.tableId || "", msg.seat);
@@ -367,7 +352,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               break;
             case "PLAYER_LEFT":
               set((s) => {
-                seatStore.getState().clearSeat(msg.seat);
                 const states = [...s.playerStates];
                 const chips = [...s.chips];
                 const bets = [...s.playerBets];
@@ -443,7 +427,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               break;
             case "PLAYER_DISCONNECTED":
               set((s) => {
-                seatStore.getState().clearSeat(msg.seat);
                 const states = [...s.playerStates];
                 const chips = [...s.chips];
                 const bets = [...s.playerBets];
@@ -515,13 +498,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               set((s) => {
                 const states = [...s.playerStates];
                 states[msg.seat] = "active";
-                const currentName =
-                  seatStore.getState().seats.get(msg.seat)?.name ||
-                  msg.playerId;
-                seatStore.getState().assignSeat(msg.seat, {
-                  playerId: msg.playerId,
-                  name: currentName,
-                });
                 return { playerStates: states };
               });
               get().addLog(`${shortAddress(msg.playerId)} rejoined`);
@@ -769,13 +745,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               set((s) => {
                 const states = [...s.playerStates];
 
-                // Use nickname if available, otherwise use playerId for display
-                const nickname =
-                  (msg as any).nickname || shortAddress(msg.playerId);
-                seatStore.getState().assignSeat(msg.seat, {
-                  playerId: msg.playerId,
-                  name: nickname,
-                });
                 states[msg.seat] = "active"; // Show as sitting out until next hand
 
                 // If this is our wallet, update table seats tracking
@@ -1305,7 +1274,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         set((s) => {
           const idx = seatStore.getState().findSeatId(s.currentWalletId);
           if (idx === undefined) return {};
-          seatStore.getState().clearSeat(idx);
           const states = [...s.playerStates];
           states[idx] = "empty";
           return { playerStates: states };
