@@ -86,6 +86,8 @@ export type ClientCommand =
       buyIn: number;
       /** client wallet address - takes precedence over session */
       playerId?: string;
+      /** display name for the player */
+      nickname?: string;
     }
   | { cmdId: string; type: "LEAVE" }
   | { cmdId: string; type: "SIT_OUT" }

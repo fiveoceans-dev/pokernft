@@ -149,7 +149,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       // New EventEngine format
       room.seats.forEach((seat: any, index: number) => {
         if (seat.pid) {
-          seats[index] = seat.nickname || seat.pid;
+          // Always ensure we have a display name - preserve existing name if new snapshot doesn't provide one
+          const currentName = currentState.players[index];
+          const newName = seat.nickname || seat.pid;
+          seats[index] = newName || currentName || seat.pid;
           ids[index] = seat.pid;
 
           // Handle card display logic:
@@ -1265,6 +1268,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           seat: seatIdx,
           buyIn: 10000, // Always $10k per seat
           playerId: currentWalletId, // Send client wallet as authoritative
+          nickname: shortAddress(currentWalletId), // Provide display name
         } as ClientCommand;
         console.log("📤 Sending SIT command:", {
           tableId: currentTableId,
