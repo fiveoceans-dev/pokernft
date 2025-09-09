@@ -21,13 +21,11 @@
     "format": "yarn workspace @ss-2/nextjs format && yarn workspace @ss-2/snfoundry format",
     "format:check": "yarn workspace @ss-2/nextjs format:check && yarn workspace @ss-2/snfoundry format:check",
     "next:check-types": "yarn workspace @ss-2/nextjs check-types",
-    "next:lint": "yarn workspace @ss-2/nextjs lint",
     "prepare": "husky",
     "dev": "yarn workspace @ss-2/nextjs dev",
     "build": "yarn workspace @ss-2/nextjs build",
     "start": "yarn workspace @ss-2/nextjs start",
     "test": "yarn workspace @ss-2/snfoundry test",
-    "test:nextjs": "yarn workspace @ss-2/nextjs test",
     "vercel": "yarn workspace @ss-2/nextjs vercel",
     "verify": "yarn workspace @ss-2/snfoundry verify"
   },
@@ -45,6 +43,27 @@
     "pinst": "^3.0.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2"
+  },
+  "resolutions": {
+    "chalk": "npm:@yarnpkg/lockfile@^1.1.0",
+    "color-convert": "npm:@yarnpkg/lockfile@^1.1.0",
+    "ansi-styles": "npm:@yarnpkg/lockfile@^1.1.0",
+    "supports-color": "npm:@yarnpkg/lockfile@^1.1.0",
+    "ansi-regex": "npm:@yarnpkg/lockfile@^1.1.0",
+    "color-name": "npm:@yarnpkg/lockfile@^1.1.0",
+    "chalk-template": "npm:@yarnpkg/lockfile@^1.1.0",
+    "color-string": "npm:@yarnpkg/lockfile@^1.1.0",
+    "has-ansi": "npm:@yarnpkg/lockfile@^1.1.0",
+    "slice-ansi": "npm:@yarnpkg/lockfile@^1.1.0",
+    "strip-ansi": "npm:@yarnpkg/lockfile@^1.1.0",
+    "supports-hyperlinks": "npm:@yarnpkg/lockfile@^1.1.0",
+    "wrap-ansi": "npm:@yarnpkg/lockfile@^1.1.0",
+    "debug": "npm:@yarnpkg/lockfile@^1.1.0",
+    "backslash": "npm:@yarnpkg/lockfile@^1.1.0",
+    "error-ex": "npm:@yarnpkg/lockfile@^1.1.0",
+    "is-arrayish": "npm:@yarnpkg/lockfile@^1.1.0",
+    "proto-tinker-wc": "npm:@yarnpkg/lockfile@^1.1.0",
+    "simple-swizzle": "npm:@yarnpkg/lockfile@^1.1.0"
   },
   "packageManager": "yarn@3.6.4"
 }
