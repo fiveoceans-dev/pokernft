@@ -270,19 +270,24 @@ export function postBlinds(
  * End the current hand and prepare for next
  */
 export function endHand(table: Table): StateTransition {
-  // Remove broke players (0 chips) from the table
+  // Identify players who busted (0 chips) and keep them seated but sitting out
+  const bustedSeats = table.seats
+    .filter((seat) => seat.pid && seat.chips === 0)
+    .map((seat) => ({ id: seat.id, pid: seat.pid! }));
+
+  // Keep seats intact to preserve identity; do not auto-remove broke players
   const newSeats = table.seats.map((seat) => {
     if (seat.pid && seat.chips === 0) {
       console.log(
-        `💸 [Reducer] Removing broke player ${seat.pid} from seat ${seat.id}`,
+        `💸 [Reducer] Player ${seat.pid} busted at seat ${seat.id} — marking sit out (preserving seat)`,
       );
+      // Preserve identity; clear transient per-hand fields if desired
       return {
-        id: seat.id,
-        chips: 0,
+        ...seat,
         committed: 0,
         streetCommitted: 0,
-        status: "empty" as SeatStatus,
-      };
+        // Status is managed by FSM; do not force to empty to avoid losing identity
+      } as any;
     }
     return seat;
   });
@@ -329,14 +334,13 @@ export function endHand(table: Table): StateTransition {
   }
 
   // Emit notification if players were removed
-  const brokePlayersRemoved = table.seats.filter(
-    (seat, index) => seat.pid && newSeats[index].status === "empty",
-  ).length;
-
-  if (brokePlayersRemoved > 0) {
+  // Dispatch PlayerSitOut events for busted players so UI and managers reflect state
+  for (const s of bustedSeats) {
     sideEffects.push({
-      type: "EMIT_STATE_CHANGE",
-      payload: { reason: "broke_players_removed" },
+      type: "DISPATCH_EVENT",
+      payload: {
+        event: { t: "PlayerSitOut", seat: s.id, pid: s.pid, reason: "busted" },
+      },
     });
   }
 

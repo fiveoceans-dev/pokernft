@@ -35,21 +35,21 @@ export function useGameEvents() {
         case "PLAYER_DISCONNECTED":
           seatStore.getState().clearSeat(msg.seat);
           break;
-        case "TABLE_SNAPSHOT":
-          if (connectionState !== "connected") {
-            const api = seatStore.getState();
-            api.reset();
-            const table: any = (msg as any).table;
-            table?.seats?.forEach((seat: any, idx: number) => {
-              if (seat?.pid) {
-                api.assignSeat(idx, {
-                  playerId: seat.pid,
-                  name: seat.nickname || shortAddress(seat.pid),
-                });
-              }
-            });
-          }
+        case "TABLE_SNAPSHOT": {
+          // Always (re)seed seatStore from authoritative snapshot
+          const api = seatStore.getState();
+          api.reset();
+          const table: any = (msg as any).table;
+          table?.seats?.forEach((seat: any, idx: number) => {
+            if (seat?.pid) {
+              api.assignSeat(idx, {
+                playerId: seat.pid,
+                name: seat.nickname || shortAddress(seat.pid),
+              });
+            }
+          });
           break;
+        }
       }
     };
 

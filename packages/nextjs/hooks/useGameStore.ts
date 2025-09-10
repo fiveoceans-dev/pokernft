@@ -158,11 +158,22 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     // Handle both new EventEngine format (seats array) and legacy format (players array)
     if (room.seats && Array.isArray(room.seats)) {
       // New EventEngine format
+      const seatNameCache = (() => {
+        try {
+          // Pull latest names from seatStore as an additional fallback
+          const m = seatStore.getState().seats;
+          return m;
+        } catch {
+          return new Map<number, { playerId: string; name?: string | null }>();
+        }
+      })();
       room.seats.forEach((seat: any, index: number) => {
         if (seat.pid) {
           // Always ensure we have a display name - preserve existing name if new snapshot doesn't provide one
           const currentName = currentState.players[index];
-          seats[index] = seat.nickname || currentName || shortAddress(seat.pid);
+          const cached = seatNameCache.get(index);
+          const cachedName = cached && cached.playerId?.toLowerCase() === seat.pid.toLowerCase() ? cached.name : null;
+          seats[index] = seat.nickname || currentName || cachedName || shortAddress(seat.pid);
           ids[index] = seat.pid;
 
           // Handle card display logic:
@@ -343,11 +354,20 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           switch (msg.type) {
             case "SESSION":
               console.log("📨 Received SESSION message:", msg);
-              if (msg.userId) {
-                // Store in walletAddress as primary key
-                localStorage.setItem("walletAddress", msg.userId);
-                set({ currentWalletId: msg.userId });
-                console.log("💾 Stored wallet address:", msg.userId);
+              try {
+                // Persist sessionId to enable REATTACH across reloads
+                if ((msg as any).sessionId) {
+                  localStorage.setItem("sessionId", (msg as any).sessionId);
+                  console.log("💾 Stored sessionId:", (msg as any).sessionId);
+                }
+                // Persist wallet address (userId) if present
+                if (msg.userId) {
+                  localStorage.setItem("walletAddress", msg.userId);
+                  set({ currentWalletId: msg.userId });
+                  console.log("💾 Stored wallet address:", msg.userId);
+                }
+              } catch (e) {
+                console.error("🚫 Failed to persist session info:", e);
               }
               break;
             case "TABLE_CREATED":
@@ -745,6 +765,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               console.log("🃏 Showdown started");
               get().addLog(`🃏 Showdown!`);
               // Do not auto-reveal everyone; let winners and user preference handle visibility
+              try {
+                const auto = get().autoRevealAtShowdown;
+                if (auto) {
+                  // Politely request to reveal our own cards on showdown
+                  await get().showCards();
+                }
+              } catch (e) {
+                console.warn("⚠️ Auto-show at showdown failed (non-fatal)", e);
+              }
               break;
             case "DEALER_MESSAGE":
               console.log("📢 Dealer message:", msg.message);
@@ -862,11 +891,25 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         reconnectAttempts = 0;
         set({ connectionState: "connected", connectionError: null });
 
-        // Use walletAddress as the single source of truth for connected wallet
+        // Prefer REATTACH using persisted sessionId to restore room/seat/user binding
+        const persistedSessionId = localStorage.getItem("sessionId");
+        if (persistedSessionId) {
+          try {
+            const reattach: ClientCommand = {
+              cmdId: crypto.randomUUID(),
+              type: "REATTACH",
+              sessionId: persistedSessionId,
+            } as any;
+            socket!.send(JSON.stringify(reattach));
+            console.log("📤 Sent REATTACH with sessionId:", persistedSessionId);
+          } catch (e) {
+            console.error("🚫 Failed to REATTACH session:", e);
+          }
+        }
+
+        // Also attach wallet if we have it (idempotent on server)
         const address = localStorage.getItem("walletAddress");
-
         console.log("🔍 Checking for stored wallet address:", address);
-
         if (address) {
           try {
             const cmd: ClientCommand = {
@@ -881,10 +924,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             console.error("🚫 Failed to attach wallet:", error);
             set({ connectionError: "Failed to attach wallet" });
           }
-        } else {
-          console.log(
-            "ℹ️ No wallet address found, continuing without attachment",
-          );
         }
 
         const pendingTable = get().tableId;
@@ -1300,34 +1339,39 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const currentTableId = tableId || get().tableId;
       if (!currentTableId) return;
 
-      const { currentWalletId, tableSeats } = get();
-      if (!currentWalletId || !tableSeats.has(currentTableId)) return;
+      const { tableSeats } = get();
 
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        const cmd: ClientCommand = {
-          cmdId: crypto.randomUUID(),
-          type: "LEAVE",
-          tableId: currentTableId,
-        } as ClientCommand;
-        socket.send(JSON.stringify(cmd));
+      // Send LEAVE to server if connected (best-effort)
+      try {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          const cmd: ClientCommand = {
+            cmdId: crypto.randomUUID(),
+            type: "LEAVE",
+            tableId: currentTableId,
+          } as ClientCommand;
+          socket.send(JSON.stringify(cmd));
+        }
+      } catch (e) {
+        console.warn("ℹ️ LEAVE command not sent (offline or error)", e);
       }
 
-      // Update local state
+      // Always update local state so user can exit regardless of mapping/connection
       const newTableSeats = new Map(tableSeats);
       newTableSeats.delete(currentTableId);
       set({ tableSeats: newTableSeats });
 
-      // If leaving current table, clear player state
+      // If leaving current table, clear our own seat state locally
       if (currentTableId === get().tableId) {
         set((s) => {
           const idx = seatStore.getState().findSeatId(s.currentWalletId);
-          if (idx === undefined) return {};
           const states = [...s.playerStates];
           const names = [...s.players];
           const ids = [...s.playerIds];
-          states[idx] = "empty";
-          names[idx] = null;
-          ids[idx] = null;
+          if (idx !== undefined) {
+            states[idx] = "empty";
+            names[idx] = null;
+            ids[idx] = null;
+          }
           return { playerStates: states, players: names, playerIds: ids };
         });
       }

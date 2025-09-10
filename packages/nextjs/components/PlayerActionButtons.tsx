@@ -279,8 +279,8 @@ export default function PlayerActionButtons({
           </button>
 
           {/* Professional Muck/Show Cards area */}
-          <div className="flex items-center gap-2 px-2 py-1 rounded bg-black/20">
-            {/* Show Muck/Show buttons during showdown */}
+          <div className="flex items-center gap-2 px-2 h-8 rounded bg-black/20">
+            {/* Show/Muck buttons during showdown */}
             {canRevealCards && (
               <button
                 onClick={() => showCards()}
@@ -306,7 +306,7 @@ export default function PlayerActionButtons({
                 Show Cards
               </button>
             )}
-            <label className="flex items-center gap-1 text-[10px] text-white/80 cursor-pointer select-none">
+            <label className="flex items-center gap-1 h-8 px-2 rounded border border-white/10 bg-black/30 text-[10px] text-white/80 cursor-pointer select-none">
               <input
                 type="checkbox"
                 className="accent-yellow-500 cursor-pointer"
