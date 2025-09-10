@@ -769,7 +769,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 const auto = get().autoRevealAtShowdown;
                 if (auto) {
                   // Politely request to reveal our own cards on showdown
-                  await get().showCards();
+                  void get().showCards();
                 }
               } catch (e) {
                 console.warn("⚠️ Auto-show at showdown failed (non-fatal)", e);
