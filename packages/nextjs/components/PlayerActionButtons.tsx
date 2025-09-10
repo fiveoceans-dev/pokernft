@@ -22,7 +22,7 @@ export default function PlayerActionButtons({
   minRaise,
   isMobile: propIsMobile,
 }: Props) {
-  const { playerAction, connectionState, bigBlind } = useGameStore();
+  const { playerAction, connectionState, bigBlind, leaveSeat } = useGameStore();
   const effectiveMinRaise = minRaise ?? bigBlind;
   const [raiseAmount, setRaiseAmount] = useState(effectiveMinRaise);
   const [isActionPending, setIsActionPending] = useState(false);
@@ -62,6 +62,19 @@ export default function PlayerActionButtons({
       await captureAndDownloadScreen();
     } catch (error) {
       console.error("Failed to capture screen:", error);
+    }
+  };
+
+  const [isLeaving, setIsLeaving] = useState(false);
+  const handleLeave = async () => {
+    if (isLeaving) return;
+    setIsLeaving(true);
+    try {
+      await leaveSeat();
+    } catch (e) {
+      console.error("Failed to leave table:", e);
+    } finally {
+      setIsLeaving(false);
     }
   };
 
@@ -255,11 +268,8 @@ export default function PlayerActionButtons({
       </div>
 
       {/* Row 2 - Camera Button + Quick Bet Buttons */}
-      <div
-        className="flex items-center justify-between gap-1 mb-2"
-        style={{ minHeight: "32px" }}
-      >
-        {/* Left cluster: Screenshot + Show Cards dashed area */}
+      <div className="flex items-center justify-between gap-1 mb-2" style={{ minHeight: "32px" }}>
+        {/* Left cluster: Screenshot + Reveal Cluster */}
         <div className="flex items-center gap-2">
           {/* Camera Capture Button */}
           <button
@@ -278,34 +288,37 @@ export default function PlayerActionButtons({
             </svg>
           </button>
 
-          {/* Professional Muck/Show Cards area */}
-          <div className="flex items-center gap-2 px-2 h-8 rounded bg-black/20">
-            {/* Show/Muck buttons during showdown */}
-            {canRevealCards && (
-              <button
-                onClick={() => showCards()}
-                className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-green-600 hover:bg-green-700"
-              >
-                Show
-              </button>
-            )}
-            {canMuckCards && (
-              <button
-                onClick={() => muckCards()}
-                className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-red-600 hover:bg-red-700"
-              >
-                Muck
-              </button>
-            )}
-            {/* Legacy Show Cards button (fallback for non-showdown situations) */}
-            {canShowCards && !isValidPhase && (
-              <button
-                onClick={() => walletSeat >= 0 && revealCards(walletSeat)}
-                className="px-2 h-8 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm bg-yellow-600 hover:bg-yellow-700"
-              >
-                Show Cards
-              </button>
-            )}
+          {/* Reveal Cluster: preserves space for Show/Muck, then Auto-show */}
+          <div className="flex items-center gap-2 px-2 h-8 rounded">
+            {/* Left: Show/Muck area with fixed placeholders to preserve layout */}
+            <div className="flex items-center gap-2 min-w-[140px] h-8">
+              {canRevealCards ? (
+                <button
+                  onClick={() => showCards()}
+                  className="min-w-[60px] h-8 px-2 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm border border-white/20 hover:border-white/40"
+                >
+                  Show
+                </button>
+              ) : (
+                <div className="min-w-[60px] h-8 px-2 rounded text-xs opacity-0 pointer-events-none">
+                  Show
+                </div>
+              )}
+              {canMuckCards ? (
+                <button
+                  onClick={() => muckCards()}
+                  className="min-w-[60px] h-8 px-2 rounded text-xs font-medium transition-all duration-200 text-white shadow-sm border border-white/20 hover:border-white/40"
+                >
+                  Muck
+                </button>
+              ) : (
+                <div className="min-w-[60px] h-8 px-2 rounded text-xs opacity-0 pointer-events-none">
+                  Muck
+                </div>
+              )}
+            </div>
+
+            {/* Middle: Auto-show toggle (always present) */}
             <label className="flex items-center gap-1 h-8 px-2 rounded border border-white/10 bg-black/30 text-[10px] text-white/80 cursor-pointer select-none">
               <input
                 type="checkbox"
