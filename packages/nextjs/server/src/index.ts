@@ -9,7 +9,7 @@
  */
 
 import 'dotenv/config';
-import { createServer } from "http";
+import { createServer, type IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
 
@@ -48,7 +48,12 @@ const server = createServer((req, res) => {
   
   // Health check endpoint
   if (url.pathname === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer'
+    });
     res.end(JSON.stringify({ 
       status: 'healthy', 
       timestamp: new Date().toISOString(),
@@ -60,20 +65,35 @@ const server = createServer((req, res) => {
   
   // API endpoint to list tables
   if (url.pathname === '/api/tables') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer'
+    });
     res.end(JSON.stringify({ tables: bridge.getTables() }));
     return;
   }
   
   // Default response
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, {
+    'Content-Type': 'text/plain',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer'
+  });
   res.end('Pure Event-Driven FSM Poker Server - Use WebSocket for game play');
 });
 
 /**
  * WebSocket Server with FSM Integration
  */
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+  server,
+  maxPayload: process.env.WS_MAX_PAYLOAD
+    ? parseInt(process.env.WS_MAX_PAYLOAD, 10)
+    : 64 * 1024,
+});
 const sessions = new SessionManager();
 const bridge = new WebSocketFSMBridge(sessions);
 
@@ -168,7 +188,32 @@ bridge.on('error', (roomId: string, error: ServerEvent) => {
 /**
  * WebSocket Connection Handler
  */
-wss.on("connection", (ws: WebSocket) => {
+wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
+  // Origin allowlist check
+  try {
+    const origin = (req.headers["origin"] || "").toString();
+    const allowed = (process.env.ALLOWED_WS_ORIGINS || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const isDev = (process.env.NODE_ENV || 'development') !== 'production';
+    const devAllowed = [
+      'http://localhost:3000',
+      'http://localhost:3005',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3005'
+    ];
+    const ok = !origin || allowed.includes(origin) || (isDev && devAllowed.includes(origin));
+    if (!ok) {
+      logger.warn(`🚫 WS origin rejected: ${origin}`);
+      ws.close(1008, 'Origin not allowed');
+      return;
+    }
+  } catch (e) {
+    logger.error('Origin validation error:', e);
+    ws.close(1011, 'Server error');
+    return;
+  }
   connectionCount++;
   const clientId = `client-${connectionCount}`;
   logger.info(`🔗 [${clientId}] Connected (Total: ${wss.clients.size})`);
@@ -452,6 +497,23 @@ ws.on("message", async (data) => {
     });
   });
 });
+
+// WebSocket heartbeat to terminate dead connections
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((client) => {
+    const anyClient = client as any;
+    if (anyClient.isAlive === false) return client.terminate();
+    anyClient.isAlive = false;
+    try { client.ping(); } catch {}
+  });
+}, 30000);
+
+wss.on('connection', (client) => {
+  (client as any).isAlive = true;
+  client.on('pong', () => ((client as any).isAlive = true));
+});
+
+wss.on('close', () => clearInterval(heartbeatInterval));
 
 /**
  * Server Startup

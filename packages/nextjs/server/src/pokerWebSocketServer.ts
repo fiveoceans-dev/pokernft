@@ -43,6 +43,8 @@ class WebSocketFSMBridge extends EventEmitter {
   private sessions: SessionManager;
   // Track which players' hole cards are revealed per table (for snapshot sanitization)
   private revealedByTable = new Map<string, Set<string>>();
+  // Simple rate limiter state: sessionId -> { windowStartMs, count }
+  private rl = new Map<string, { t: number; c: number }>();
 
   constructor(sessions: SessionManager) {
     super();
@@ -538,6 +540,27 @@ class WebSocketFSMBridge extends EventEmitter {
     command: ClientCommand,
   ): Promise<void> {
     try {
+      // Rate limit commands per session (window 5s, max 40 cmds)
+      const now = Date.now();
+      const w = 5000;
+      const max = 40;
+      const key = session.sessionId;
+      const state = this.rl.get(key) || { t: now, c: 0 };
+      if (now - state.t > w) {
+        state.t = now;
+        state.c = 0;
+      }
+      state.c++;
+      this.rl.set(key, state);
+      if (state.c > max) {
+        this.emit("error", session.roomId || "", {
+          type: "ERROR",
+          code: "RATE_LIMIT",
+          msg: `Too many commands; try again later`,
+        } as any);
+        return;
+      }
+
       switch (command.type) {
         case "SIT":
           await this.handleSitCommand(session, command);
