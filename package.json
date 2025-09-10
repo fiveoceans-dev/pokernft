@@ -27,7 +27,8 @@
     "start": "yarn workspace @ss-2/nextjs start",
     "test": "yarn workspace @ss-2/snfoundry test",
     "vercel": "yarn workspace @ss-2/nextjs vercel",
-    "verify": "yarn workspace @ss-2/snfoundry verify"
+    "verify": "yarn workspace @ss-2/snfoundry verify",
+    "audit": "yarn npm audit || true"
   },
   "dependencies": {
     "@starknet-io/get-starknet-core": "^4.0.7",
