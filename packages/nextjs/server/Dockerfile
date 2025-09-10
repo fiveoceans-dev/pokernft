@@ -1,6 +1,7 @@
 # Multi-stage Dockerfile for PokerNFT WebSocket Server
 # Stage 1: Build stage
 FROM node:18-alpine AS builder
+ENV npm_config_ignore_scripts=true
 
 # Set working directory
 WORKDIR /app
@@ -24,6 +25,7 @@ RUN mkdir -p dist/src
 
 # Stage 2: Production stage
 FROM node:18-alpine AS production
+ENV npm_config_ignore_scripts=true
 
 # Set NODE_ENV to production
 ENV NODE_ENV=production

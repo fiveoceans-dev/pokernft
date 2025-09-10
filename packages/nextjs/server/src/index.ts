@@ -9,7 +9,7 @@
  */
 
 import 'dotenv/config';
-import { createServer } from "http";
+import { createServer, type IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
 
@@ -36,6 +36,9 @@ import {
 
 // Environment Configuration
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
+const RECONNECT_GRACE_MS = (process.env.RECONNECT_GRACE_SECONDS
+  ? parseInt(process.env.RECONNECT_GRACE_SECONDS, 10)
+  : 30) * 1000; // default 30s
 
 /**
  * HTTP Server with Health Endpoints
@@ -45,7 +48,12 @@ const server = createServer((req, res) => {
   
   // Health check endpoint
   if (url.pathname === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer'
+    });
     res.end(JSON.stringify({ 
       status: 'healthy', 
       timestamp: new Date().toISOString(),
@@ -57,20 +65,35 @@ const server = createServer((req, res) => {
   
   // API endpoint to list tables
   if (url.pathname === '/api/tables') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer'
+    });
     res.end(JSON.stringify({ tables: bridge.getTables() }));
     return;
   }
   
   // Default response
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, {
+    'Content-Type': 'text/plain',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer'
+  });
   res.end('Pure Event-Driven FSM Poker Server - Use WebSocket for game play');
 });
 
 /**
  * WebSocket Server with FSM Integration
  */
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+  server,
+  maxPayload: process.env.WS_MAX_PAYLOAD
+    ? parseInt(process.env.WS_MAX_PAYLOAD, 10)
+    : 64 * 1024,
+});
 const sessions = new SessionManager();
 const bridge = new WebSocketFSMBridge(sessions);
 
@@ -97,15 +120,25 @@ function createPersistentTables(): void {
 /**
  * Broadcast events to WebSocket clients
  */
-function sanitizeTableForSession(table: Table, session: Session): Table {
+function sanitizeTableForSession(table: Table, session: Session, roomId: string): Table {
   // Only expose holeCards for the viewer's own seat; strip others
   const viewerSeat = session.seat;
+  const revealed = bridge.getRevealedPids(roomId);
   const seats = table.seats.map((s, idx) => {
     if (s && s.pid && idx !== viewerSeat) {
       const { holeCards, ...rest } = s as any;
-      return { ...rest, holeCards: undefined };
+      // Ensure nickname is always populated for rendering stability
+      const nickname = rest.nickname || shortAddress(rest.pid);
+      // Reveal cards if player has been marked revealed (showdown or explicit show)
+      const shouldReveal = revealed.has(rest.pid.toLowerCase());
+      return { ...rest, holeCards: shouldReveal ? holeCards : undefined, nickname };
     }
-    return s;
+    if (s && s.pid) {
+      // For viewer seat, also ensure nickname fallback
+      const nickname = (s as any).nickname || shortAddress((s as any).pid);
+      return { ...(s as any), nickname } as any;
+    }
+    return s as any;
   });
   // Enforce numeric-only arrays for community and burns
   const communityCards = (table.communityCards || []).filter((c: any) => typeof c === 'number');
@@ -129,7 +162,7 @@ function broadcast(roomId: string, event: ServerEvent): void {
         // Sanitize TABLE_SNAPSHOT per viewer to avoid leaking others' hole cards
         let payload: ServerEvent = event;
         if (event.type === "TABLE_SNAPSHOT") {
-          const sanitized = sanitizeTableForSession((event as any).table, session);
+          const sanitized = sanitizeTableForSession((event as any).table, session, roomId);
           payload = { ...event, table: sanitized } as ServerEvent;
         }
         const msg = JSON.stringify({ ...payload, tableId: roomId });
@@ -155,7 +188,32 @@ bridge.on('error', (roomId: string, error: ServerEvent) => {
 /**
  * WebSocket Connection Handler
  */
-wss.on("connection", (ws: WebSocket) => {
+wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
+  // Origin allowlist check
+  try {
+    const origin = (req.headers["origin"] || "").toString();
+    const allowed = (process.env.ALLOWED_WS_ORIGINS || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const isDev = (process.env.NODE_ENV || 'development') !== 'production';
+    const devAllowed = [
+      'http://localhost:3000',
+      'http://localhost:3005',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3005'
+    ];
+    const ok = !origin || allowed.includes(origin) || (isDev && devAllowed.includes(origin));
+    if (!ok) {
+      logger.warn(`🚫 WS origin rejected: ${origin}`);
+      ws.close(1008, 'Origin not allowed');
+      return;
+    }
+  } catch (e) {
+    logger.error('Origin validation error:', e);
+    ws.close(1011, 'Server error');
+    return;
+  }
   connectionCount++;
   const clientId = `client-${connectionCount}`;
   logger.info(`🔗 [${clientId}] Connected (Total: ${wss.clients.size})`);
@@ -174,11 +232,88 @@ wss.on("connection", (ws: WebSocket) => {
   /**
    * Message Handler - Convert WebSocket commands to FSM events
    */
-  ws.on("message", async (data) => {
-    try {
-      const command: ClientCommand = JSON.parse(data.toString());
-      
-      logger.debug(`📨 [${clientId}] Command: ${command.type}`);
+// Basic command validation before delegating to the FSM bridge
+function validateClientCommand(cmd: any): { ok: true } | { ok: false; code: string; msg: string } {
+  if (!cmd || typeof cmd !== "object") {
+    return { ok: false, code: "VALIDATION_ERROR", msg: "Missing or invalid command payload" };
+  }
+
+  if (!cmd.type || typeof cmd.type !== "string") {
+    return { ok: false, code: "VALIDATION_ERROR", msg: "Missing command type" };
+  }
+
+  switch (cmd.type) {
+    case "LIST_TABLES":
+      return { ok: true };
+    case "JOIN_TABLE":
+      if (!cmd.tableId || typeof cmd.tableId !== "string") {
+        return { ok: false, code: "VALIDATION_ERROR", msg: "JOIN_TABLE requires tableId" };
+      }
+      return { ok: true };
+    case "CREATE_TABLE":
+      if (!cmd.name || typeof cmd.name !== "string" || cmd.name.trim().length < 2) {
+        return { ok: false, code: "VALIDATION_ERROR", msg: "CREATE_TABLE requires name (>= 2 chars)" };
+      }
+      return { ok: true };
+    case "REATTACH":
+      if (!cmd.sessionId || typeof cmd.sessionId !== "string") {
+        return { ok: false, code: "VALIDATION_ERROR", msg: "REATTACH requires sessionId" };
+      }
+      return { ok: true };
+    case "ATTACH":
+      if (!cmd.userId || typeof cmd.userId !== "string") {
+        return { ok: false, code: "VALIDATION_ERROR", msg: "ATTACH requires userId" };
+      }
+      return { ok: true };
+    case "SIT": {
+      if (!cmd.tableId || typeof cmd.tableId !== "string") {
+        return { ok: false, code: "VALIDATION_ERROR", msg: "SIT requires tableId" };
+      }
+      if (typeof cmd.seat !== "number" || cmd.seat < 0 || cmd.seat > 8) {
+        return { ok: false, code: "VALIDATION_ERROR", msg: "SIT requires seat 0..8" };
+      }
+      // buyIn/chips are optional (server can recommend); don't fail hard here
+      return { ok: true };
+    }
+    case "ACTION": {
+      const actions = ["FOLD", "CHECK", "CALL", "BET", "RAISE", "ALLIN"];
+      if (!actions.includes(cmd.action)) {
+        return { ok: false, code: "VALIDATION_ERROR", msg: `Invalid action: ${cmd.action}` };
+      }
+      if ((cmd.action === "BET" || cmd.action === "RAISE") && (typeof cmd.amount !== "number" || cmd.amount <= 0)) {
+        return { ok: false, code: "VALIDATION_ERROR", msg: `${cmd.action} requires positive amount` };
+      }
+      return { ok: true };
+    }
+    case "LEAVE":
+    case "SIT_OUT":
+    case "SIT_IN":
+    case "SHOW_CARDS":
+    case "MUCK_CARDS":
+      return { ok: true };
+    default:
+      return { ok: false, code: "BAD_COMMAND", msg: `Unknown command type: ${cmd.type}` };
+  }
+}
+
+ws.on("message", async (data) => {
+  try {
+    const command: ClientCommand = JSON.parse(data.toString());
+    
+    logger.debug(`📨 [${clientId}] Command: ${command.type}`);
+    // Early validation: reject malformed commands consistently
+    const v = validateClientCommand(command as any);
+    if (!v.ok) {
+      const err: ServerEvent = {
+        tableId: (command as any)?.tableId || session.roomId || "",
+        type: "ERROR",
+        code: v.code,
+        msg: v.msg,
+      } as ServerEvent;
+      ws.send(JSON.stringify(err));
+      logger.warn(`⚠️ Rejected command: ${v.code} - ${v.msg}`);
+      return;
+    }
       
       // Handle session-level commands
       switch (command.type) {
@@ -347,10 +482,38 @@ wss.on("connection", (ws: WebSocket) => {
           seat: s.seat,
           playerId: s.userId || s.sessionId,
         });
+
+        // Start a reconnect grace countdown so clients can reflect the state
+        try {
+          const playerId = s.userId || s.sessionId;
+          bridge.startReconnectCountdown(s.roomId, playerId, RECONNECT_GRACE_MS);
+          logger.info(
+            `⏳ Started reconnect countdown for ${playerId} on ${s.roomId} (${RECONNECT_GRACE_MS}ms)`,
+          );
+        } catch (err) {
+          logger.error(`❌ Failed to start reconnect countdown:`, err);
+        }
       }
     });
   });
 });
+
+// WebSocket heartbeat to terminate dead connections
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((client) => {
+    const anyClient = client as any;
+    if (anyClient.isAlive === false) return client.terminate();
+    anyClient.isAlive = false;
+    try { client.ping(); } catch {}
+  });
+}, 30000);
+
+wss.on('connection', (client) => {
+  (client as any).isAlive = true;
+  client.on('pong', () => ((client as any).isAlive = true));
+});
+
+wss.on('close', () => clearInterval(heartbeatInterval));
 
 /**
  * Server Startup

@@ -108,7 +108,7 @@ export default function PlayPage() {
   }, [baseW, baseH, isMobile]);
 
   const handleLeaveTable = useCallback(async () => {
-    if (walletSeatIdx < 0 || isLeaving) return;
+    if (isLeaving) return;
 
     setIsLeaving(true);
 
@@ -175,7 +175,7 @@ export default function PlayPage() {
       {/* Game Header */}
       <div className="game-header">
         <AnimatedTitle text="Poker Night on Starknet" />
-        {walletSeatIdx >= 0 && (
+        {true && (
           <div className="header-actions">
             <button
               onClick={handleSitOutToggle}
@@ -202,9 +202,9 @@ export default function PlayPage() {
 
             <button
               onClick={handleLeaveClick}
-              disabled={isLeaving || connectionState === "disconnected"}
+              disabled={isLeaving}
               className={`action-btn leave ${
-                isLeaving || connectionState === "disconnected"
+                isLeaving
                   ? "disabled"
                   : ""
               }`}

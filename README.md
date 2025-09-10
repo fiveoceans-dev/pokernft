@@ -9,6 +9,8 @@ Real-time multiplayer Texas Hold'em poker with Starknet wallet integration.
 - 🔌 **WebSocket Server**: Real-time multiplayer on Heroku (`packages/nextjs/server/`)
 - ⛓️ **Smart Contracts**: Cairo contracts for future blockchain integration (`packages/snfoundry/`)
 
+Note: We are realigning modules to a cleaner, package-based architecture. See `docs/architecture/ADR-001-Architecture-Realignment.md` for the target structure and migration plan.
+
 ## 🚀 Quick Start
 
 This repository uses **Node 18+** and **Yarn** workspaces.

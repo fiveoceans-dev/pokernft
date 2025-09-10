@@ -41,10 +41,34 @@ import { saveSession } from "./persistence";
 class WebSocketFSMBridge extends EventEmitter {
   private engines = new Map<string, EventEngine>();
   private sessions: SessionManager;
+  // Track which players' hole cards are revealed per table (for snapshot sanitization)
+  private revealedByTable = new Map<string, Set<string>>();
+  // Simple rate limiter state: sessionId -> { windowStartMs, count }
+  private rl = new Map<string, { t: number; c: number }>();
 
   constructor(sessions: SessionManager) {
     super();
     this.sessions = sessions;
+  }
+
+  /** Get revealed player IDs for a table */
+  getRevealedPids(tableId: string): Set<string> {
+    let set = this.revealedByTable.get(tableId);
+    if (!set) {
+      set = new Set<string>();
+      this.revealedByTable.set(tableId, set);
+    }
+    return set;
+  }
+
+  /** Mark player as revealed for a table */
+  private markRevealed(tableId: string, pid: string) {
+    this.getRevealedPids(tableId).add(pid.toLowerCase());
+  }
+
+  /** Mark player as not revealed for a table */
+  private unmarkRevealed(tableId: string, pid: string) {
+    this.getRevealedPids(tableId).delete(pid.toLowerCase());
   }
 
   /**
@@ -106,6 +130,30 @@ class WebSocketFSMBridge extends EventEmitter {
       }
 
       return normalizedPlayerId;
+    }
+
+    // Opportunistic recovery: if userId missing but we know seat, bind from FSM table state
+    try {
+      if (!session.userId && session.roomId !== undefined && session.seat !== undefined) {
+        const engine = this.engines.get(session.roomId);
+        if (engine) {
+          const table = engine.getState();
+          const seat = table.seats[session.seat];
+          if (seat?.pid) {
+            const recovered = this.normalizePlayerId(seat.pid);
+            const success = this.sessions.updateBinding(session, recovered);
+            if (success) {
+              await saveSession(session);
+              logger.warn(
+                `🔧 [Identity] Recovered and bound userId from FSM seat: ${recovered} (table ${session.roomId}, seat ${session.seat})`,
+              );
+              return recovered;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      logger.error(`❌ [Identity] Seat-based recovery failed:`, e);
     }
 
     // Use session's bound wallet or fall back to session ID
@@ -410,6 +458,8 @@ class WebSocketFSMBridge extends EventEmitter {
         break;
 
       case "StartHand":
+        // Clear revealed cards tracking at the start of a new hand
+        this.revealedByTable.set(tableId, new Set<string>());
         this.emit("broadcast", tableId, { type: "HAND_START" });
         break;
 
@@ -462,6 +512,10 @@ class WebSocketFSMBridge extends EventEmitter {
               );
               return { seat: seat ? seat.id : -1, playerId: pid };
             });
+
+            // Showdown rule: winners' cards must be visible to all
+            winners.forEach((w) => this.markRevealed(tableId, w.playerId));
+
             this.emit("broadcast", tableId, {
               type: "WINNER_ANNOUNCEMENT",
               winners,
@@ -486,6 +540,27 @@ class WebSocketFSMBridge extends EventEmitter {
     command: ClientCommand,
   ): Promise<void> {
     try {
+      // Rate limit commands per session (window 5s, max 40 cmds)
+      const now = Date.now();
+      const w = 5000;
+      const max = 40;
+      const key = session.sessionId;
+      const state = this.rl.get(key) || { t: now, c: 0 };
+      if (now - state.t > w) {
+        state.t = now;
+        state.c = 0;
+      }
+      state.c++;
+      this.rl.set(key, state);
+      if (state.c > max) {
+        this.emit("error", session.roomId || "", {
+          type: "ERROR",
+          code: "RATE_LIMIT",
+          msg: `Too many commands; try again later`,
+        } as any);
+        return;
+      }
+
       switch (command.type) {
         case "SIT":
           await this.handleSitCommand(session, command);
@@ -861,7 +936,6 @@ class WebSocketFSMBridge extends EventEmitter {
 
     // Get current table state to validate showdown context
     const tableState = engine.getState();
-    const isShowdown = tableState.phase === "showdown";
     const isValidPhase = ["showdown", "payout"].includes(tableState.phase);
 
     if (!isValidPhase) {
@@ -871,13 +945,29 @@ class WebSocketFSMBridge extends EventEmitter {
       return;
     }
 
+    // Validate player has cards to show (not folded and has hole cards)
+    const seat = tableState.seats[session.seat];
+    if (!seat || seat.status === "folded" || !seat.holeCards || seat.holeCards.length !== 2) {
+      logger.warn(`⚠️ [SHOW_CARDS] No cards to show for ${canonicalId}`);
+      return;
+    }
+
     logger.info(
       `🃏 [SHOW_CARDS] Player ${canonicalId} revealing cards at seat ${session.seat}`,
     );
 
-    // Update cardsRevealed state - this will be broadcast via stateChanged
-    // For now, we'll handle this through the client-side store
-    // TODO: Add server-side card reveal tracking if needed
+    // Mark player as revealed and broadcast fresh snapshot so others see the cards
+    this.markRevealed(session.roomId, canonicalId);
+    try {
+      const table = this.getTableState(session.roomId);
+      this.emit("broadcast", session.roomId, {
+        tableId: session.roomId,
+        type: "TABLE_SNAPSHOT",
+        table,
+      } as ServerEvent);
+    } catch (e) {
+      logger.error(`❌ [SHOW_CARDS] Failed to broadcast snapshot:`, e);
+    }
   }
 
   /**
@@ -907,12 +997,37 @@ class WebSocketFSMBridge extends EventEmitter {
       return;
     }
 
+    // Validate player has cards to muck (not folded and has hole cards)
+    const seat = tableState.seats[session.seat];
+    if (!seat || seat.status === "folded" || !seat.holeCards || seat.holeCards.length !== 2) {
+      logger.warn(`⚠️ [MUCK_CARDS] No cards to muck for ${canonicalId}`);
+      return;
+    }
+
     logger.info(
       `🃏 [MUCK_CARDS] Player ${canonicalId} mucking cards at seat ${session.seat}`,
     );
 
-    // Cards remain hidden - no action needed as server already sanitizes them
-    // Client will handle the muck state
+    // Showdown rule: winners cannot muck; losers may muck to hide their cards
+    const winners = Array.from(this.getRevealedPids(session.roomId) || []);
+    const isWinner = winners.includes(canonicalId.toLowerCase());
+    if (isWinner) {
+      logger.warn(`⚠️ [MUCK_CARDS] Winner ${canonicalId} cannot muck at showdown`);
+      return;
+    }
+
+    // Remove reveal flag and broadcast snapshot to hide cards
+    this.unmarkRevealed(session.roomId, canonicalId);
+    try {
+      const table = this.getTableState(session.roomId);
+      this.emit("broadcast", session.roomId, {
+        tableId: session.roomId,
+        type: "TABLE_SNAPSHOT",
+        table,
+      } as ServerEvent);
+    } catch (e) {
+      logger.error(`❌ [MUCK_CARDS] Failed to broadcast snapshot:`, e);
+    }
   }
 
   /**

@@ -1,0 +1,36 @@
+name: CI Security
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  install-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Use Yarn 3
+        run: corepack enable
+
+      - name: Install (immutable, scripts disabled)
+        run: |
+          export YARN_ENABLE_SCRIPTS=0
+          yarn install --immutable --inline-builds
+
+      - name: Audit (npm)
+        run: |
+          yarn npm audit --audit-level=low || true
+
+      # Optional: Socket.dev or Snyk can be added here
+      # - name: Snyk test
+      #   run: npx snyk test || true
+
