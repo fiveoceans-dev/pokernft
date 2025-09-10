@@ -5,75 +5,78 @@ import Card from "./Card";
 import type { Card as TCard, SeatUIState } from "../game-engine";
 import { shortAddress } from "../utils/address";
 import { GlowEffect } from "./GlowEffect";
+import type { SeatState } from "../stores/seatStore";
 
 interface PlayerSeatProps {
-  player: {
-    name: string;
-    address: string;
-    chips: number;
-    hand: [TCard, TCard] | 'encrypted' | null;
-    folded: boolean;
-    currentBet: number;
-  }; // player object from your Zustand store
-  isDealer?: boolean; // show “D” marker if true
-  isActive?: boolean; // highlight border when it's this player's turn
-  revealCards?: boolean; // if true, show hole cards face-up
-  cardSize?: "xs" | "sm" | "md" | "lg"; // size of player's hole cards
-  dealerOffset?: { x: number; y: number }; // offset dealer button toward centre
-  state?: SeatUIState; // include UI-only sittingOut state
-  isWinner?: boolean; // show sparkle effect if true
-  actionLabel?: string; // dynamic action label (Check, Bet $40, etc.)
+  seat?: SeatState;
+  status?: SeatUIState;
+  hand?: [TCard, TCard] | "encrypted" | null;
+  isDealer?: boolean;
+  isActive?: boolean;
+  revealCards?: boolean;
+  cardSize?: "xs" | "sm" | "md" | "lg";
+  dealerOffset?: { x: number; y: number };
+  isWinner?: boolean;
+  actionLabel?: string;
 }
 
 export default function PlayerSeat({
-  player,
+  seat,
+  status = "active",
+  hand = null,
   isDealer = false,
   isActive = false,
   revealCards = false,
   cardSize = "sm",
   dealerOffset = { x: 0, y: -20 },
-  state = "active",
   isWinner = false,
   actionLabel,
 }: PlayerSeatProps) {
-  // Handle different card states:
-  // - 'encrypted': Player has cards but they're hidden (show card backs)
-  // - [TCard, TCard]: Real cards (show faces if revealCards=true, otherwise backs)
-  // - null: No cards (don't render anything)
-  const hasEncryptedCards = player.hand === 'encrypted';
-  const [hole1, hole2]: [TCard | null, TCard | null] = hasEncryptedCards 
-    ? [null, null] 
-    : (Array.isArray(player.hand) ? player.hand : [null, null]);
+  const hasEncryptedCards = hand === "encrypted";
+  const [hole1, hole2]: [TCard | null, TCard | null] = hasEncryptedCards
+    ? [null, null]
+    : Array.isArray(hand)
+      ? hand
+      : [null, null];
 
   const isPlaceholderAddress = (addr: string) =>
     addr.toLowerCase() === "white" || /^0x0{40}$/.test(addr);
 
-  const displayName = player.name?.trim()
-    ? player.name
-    : player.address && !isPlaceholderAddress(player.address)
-      ? shortAddress(player.address)
-      : "";
+  const displayName = seat?.name?.trim()
+    ? seat.name
+    : seat?.playerId && !isPlaceholderAddress(seat.playerId)
+      ? shortAddress(seat.playerId)
+      : "—";
 
   return (
-    <div className={clsx("relative w-24 h-8", player.folded && "opacity-60")}>
-      {/* Hole cards/back-of-cards display */}
-      {/* Render if player has cards (encrypted or real) */}
-      {(player.hand && player.hand !== null) && (
+    <div
+      className={clsx(
+        "relative w-24 h-8",
+        status === "folded" && "opacity-60",
+        status === "empty" && "opacity-50",
+      )}
+    >
+      {hand && hand !== null && (
         <div
           className="absolute w-full flex justify-center gap-1"
           style={{ bottom: "150%", marginBottom: "0.5rem" }}
         >
-          {/* Show faces only when revealCards is true and cards aren't encrypted */}
-          <Card card={hole1} hidden={!revealCards || hasEncryptedCards} size={cardSize} />
-          <Card card={hole2} hidden={!revealCards || hasEncryptedCards} size={cardSize} />
+          <Card
+            card={hole1}
+            hidden={!revealCards || hasEncryptedCards}
+            size={cardSize}
+          />
+          <Card
+            card={hole2}
+            hidden={!revealCards || hasEncryptedCards}
+            size={cardSize}
+          />
         </div>
       )}
 
-      {/* Seat box with player name */}
       <div
         className={clsx("relative w-full h-full", isActive && "animate-pulse")}
       >
-        {/* Dealer marker */}
         {isDealer && (
           <span
             className="absolute left-1/2 top-1/2 w-6 h-6 rounded-full bg-accent text-black text-xs font-bold flex items-center justify-center"
@@ -91,9 +94,11 @@ export default function PlayerSeat({
               "absolute inset-0 flex flex-col items-center justify-center rounded border font-semibold text-center px-1 transition-colors",
               isActive
                 ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
-                : state === "active"
+                : status === "active"
                   ? "bg-gray-700/80 border-gray-400 opacity-60"
-                  : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
+                  : status === "empty"
+                    ? "bg-black/20 border-gray-600"
+                    : "bg-black/60 border-gray-500 hover:bg-red-500 hover:border-red-500",
             )}
           >
             <span className="text-[var(--color-highlight)] truncate w-full text-xs">
@@ -101,9 +106,7 @@ export default function PlayerSeat({
             </span>
           </div>
         </GlowEffect>
-        {/* Professional action label with proper priority */}
         {(() => {
-          // Priority 1: Always show action label if it exists (regardless of state)
           if (actionLabel) {
             const color = actionLabel.toLowerCase().includes("all")
               ? "text-yellow-300"
@@ -119,8 +122,7 @@ export default function PlayerSeat({
             );
           }
 
-          // Priority 2: Only show state labels when no action taken
-          if (state === "sittingOut") {
+          if (status === "sittingOut") {
             return (
               <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold whitespace-nowrap transition-all duration-200 text-orange-300">
                 Sitting Out

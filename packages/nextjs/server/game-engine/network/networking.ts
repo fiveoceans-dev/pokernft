@@ -18,10 +18,22 @@ export type ServerEvent =
   | { tableId: ""; type: "TABLE_LIST"; tables: LobbyTable[] }
   | { tableId: string; type: "TABLE_CREATED"; table: LobbyTable }
   | { tableId: string; type: "HAND_START" }
-  | { tableId: string; type: "GAME_START_COUNTDOWN"; countdown: number; activePlayerCount?: number; totalPlayerCount?: number }
+  | {
+      tableId: string;
+      type: "GAME_START_COUNTDOWN";
+      countdown: number;
+      activePlayerCount?: number;
+      totalPlayerCount?: number;
+    }
   | { tableId: string; type: "BLINDS_POSTED" }
   | { tableId: string; type: "DEAL_HOLE"; seat: number; cards: [Card, Card] }
-  | { tableId: string; type: "PLAYER_JOINED"; seat: number; playerId: string }
+  | {
+      tableId: string;
+      type: "PLAYER_JOINED";
+      seat: number;
+      playerId: string;
+      nickname?: string;
+    }
   | { tableId: string; type: "PLAYER_LEFT"; seat: number; playerId: string }
   | {
       tableId: string;
@@ -29,10 +41,33 @@ export type ServerEvent =
       seat: number;
       playerId: string;
     }
-  | { tableId: string; type: "PLAYER_REJOINED"; seat: number; playerId: string }
-  | { tableId: string; type: "PLAYER_WAITING"; seat: number; playerId: string }
-  | { tableId: string; type: "WAITING_FOR_NEXT_HAND"; seat: number; msg: string }
-  | { tableId: string; type: "PLAYER_SAT_OUT"; seat: number; playerId: string; reason?: string }
+  | {
+      tableId: string;
+      type: "PLAYER_REJOINED";
+      seat: number;
+      playerId: string;
+      nickname?: string;
+    }
+  | {
+      tableId: string;
+      type: "PLAYER_WAITING";
+      seat: number;
+      playerId: string;
+      nickname?: string;
+    }
+  | {
+      tableId: string;
+      type: "WAITING_FOR_NEXT_HAND";
+      seat: number;
+      msg: string;
+    }
+  | {
+      tableId: string;
+      type: "PLAYER_SAT_OUT";
+      seat: number;
+      playerId: string;
+      reason?: string;
+    }
   | { tableId: string; type: "PLAYER_SAT_IN"; seat: number; playerId: string }
   | { tableId: string; type: "TABLE_RESET"; message?: string }
   | {
@@ -68,7 +103,12 @@ export type ServerEvent =
   | { tableId: string; type: "BUTTON_MOVED"; buttonIndex: number }
   | { tableId: string; type: "TIMER"; countdown: number }
   | { tableId: string; type: "DEALER_MESSAGE"; message: string }
-  | { tableId: string; type: "WINNER_ANNOUNCEMENT"; winners: Array<{ seat: number; playerId: string }>; potAmount: number }
+  | {
+      tableId: string;
+      type: "WINNER_ANNOUNCEMENT";
+      winners: Array<{ seat: number; playerId: string }>;
+      potAmount: number;
+    }
   | { tableId: string; type: "ERROR"; code: string; msg: string };
 
 export type ClientCommand =
@@ -86,6 +126,8 @@ export type ClientCommand =
       buyIn: number;
       /** client wallet address - takes precedence over session */
       playerId?: string;
+      /** display name for the player */
+      nickname?: string;
     }
   | { cmdId: string; type: "LEAVE" }
   | { cmdId: string; type: "SIT_OUT" }

@@ -14,12 +14,31 @@ export function usePlayViewModel() {
     dealRiver,
     playerHands,
     players,
+    playerStates,
     startBlindTimer,
   } = useGameStore();
   const [timer, setTimer] = useState<number | null>(null);
 
-  const handStarted = playerHands.some((h) => h !== null);
-  const activePlayers = players.filter(Boolean).length;
+  // Ensure we always work with valid arrays
+  const safePlayerHands = Array.isArray(playerHands)
+    ? playerHands
+    : Array(9).fill(null);
+  const safePlayers = Array.isArray(players)
+    ? players
+    : Array(9).fill(null);
+
+  const handStarted = safePlayerHands.some((h) => h !== null);
+
+  // Prefer players array for counts, fall back to playerStates
+  let activePlayers = safePlayers.filter(Boolean).length;
+  if (
+    activePlayers === 0 &&
+    Array.isArray(playerStates)
+  ) {
+    activePlayers = playerStates.filter(
+      (s) => s && s !== "empty" && s !== "sittingOut",
+    ).length;
+  }
 
   useEffect(() => {
     const originalBody = document.body.style.overflow;
