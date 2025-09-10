@@ -36,18 +36,29 @@ export function useGameEvents() {
           seatStore.getState().clearSeat(msg.seat);
           break;
         case "TABLE_SNAPSHOT": {
-          // Always (re)seed seatStore from authoritative snapshot
+          // Diff-based update to avoid flicker: assign occupied, clear vacated
           const api = seatStore.getState();
-          api.reset();
           const table: any = (msg as any).table;
+          const occupied = new Set<number>();
+
+          // Assign all occupied seats from snapshot
           table?.seats?.forEach((seat: any, idx: number) => {
             if (seat?.pid) {
+              occupied.add(idx);
               api.assignSeat(idx, {
                 playerId: seat.pid,
                 name: seat.nickname || shortAddress(seat.pid),
               });
             }
           });
+
+          // Clear seats that are no longer occupied
+          try {
+            const current = new Map(api.seats);
+            current.forEach((_, idx) => {
+              if (!occupied.has(idx)) api.clearSeat(idx);
+            });
+          } catch {}
           break;
         }
       }
