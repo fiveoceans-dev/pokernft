@@ -100,6 +100,19 @@ export function processPayout(
   
   console.log(`💰 [Reducer] Total distributed: $${totalPayout} from $${totalPots} in pots`);
 
+  // Compute winners set (pids with positive payout)
+  const winners = Array.from(
+    new Set(
+      distributions.filter((d) => d.amount > 0).map((d) => d.pid.toLowerCase()),
+    ),
+  );
+
+  // Merge winners into revealedPids (winners must show)
+  const revealedSet = new Set(
+    (table.revealedPids || []).map((p) => p.toLowerCase()),
+  );
+  winners.forEach((pid) => revealedSet.add(pid));
+
   // Immediately transition to handEnd phase to prevent infinite loops
   const nextState = {
     ...table,
@@ -110,6 +123,8 @@ export function processPayout(
     lastAggressor: undefined,
     currentBet: 0,
     lastRaiseSize: table.bigBlind,
+    winnersPids: winners,
+    revealedPids: Array.from(revealedSet),
   };
 
   // Side effects: announce winners and schedule next hand

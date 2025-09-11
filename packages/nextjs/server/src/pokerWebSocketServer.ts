@@ -41,8 +41,6 @@ import { saveSession } from "./persistence";
 class WebSocketFSMBridge extends EventEmitter {
   private engines = new Map<string, EventEngine>();
   private sessions: SessionManager;
-  // Track which players' hole cards are revealed per table (for snapshot sanitization)
-  private revealedByTable = new Map<string, Set<string>>();
   // Simple rate limiter state: sessionId -> { windowStartMs, count }
   private rl = new Map<string, { t: number; c: number }>();
 
@@ -51,25 +49,6 @@ class WebSocketFSMBridge extends EventEmitter {
     this.sessions = sessions;
   }
 
-  /** Get revealed player IDs for a table */
-  getRevealedPids(tableId: string): Set<string> {
-    let set = this.revealedByTable.get(tableId);
-    if (!set) {
-      set = new Set<string>();
-      this.revealedByTable.set(tableId, set);
-    }
-    return set;
-  }
-
-  /** Mark player as revealed for a table */
-  private markRevealed(tableId: string, pid: string) {
-    this.getRevealedPids(tableId).add(pid.toLowerCase());
-  }
-
-  /** Mark player as not revealed for a table */
-  private unmarkRevealed(tableId: string, pid: string) {
-    this.getRevealedPids(tableId).delete(pid.toLowerCase());
-  }
 
   /**
    * Get canonical identity for consistent lookups
@@ -513,9 +492,6 @@ class WebSocketFSMBridge extends EventEmitter {
               return { seat: seat ? seat.id : -1, playerId: pid };
             });
 
-            // Showdown rule: winners' cards must be visible to all
-            winners.forEach((w) => this.markRevealed(tableId, w.playerId));
-
             this.emit("broadcast", tableId, {
               type: "WINNER_ANNOUNCEMENT",
               winners,
@@ -956,18 +932,8 @@ class WebSocketFSMBridge extends EventEmitter {
       `🃏 [SHOW_CARDS] Player ${canonicalId} revealing cards at seat ${session.seat}`,
     );
 
-    // Mark player as revealed and broadcast fresh snapshot so others see the cards
-    this.markRevealed(session.roomId, canonicalId);
-    try {
-      const table = this.getTableState(session.roomId);
-      this.emit("broadcast", session.roomId, {
-        tableId: session.roomId,
-        type: "TABLE_SNAPSHOT",
-        table,
-      } as ServerEvent);
-    } catch (e) {
-      logger.error(`❌ [SHOW_CARDS] Failed to broadcast snapshot:`, e);
-    }
+    // Dispatch PlayerShowCards to the engine (authoritative)
+    await engine.dispatch({ t: "PlayerShowCards", pid: canonicalId });
   }
 
   /**
@@ -1016,18 +982,8 @@ class WebSocketFSMBridge extends EventEmitter {
       return;
     }
 
-    // Remove reveal flag and broadcast snapshot to hide cards
-    this.unmarkRevealed(session.roomId, canonicalId);
-    try {
-      const table = this.getTableState(session.roomId);
-      this.emit("broadcast", session.roomId, {
-        tableId: session.roomId,
-        type: "TABLE_SNAPSHOT",
-        table,
-      } as ServerEvent);
-    } catch (e) {
-      logger.error(`❌ [MUCK_CARDS] Failed to broadcast snapshot:`, e);
-    }
+    // Dispatch PlayerMuckCards to the engine (authoritative)
+    await engine.dispatch({ t: "PlayerMuckCards", pid: canonicalId });
   }
 
   /**

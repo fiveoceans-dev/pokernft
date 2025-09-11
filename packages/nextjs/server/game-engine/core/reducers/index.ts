@@ -18,6 +18,33 @@ import { applyHoleCards, enterStreet } from "./cardDealing";
 import { applyAction, handleTimeoutAutoFold } from "./actionProcessing";
 import { closeStreet, processShowdown, processPayout } from "./potManagement";
 import { addPlayer, removePlayer, sitOutPlayer, sitInPlayer } from "./tableManagement";
+import { Table } from "../types";
+
+function playerShowCards(table: Table, pid: string) {
+  // Validate phase and that player has cards
+  const validPhase = ["showdown", "payout"].includes(table.phase as any);
+  if (!validPhase) return { nextState: table, sideEffects: [] };
+  const seat = table.seats.find((s) => s.pid && s.pid.toLowerCase() === pid.toLowerCase());
+  if (!seat || !seat.holeCards || seat.status === "folded") return { nextState: table, sideEffects: [] };
+  const set = new Set((table.revealedPids || []).map((p) => p.toLowerCase()));
+  set.add(pid.toLowerCase());
+  const nextState = { ...table, revealedPids: Array.from(set) } as Table;
+  return { nextState, sideEffects: [{ type: "EMIT_STATE_CHANGE", payload: { reason: "player_show_cards" } }] };
+}
+
+function playerMuckCards(table: Table, pid: string) {
+  // Validate phase and that player has cards; winners cannot muck
+  const validPhase = ["showdown", "payout"].includes(table.phase as any);
+  if (!validPhase) return { nextState: table, sideEffects: [] };
+  const seat = table.seats.find((s) => s.pid && s.pid.toLowerCase() === pid.toLowerCase());
+  if (!seat || !seat.holeCards || seat.status === "folded") return { nextState: table, sideEffects: [] };
+  const winners = new Set((table.winnersPids || []).map((p) => p.toLowerCase()));
+  if (winners.has(pid.toLowerCase())) return { nextState: table, sideEffects: [] };
+  const set = new Set((table.revealedPids || []).map((p) => p.toLowerCase()));
+  set.delete(pid.toLowerCase());
+  const nextState = { ...table, revealedPids: Array.from(set) } as Table;
+  return { nextState, sideEffects: [{ type: "EMIT_STATE_CHANGE", payload: { reason: "player_muck_cards" } }] };
+}
 
 /**
  * Main reducer function - pure and deterministic
@@ -73,6 +100,12 @@ export function reduce(table: Table, event: PokerEvent): StateTransition {
 
     case "PlayerSitIn":
       return sitInPlayer(table, event.seat, event.pid);
+
+    case "PlayerShowCards":
+      return playerShowCards(table, event.pid);
+
+    case "PlayerMuckCards":
+      return playerMuckCards(table, event.pid);
 
     default:
       // TypeScript ensures all cases are handled
