@@ -97,6 +97,13 @@ const wss = new WebSocketServer({
 const sessions = new SessionManager();
 const bridge = new WebSocketFSMBridge(sessions);
 
+// Local helper to avoid leaking frontend utilities into server path
+function shortAddr(id?: string): string | undefined {
+  if (!id) return id;
+  const s = id.toString();
+  return s.length > 10 ? `${s.slice(0, 6)}...${s.slice(-4)}` : s;
+}
+
 // Connection tracking
 let connectionCount = 0;
 
@@ -123,19 +130,27 @@ function createPersistentTables(): void {
 function sanitizeTableForSession(table: Table, session: Session, roomId: string): Table {
   // Only expose holeCards for the viewer's own seat; strip others
   const viewerSeat = session.seat;
-  const revealed = bridge.getRevealedPids(roomId);
+  const bridgeRevealed = bridge.getRevealedPids(roomId);
+  const tableRevealed = new Set((table as any).revealedPids || []);
+  const revealed = new Set([...bridgeRevealed, ...tableRevealed]);
   const seats = table.seats.map((s, idx) => {
     if (s && s.pid && idx !== viewerSeat) {
       const { holeCards, ...rest } = s as any;
       // Ensure nickname is always populated for rendering stability
-      const nickname = rest.nickname || shortAddress(rest.pid);
+      const nickname = rest.nickname || shortAddr(rest.pid);
+      if (!nickname && process.env.NODE_ENV !== 'production') {
+        logger.warn(`Snapshot seat missing nickname (pid=${rest.pid})`);
+      }
       // Reveal cards if player has been marked revealed (showdown or explicit show)
       const shouldReveal = revealed.has(rest.pid.toLowerCase());
       return { ...rest, holeCards: shouldReveal ? holeCards : undefined, nickname };
     }
     if (s && s.pid) {
       // For viewer seat, also ensure nickname fallback
-      const nickname = (s as any).nickname || shortAddress((s as any).pid);
+      const nickname = (s as any).nickname || shortAddr((s as any).pid);
+      if (!nickname && process.env.NODE_ENV !== 'production') {
+        logger.warn(`Snapshot viewer seat missing nickname (pid=${(s as any).pid})`);
+      }
       return { ...(s as any), nickname } as any;
     }
     return s as any;
@@ -192,7 +207,9 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   // Origin allowlist check
   try {
     const origin = (req.headers["origin"] || "").toString();
-    const allowed = (process.env.ALLOWED_WS_ORIGINS || "")
+    // Support both env var names for compatibility
+    const allowedEnv = process.env.ALLOWED_WS_ORIGINS || process.env.ALLOWED_ORIGINS || "";
+    const allowed = allowedEnv
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);

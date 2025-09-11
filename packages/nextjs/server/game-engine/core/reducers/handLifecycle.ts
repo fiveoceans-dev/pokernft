@@ -78,6 +78,9 @@ export function startHand(
     deckIndex: 0,
     deckSeed,
     burns: { flop: [], turn: [], river: [] },
+    // Clear reveal/winner state for new hand
+    revealedPids: [],
+    winnersPids: [],
     // Reset all seats for new hand - only active players participate
     seats: table.seats.map((seat) => {
       if (!seat.pid) {

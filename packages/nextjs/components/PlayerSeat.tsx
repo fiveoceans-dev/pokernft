@@ -108,11 +108,14 @@ export default function PlayerSeat({
         </GlowEffect>
         {(() => {
           if (actionLabel) {
-            const color = actionLabel.toLowerCase().includes("all")
+            const lower = actionLabel.toLowerCase();
+            const color = lower.includes("all")
               ? "text-yellow-300"
-              : actionLabel.toLowerCase() === "fold"
+              : lower === "fold"
                 ? "text-gray-400"
-                : "text-blue-300";
+                : lower === "winner"
+                  ? "text-yellow-300"
+                  : "text-blue-300";
             return (
               <span
                 className={`absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold whitespace-nowrap transition-all duration-200 ${color}`}

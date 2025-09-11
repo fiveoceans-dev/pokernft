@@ -113,6 +113,10 @@ export interface Table {
   handNumber: number; // incrementing hand counter
   timestamp: number; // hand start time
 
+  // Showdown/reveal state (per hand)
+  revealedPids?: string[]; // players whose hole cards are revealed to all
+  winnersPids?: string[]; // last payout winners (cleared on StartHand)
+
   // Big blind option tracking
   bbSeat?: number; // big blind position
   bbHasActed?: boolean; // track if BB has used option
@@ -142,6 +146,7 @@ export type PokerEvent =
   | { t: "Showdown"; results: ShowdownResult[] }
   | { t: "Payout"; distributions: PayoutDistribution[] }
   | { t: "HandEnd" }
+  // Table management and player state
   | {
       t: "PlayerJoin";
       seat: number;
@@ -157,6 +162,9 @@ export type PokerEvent =
       reason: "voluntary" | "timeout" | "busted";
     }
   | { t: "PlayerSitIn"; seat: number; pid: string }
+  // Showdown visibility controls (event-driven)
+  | { t: "PlayerShowCards"; pid: string }
+  | { t: "PlayerMuckCards"; pid: string }
   | { t: "GameCountdownStart"; countdown: number }
   | { t: "GameCountdownStop"; reason: string };
 

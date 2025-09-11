@@ -786,28 +786,28 @@ export const useGameStore = create<GameStoreState>((set, get) => {
                 "pot:",
                 msg.potAmount,
               );
-              // Trigger sparkle effects for all winners
-              msg.winners.forEach((winner) => {
-                if (winner.seat >= 0) {
-                  console.log("✨ Triggering sparkle for seat:", winner.seat);
-                  get().markWinner(winner.seat);
-                  // Reveal winners' cards automatically per rules
-                  set((s) => {
-                    const revealed = [...s.cardsRevealed];
+              // Trigger winner visuals, reveal cards, and set action label to "Winner"
+              set((s) => {
+                const revealed = [...s.cardsRevealed];
+                const labels = [...s.lastActionLabels];
+                const winnersSet = new Set(s.recentWinners);
+                msg.winners.forEach((winner) => {
+                  if (winner.seat >= 0) {
+                    winnersSet.add(winner.seat);
                     revealed[winner.seat] = true;
-                    return { cardsRevealed: revealed };
-                  });
-
-                  // Clear winner effect after 5 seconds
-                  setTimeout(() => {
-                    set((s) => {
-                      const newWinners = new Set(s.recentWinners);
-                      newWinners.delete(winner.seat);
-                      return { recentWinners: newWinners };
-                    });
-                  }, 5000);
-                }
+                    labels[winner.seat] = "Winner";
+                  }
+                });
+                return { cardsRevealed: revealed, lastActionLabels: labels, recentWinners: winnersSet };
               });
+              // Schedule clearing of recentWinners (visual effect) after 5s
+              setTimeout(() => {
+                set((s) => {
+                  const newWinners = new Set(s.recentWinners);
+                  msg.winners.forEach((w) => newWinners.delete(w.seat));
+                  return { recentWinners: newWinners };
+                });
+              }, 5000);
               break;
             case "PLAYER_WAITING":
               // Handle player waiting to join next hand
