@@ -43,6 +43,8 @@ class WebSocketFSMBridge extends EventEmitter {
   private sessions: SessionManager;
   // Simple rate limiter state: sessionId -> { windowStartMs, count }
   private rl = new Map<string, { t: number; c: number }>();
+  // Track revealed players by table for showdown functionality
+  private revealedByTable = new Map<string, Set<string>>();
 
   constructor(sessions: SessionManager) {
     super();
@@ -1058,6 +1060,13 @@ class WebSocketFSMBridge extends EventEmitter {
    */
   private normalizePlayerId(playerId: string): string {
     return playerId.toLowerCase().trim();
+  }
+
+  /**
+   * Get revealed player IDs for a specific table
+   */
+  getRevealedPids(tableId: string): Set<string> {
+    return this.revealedByTable.get(tableId) || new Set<string>();
   }
 
   private shortAddress(address: string): string {
