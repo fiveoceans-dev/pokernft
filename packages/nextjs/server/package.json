@@ -17,14 +17,14 @@
     "dotenv": "^17.2.1",
     "redis": "^4.7.0",
     "uuid": "^9.0.0",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/uuid": "^9.0.0",
     "@types/ws": "^8.18.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.2",
     "vitest": "^2.1.9"
   },
   "overrides": {

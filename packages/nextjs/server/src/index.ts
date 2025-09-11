@@ -206,7 +206,9 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   // Origin allowlist check
   try {
     const origin = (req.headers["origin"] || "").toString();
-    const allowed = (process.env.ALLOWED_WS_ORIGINS || "")
+    // Support both env var names for compatibility
+    const allowedEnv = process.env.ALLOWED_WS_ORIGINS || process.env.ALLOWED_ORIGINS || "";
+    const allowed = allowedEnv
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
