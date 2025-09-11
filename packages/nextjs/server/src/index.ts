@@ -130,8 +130,9 @@ function createPersistentTables(): void {
 function sanitizeTableForSession(table: Table, session: Session, roomId: string): Table {
   // Only expose holeCards for the viewer's own seat; strip others
   const viewerSeat = session.seat;
-  const revealed = bridge.getRevealedPids(roomId);
-  const revealed = new Set((table as any).revealedPids || []);
+  const bridgeRevealed = bridge.getRevealedPids(roomId);
+  const tableRevealed = new Set((table as any).revealedPids || []);
+  const revealed = new Set([...bridgeRevealed, ...tableRevealed]);
   const seats = table.seats.map((s, idx) => {
     if (s && s.pid && idx !== viewerSeat) {
       const { holeCards, ...rest } = s as any;
