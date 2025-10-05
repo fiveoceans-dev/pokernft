@@ -26,6 +26,7 @@ export const menuLinks: HeaderMenuLink[] = [
   { label: "Live Games", href: "/#games" },
   { label: "Whitelist", href: "/whitelist" },
   { label: "Mint", href: "/nft/mint" },
+  { label: "Partners", href: "/partners" },
 ];
 
 export const HeaderMenuLinks = () => {
