@@ -174,7 +174,7 @@ export default function PlayPage() {
     >
       {/* Game Header */}
       <div className="game-header">
-        <AnimatedTitle text="Poker Night on Starknet" />
+        <AnimatedTitle text="Poker Night On-Chain" />
         {true && (
           <div className="header-actions">
             <button
