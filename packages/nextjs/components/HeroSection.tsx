@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 const slides = [
   {
     id: 0,
-    title: "Next-gen poker lives on-Starknet",
+    title: "Next-gen poker lives on-chain",
     image: "/carousel/pokernfts1.png",
   },
   {
@@ -16,7 +16,7 @@ const slides = [
   },
   {
     id: 2,
-    title: "Every Hand Verified. Every Bet on Chain.",
+    title: "Every Hand Verified. Every Bet on-chain.",
     image: "/carousel/pokernfts3.png",
   },
   { id: 3, title: "Permissionless wins.", image: "/carousel/pokernfts4.png" },
