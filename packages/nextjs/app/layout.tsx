@@ -5,7 +5,7 @@ import { ThemeProvider } from "~~/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "PokerNFTs",
-  description: "Fast track your starknet journey",
+  description: "Permissionless Poker",
   icons: "/logo.ico",
 };
 

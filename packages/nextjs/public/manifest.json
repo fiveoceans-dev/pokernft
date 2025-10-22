@@ -1,7 +1,7 @@
 {
   "name": "Scaffold Stark",
   "short_name": "Scaffold",
-  "description": "Fast track your starknet journey",
+  "description": "Permissionless Poker",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -21,7 +21,7 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["web3", "blockchain", "starknet"],
+  "categories": ["web3", "blockchain"],
   "screenshots": [
     {
       "src": "/screenshots/home.png",
