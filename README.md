@@ -1,6 +1,6 @@
-# 🎮 PokerNFT - Multiplayer Poker on Starknet
+# 🎮 PokerNFT - Multiplayer Poker
 
-Real-time multiplayer Texas Hold'em poker with Starknet wallet integration.
+Real-time multiplayer Texas Hold'em poker with wallet integration.
 
 ## 🏗️ Architecture
 

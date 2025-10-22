@@ -24,7 +24,7 @@ This guide covers the integration of three main components:
          │            Blockchain               │
          └─────────────────────────────────────┘
                  │  Smart Contracts  │
-                 │    (Starknet)     │
+                 │                   │
                  └───────────────────┘
 ```
 
